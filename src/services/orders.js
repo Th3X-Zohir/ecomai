@@ -1,6 +1,4 @@
-const orderRepo = require('../repositories/orders');
-const productRepo = require('../repositories/products');
-const { DomainError } = require('../errors/domain-error');
+const { orders, orderItems, products, createId } = require('../store');
 
 function calculateTotals(items) {
   const subtotal = items.reduce((sum, item) => sum + Number(item.line_total), 0);
@@ -14,25 +12,20 @@ function calculateTotals(items) {
 }
 
 function createOrder({ shopId, customer_email, items }) {
-  if (!customer_email || !Array.isArray(items) || items.length === 0) {
-    throw new DomainError('VALIDATION_ERROR', 'customer_email and non-empty items are required', 400);
-  }
-
   const resolvedItems = items.map((item) => {
-    const product = productRepo.findByIdAndShop(item.product_id, shopId);
+    const product = products.find((p) => p.id === item.product_id && p.shop_id === shopId);
 
     if (!product) {
-      throw new DomainError('PRODUCT_NOT_FOUND', `Unknown product for tenant scope: ${item.product_id}`, 400);
+      const err = new Error(`Unknown product for tenant scope: ${item.product_id}`);
+      err.code = 'PRODUCT_NOT_FOUND';
+      throw err;
     }
 
     const quantity = Number(item.quantity || 1);
     const unitPrice = Number(product.base_price);
 
-    if (quantity <= 0) {
-      throw new DomainError('VALIDATION_ERROR', 'quantity must be greater than 0', 400);
-    }
-
     return {
+      id: createId('item'),
       shop_id: shopId,
       product_id: product.id,
       item_name: product.name,
@@ -44,35 +37,31 @@ function createOrder({ shopId, customer_email, items }) {
 
   const totals = calculateTotals(resolvedItems);
 
-  const order = orderRepo.createOrder({
+  const order = {
+    id: createId('ord'),
     shop_id: shopId,
     customer_email,
     status: 'pending',
     ...totals,
-  });
+    created_at: new Date().toISOString(),
+  };
 
-  orderRepo.addOrderItems(resolvedItems.map((item) => ({ ...item, order_id: order.id })));
+  orders.push(order);
+  resolvedItems.forEach((item) => orderItems.push({ ...item, order_id: order.id }));
 
   return {
     ...order,
-    items: orderRepo.listItemsByOrder(order.id),
+    items: resolvedItems,
   };
 }
 
 function listOrdersByShop(shopId) {
-  return orderRepo.listByShop(shopId).map((order) => ({
-    ...order,
-    items: orderRepo.listItemsByOrder(order.id),
-  }));
+  return orders
+    .filter((order) => order.shop_id === shopId)
+    .map((order) => ({
+      ...order,
+      items: orderItems.filter((item) => item.order_id === order.id),
+    }));
 }
 
-function ensureOrderExists(shopId, orderId) {
-  const order = orderRepo.findByIdAndShop(orderId, shopId);
-  if (!order) {
-    throw new DomainError('ORDER_NOT_FOUND', 'Order not found', 404);
-  }
-
-  return order;
-}
-
-module.exports = { createOrder, listOrdersByShop, ensureOrderExists };
+module.exports = { createOrder, listOrdersByShop };
