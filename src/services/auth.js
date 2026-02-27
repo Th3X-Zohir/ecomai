@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const { jwtSecret } = require('../config');
 const userRepo = require('../repositories/users');
 const { refreshTokens } = require('../store');
@@ -10,7 +9,7 @@ function signAccessToken(user) {
 }
 
 function signRefreshToken(user) {
-  return jwt.sign({ sub: user.id, token_type: 'refresh', jti: crypto.randomUUID() }, jwtSecret, { expiresIn: '7d' });
+  return jwt.sign({ sub: user.id, token_type: 'refresh' }, jwtSecret, { expiresIn: '7d' });
 }
 
 function login(email, password) {
