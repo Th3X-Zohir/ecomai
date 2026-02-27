@@ -1,0 +1,571 @@
+===============================================================================
+  ECOMAI PLATFORM — GAPS, TODO, & IMPROVEMENT TRACKER
+  Generated: June 2025
+  Status: Development / Pre-Production
+===============================================================================
+
+This document catalogs everything that is NOT implemented, partially
+implemented, has bugs, or needs improvement before the platform is
+production-ready.
+
+Priority Key:
+  [CRITICAL]  — Must fix before any production use
+  [HIGH]      — Should be in first production release
+  [MEDIUM]    — Important for a polished product
+  [LOW]       — Nice to have / future roadmap
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 1. SECURITY
+═══════════════════════════════════════════════════════════════════════════════
+
+[CRITICAL] S1 — JWT secret has insecure fallback
+  File: src/config.js
+  Issue: Default value is 'dev-secret-change-me'. If JWT_SECRET env var
+         is not set in production, all tokens are signed with a known key.
+  Fix:  Fail fast on startup if JWT_SECRET is not provided.
+
+[CRITICAL] S2 — CORS is wide open
+  File: src/app.js
+  Issue: app.use(cors()) accepts requests from ANY origin.
+  Fix:  Whitelist only your frontend URL(s) and trusted API consumers.
+
+[CRITICAL] S3 — Content Security Policy (CSP) disabled
+  File: src/app.js
+  Issue: contentSecurityPolicy: false in Helmet config. No XSS protection.
+  Fix:  Define proper CSP directives for your frontend + CDN sources.
+
+[HIGH] S4 — Refresh tokens stored as plaintext in DB
+  File: src/services/auth.js
+  Issue: Raw JWT strings stored in refresh_tokens table. DB compromise
+         exposes all active sessions.
+  Fix:  Hash tokens with bcrypt/sha256 before storage.
+
+[HIGH] S5 — No request/access logging
+  Issue: No Morgan, Pino, or Winston. Zero visibility for debugging
+         or auditing production traffic.
+  Fix:  Add structured logging middleware (recommend Pino).
+
+[HIGH] S6 — audit_log table is dead code
+  File: db/schema.sql
+  Issue: Table exists but no service, repo, or middleware writes to it.
+  Fix:  Create audit service + middleware for sensitive operations.
+
+[HIGH] S7 — SSLCommerz callback has no signature verification
+  File: src/routes/payments.js
+  Issue: Success/fail/cancel callbacks trust req.body blindly.
+         Attacker could forge a successful payment callback.
+  Fix:  Validate hash/signature per SSLCommerz documentation.
+
+[HIGH] S8 — custom_js in website_settings allows XSS
+  Issue: Shop admins can inject arbitrary JS into storefronts.
+  Fix:  Sanitize or sandbox custom JS. Consider CSP nonces.
+
+[HIGH] S9 — validateBody middleware exists but never used
+  File: (exists but not wired into any route)
+  Issue: All routes accept raw req.body with no schema validation.
+  Fix:  Wire Zod/Joi validation to every POST/PUT/PATCH route.
+
+[MEDIUM] S10 — No CSRF protection
+  Issue: SSLCommerz callbacks use form POST. localStorage tokens
+         are vulnerable to XSS. No CSRF tokens anywhere.
+  Fix:  Add CSRF tokens for form-based flows.
+
+[MEDIUM] S11 — No input sanitization (XSS prevention)
+  Issue: No html-escape or DOMPurify for user-supplied text/HTML
+         stored in JSONB fields.
+  Fix:  Sanitize all user input before DB storage.
+
+[MEDIUM] S12 — Super admin x-shop-id header not validated
+  File: src/middleware/auth.js
+  Issue: Any UUID in the header is accepted without checking shop exists.
+  Fix:  Validate shop existence for super admin scope switch.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 2. AUTHENTICATION & AUTHORIZATION
+═══════════════════════════════════════════════════════════════════════════════
+
+[HIGH] A1 — No email verification flow
+  Issue: Users and customers can register with any email. No confirmation
+         step. Could lead to fake accounts and spam.
+  Fix:  Send verification email with token on registration. Block login
+        until verified.
+
+[HIGH] A2 — No password reset / forgot password
+  Issue: No endpoint, no token generation, no email. Users who forget
+         their password are locked out permanently.
+  Fix:  Implement reset token generation + email. ~2 hour task.
+
+[HIGH] A3 — Customer tokens have no refresh mechanism
+  File: src/services/customers.js
+  Issue: Only issues access tokens (15 min expiry). Customer sessions
+         expire with no way to refresh => terrible UX.
+  Fix:  Issue refresh tokens for customer auth too.
+
+[HIGH] A4 — Deactivated users can still log in (BUG)
+  File: src/services/auth.js
+  Issue: is_active field in users table is never checked at login.
+  Fix:  Add `if (!user.is_active) throw ...` check in login().
+
+[MEDIUM] A5 — No account lockout / brute force detection
+  Issue: Rate limiter (20 req / 15 min) helps but no per-account lockout
+         after N failed attempts.
+  Fix:  Track failed attempts per email. Lock after 5 failures for 30 min.
+
+[MEDIUM] A6 — Weak password requirements
+  Issue: Only checks password.length < 6. No uppercase, number, or special
+         character requirements.
+  Fix:  Enforce minimum complexity rules.
+
+[MEDIUM] A7 — No password change endpoint for logged-in users
+  Issue: Users cannot change their password from the UI.
+  Fix:  Add PATCH /auth/password endpoint.
+
+[LOW] A8 — No last_login_at tracking
+  Issue: Architecture plan includes it but actual schema & service don't.
+  Fix:  Update last_login_at on successful login.
+
+[LOW] A9 — No JWT key rotation
+  Issue: Single static secret for all tokens. Architecture plan recommends
+         rotating signing keys periodically.
+  Fix:  Implement JWKS with key versioning.
+
+[LOW] A10 — No refresh token limit per user
+  Issue: Users can accumulate unlimited refresh tokens.
+  Fix:  Cap to max 5 per user, clean up expired tokens.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 3. PAYMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+[CRITICAL] P1 — Refund flow is DB-only (FAKE REFUND)
+  File: src/services/payments.js → createRefund()
+  Issue: Creates a refund record in DB but NEVER calls SSLCommerz refund
+         API. Money is not actually returned to customer.
+  Fix:  Wire to SSLCommerz refund endpoint or gateway adapter.
+
+[CRITICAL] P2 — Per-shop SSLCommerz credentials NOT used (BUG)
+  File: src/services/payments.js
+  Issue: shops table has sslcommerz_store_id/pass columns but service
+         always uses global config credentials. All shops share one
+         merchant account.
+  Fix:  Read credentials from shop record before initiating payment.
+
+[HIGH] P3 — Manual payment doesn't update order payment_status (BUG)
+  File: src/services/payments.js → createManualPayment()
+  Issue: Creates payment record as 'completed' but order's payment_status
+         field is never updated to 'paid'.
+  Fix:  Update order.payment_status after capturing payment.
+
+[HIGH] P4 — No payment idempotency keys
+  Issue: Retries or double-clicks could create duplicate payment records.
+  Fix:  Add idempotency key per payment initiation.
+
+[HIGH] P5 — Tax calculation hardcoded to 0
+  File: src/services/orders.js → calculateTotals()
+  Issue: tax_amount always returns 0. No tax rules engine.
+  Fix:  Implement configurable tax rates (per-shop or per-region).
+
+[HIGH] P6 — Shipping cost hardcoded to 0
+  Issue: Same as above. No shipping rate calculation.
+  Fix:  Implement shipping zones + weight-based or flat-rate shipping.
+
+[HIGH] P7 — No discount/coupon system
+  Issue: discount_amount column exists but there's no coupons table,
+         no promo code validation, no discount logic.
+  Fix:  Create discounts table + coupon validation service.
+
+[MEDIUM] P8 — Currency hardcoded to BDT
+  Issue: No multi-currency support. All amounts assume Bangladeshi Taka.
+  Fix:  Add currency field to shops + conversion at checkout.
+
+[MEDIUM] P9 — No payment receipt / invoice generation
+  Issue: Customers get no receipt or downloadable invoice.
+  Fix:  Generate PDF invoices on payment capture.
+
+[MEDIUM] P10 — Only SSLCommerz integrated
+  Issue: No Stripe, PayPal, bKash, or other payment gateways.
+  Fix:  Implement payment gateway adapter pattern.
+
+[HIGH] P11 — Subscription plan billing not implemented
+  Issue: subscription_plans table has pricing columns but no recurring
+         charge, plan enforcement, or upgrade/downgrade flow.
+  Fix:  Implement billing system or integrate Stripe Billing.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 4. ORDERS
+═══════════════════════════════════════════════════════════════════════════════
+
+[CRITICAL] O1 — No stock validation before order creation
+  File: src/services/orders.js
+  Issue: Orders are created without checking if items are in stock.
+         Variant inventory can go NEGATIVE.
+  Fix:  Check stock before decrement. Reject order if insufficient.
+
+[CRITICAL] O2 — Product-level stock never decremented (BUG)
+  Issue: Only variant inventory is decremented. Products without variants
+         have stock_quantity that is NEVER reduced on order.
+  Fix:  Decrement product stock_quantity when order doesn't use variants.
+
+[HIGH] O3 — No order cancellation with inventory restore
+  Issue: Setting status to 'cancelled' doesn't restock items, void
+         payments, or cancel in-flight deliveries.
+  Fix:  Implement full cancellation flow with rollback.
+
+[HIGH] O4 — No order state transition validation
+  File: src/services/orders.js → updateOrderStatus()
+  Issue: Can go from 'delivered' back to 'pending'. No state machine.
+  Fix:  Define valid transitions: pending → confirmed → processing →
+        shipped → delivered. Cancellation from any pre-delivered state.
+
+[HIGH] O5 — Status list missing 'pending_payment' and 'refunded'
+  Issue: Schema CHECK constraint allows these values but service VALID
+         array doesn't include them.
+  Fix:  Sync service status list with DB constraint.
+
+[MEDIUM] O6 — No human-readable order number
+  Issue: Only UUIDs. Architecture plan shows order_number BIGSERIAL.
+  Fix:  Add auto-incrementing order number column.
+
+[MEDIUM] O7 — No order confirmation email
+  Issue: Nothing sent to customer on order placement or status change.
+  Fix:  Send transactional emails via SendGrid/SES.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 5. PRODUCTS
+═══════════════════════════════════════════════════════════════════════════════
+
+[HIGH] PR1 — No product image upload
+  Issue: image_url field accepts text URL only. No file upload endpoint,
+         no multer middleware, no S3 integration.
+  Fix:  Add multi-part upload endpoint + S3 storage + CDN.
+
+[HIGH] PR2 — Product delete is HARD delete (risk)
+  File: src/repositories/products.js
+  Issue: DELETE FROM products. Will fail if referenced by order_items
+         (ON DELETE RESTRICT). Should soft-delete.
+  Fix:  Set status = 'archived' instead of deleting.
+
+[HIGH] PR3 — Subscription product limits not enforced
+  Issue: subscription_plans.product_limit exists but no middleware checks
+         it before creating products.
+  Fix:  Add plan limit check in product creation service.
+
+[MEDIUM] PR4 — No multiple images support
+  Issue: Single image_url field. Architecture plan has media JSONB array.
+  Fix:  Add media JSON array + gallery UI.
+
+[MEDIUM] PR5 — No product categories table
+  Issue: category is a free-text string. No standardized management.
+  Fix:  Create categories table with slug, hierarchy, icon.
+
+[MEDIUM] PR6 — No bulk import/export
+  Issue: No CSV upload or product export capability.
+  Fix:  Add CSV import endpoint + export download.
+
+[LOW] PR7 — No full-text search optimization
+  Issue: Product search likely uses ILIKE queries. Not performant at scale.
+  Fix:  Add PostgreSQL tsvector index or ElasticSearch.
+
+[LOW] PR8 — No SEO fields on products
+  Issue: No meta title, meta description, or canonical URL on products.
+  Fix:  Add seo JSONB column to products table.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 6. DELIVERIES
+═══════════════════════════════════════════════════════════════════════════════
+
+[MEDIUM] D1 — No third-party delivery integration
+  Issue: provider field exists but only 'internal' works. No FedEx/UPS/DHL
+         adapter implementations.
+  Fix:  Build delivery provider adapter pattern.
+
+[MEDIUM] D2 — Delivery status doesn't update order status (BUG)
+  Issue: When driver marks 'delivered', order status remains unchanged.
+  Fix:  Auto-update order to 'delivered' when delivery completes.
+
+[MEDIUM] D3 — No delivery cost estimation
+  Issue: No distance calculation or zone-based pricing.
+  Fix:  Integrate Google Maps API for cost estimation.
+
+[MEDIUM] D4 — No delivery tracking URL
+  Issue: tracking_url field mentioned in architecture but not in schema.
+  Fix:  Add tracking_url column + populate on creation.
+
+[LOW] D5 — No real-time delivery tracking
+  Issue: Polling only. No WebSocket/SSE for live driver location.
+  Fix:  Add WebSocket layer for real-time updates.
+
+[LOW] D6 — No delivery driver status transition validation
+  Issue: Driver can jump from 'pending' to 'delivered' directly.
+  Fix:  Enforce state machine for delivery statuses.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 7. MARKETING CAMPAIGNS
+═══════════════════════════════════════════════════════════════════════════════
+
+[CRITICAL] M1 — No email/SMS sending capability
+  Issue: ZERO email capability in the entire codebase. No nodemailer,
+         SendGrid, Mailgun, SES, Twilio. Campaigns can be "created"
+         but never sent to anyone.
+  Fix:  Integrate email provider (recommend SendGrid or AWS SES).
+
+[HIGH] M2 — AI campaign draft is fake
+  File: src/services/marketing-campaigns.js → generateDraftContent()
+  Issue: Returns a hardcoded string template, not an LLM call.
+         No OpenAI / Anthropic integration.
+  Fix:  Wire to an actual LLM API for content generation.
+
+[HIGH] M3 — Campaign scheduling doesn't execute
+  Issue: scheduled_at field exists but no cron/job runner processes it.
+  Fix:  Add job queue (BullMQ) that checks for due campaigns.
+
+[MEDIUM] M4 — Performance tracking is empty
+  Issue: performance JSONB column exists but nothing writes to it.
+         No webhook/pixel/UTM tracking for campaign results.
+  Fix:  Track opens, clicks, conversions per campaign.
+
+[MEDIUM] M5 — Audience segmentation is not evaluated
+  Issue: audience_filter JSONB is stored but never used to select
+         actual recipients from customers table.
+  Fix:  Build filter evaluation engine.
+
+[MEDIUM] M6 — Social media API not integrated
+  Issue: Facebook, Instagram, TikTok, Google Ads listed as channel
+         options but zero publish capability.
+  Fix:  Integrate Meta Marketing API, TikTok Ads API, etc.
+
+[LOW] M7 — No campaign analytics dashboard data in API
+  Issue: No aggregation endpoints for campaign performance.
+  Fix:  Add analytics service with time-series queries.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 8. FRONTEND
+═══════════════════════════════════════════════════════════════════════════════
+
+[HIGH] F1 — Auth tokens stored in localStorage (XSS risk)
+  File: frontend/src/api.js
+  Issue: Access and refresh tokens in localStorage. If XSS occurs,
+         attacker steals all tokens.
+  Fix:  Use httpOnly cookies for refresh tokens.
+
+[HIGH] F2 — No subscription/billing management UI
+  Issue: Plans exist in DB but users cannot view, upgrade, or manage
+         their subscription from the admin panel.
+  Fix:  Build billing/plan management page.
+
+[MEDIUM] F3 — No image upload UI for products
+  Issue: Products form has text input for image_url. No drag-and-drop
+         or file picker.
+  Fix:  Add file upload component + backend endpoint.
+
+[MEDIUM] F4 — No user/staff management page
+  Issue: Can create users via API but no dedicated admin UI for
+         managing staff (edit, deactivate, change role).
+  Fix:  Build Users management page.
+
+[MEDIUM] F5 — No customer detail/edit page
+  Issue: Customer list only. No way to view order history, edit info,
+         or see customer activity from admin.
+  Fix:  Build CustomerDetail page.
+
+[MEDIUM] F6 — No analytics/charts dashboard
+  Issue: Dashboard shows basic counts. No trend charts, revenue graphs,
+         or customer growth visualization.
+  Fix:  Add recharts/chart.js for visual analytics.
+
+[LOW] F7 — No 404 page in SPA
+  Issue: Non-existent routes show blank page.
+  Fix:  Add catch-all route with 404 component.
+
+[LOW] F8 — No app-level error boundary
+  Issue: Uncaught errors crash the entire app with white screen.
+  Fix:  Add React Error Boundary component.
+
+[LOW] F9 — No bulk operations in UI
+  Issue: No multi-select for bulk delete, status change, or export.
+  Fix:  Add checkbox selection + bulk action toolbar.
+
+[LOW] F10 — No driver mobile UI
+  Issue: Driver API exists but no mobile-optimized interface.
+  Fix:  Build responsive driver dashboard or mobile app.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 9. INFRASTRUCTURE & DEVOPS
+═══════════════════════════════════════════════════════════════════════════════
+
+[HIGH] I1 — No environment validation on startup
+  File: src/config.js
+  Issue: Missing env vars default to insecure values. App starts
+         silently with dev credentials in production.
+  Fix:  Fail fast if critical vars (JWT_SECRET, DATABASE_URL) are unset.
+
+[HIGH] I2 — No background job queue
+  Issue: No BullMQ, SQS, or background workers. Email sending, campaign
+         scheduling, report generation all need async processing.
+  Fix:  Add BullMQ + Redis for job processing.
+
+[HIGH] I3 — No S3/object storage integration
+  Issue: No file storage capability. Required for product images, invoices,
+         exports.
+  Fix:  Integrate AWS S3 or Cloudflare R2.
+
+[HIGH] I4 — No CI/CD pipeline
+  Issue: No GitHub Actions, no automated testing, no deployment pipeline.
+  Fix:  Set up Actions for lint + test + build + deploy.
+
+[MEDIUM] I5 — No Redis / caching layer
+  Issue: Architecture plan calls for ElastiCache Redis. Not set up.
+  Fix:  Add Redis for session storage, caching, rate limiting.
+
+[MEDIUM] I6 — No database migration versioning
+  File: db/schema.sql
+  Issue: Single schema.sql file. No incremental migration tool. Adding
+         columns requires editing the master file.
+  Fix:  Adopt node-pg-migrate or knex migrations.
+
+[MEDIUM] I7 — No CDN for static assets
+  Issue: Frontend assets served directly from Express/Vite.
+  Fix:  Set up CloudFront or Cloudflare CDN.
+
+[MEDIUM] I8 — No Docker health checks
+  Issue: Docker containers have no HEALTHCHECK instruction.
+  Fix:  Add health check to Dockerfile.
+
+[LOW] I9 — Health endpoint doesn't verify DB
+  Issue: GET /health returns { status: 'ok' } without checking DB.
+  Fix:  Add pg pool query in health check.
+
+[LOW] I10 — No graceful shutdown for in-flight requests
+  Issue: SIGTERM handler closes server but doesn't drain connections.
+  Fix:  Implement graceful drain with timeout.
+
+[LOW] I11 — No Infrastructure as Code
+  Issue: No Terraform, CDK, or CloudFormation.
+  Fix:  Define infra in Terraform for reproducible deployments.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 10. TESTING
+═══════════════════════════════════════════════════════════════════════════════
+
+[HIGH] T1 — No frontend tests
+  Issue: Zero React component tests. No Vitest, Jest, or Cypress.
+  Fix:  Add Vitest + React Testing Library for critical flows.
+
+[HIGH] T2 — No integration/E2E tests
+  Issue: No Supertest HTTP-level tests. No Playwright/Cypress E2E.
+  Fix:  Add API integration tests with Supertest.
+
+[MEDIUM] T3 — Tests require live PostgreSQL
+  Issue: Unit tests hit real DB. No mocking or test containers.
+  Fix:  Use test containers or mock repositories for unit tests.
+
+[MEDIUM] T4 — No test coverage reporting
+  Issue: No coverage tool configured.
+  Fix:  Add c8 or Istanbul for coverage reports.
+
+[LOW] T5 — Basic test runner
+  Issue: Using node --test only. No parallel or isolated execution.
+  Fix:  Migrate to Vitest or Jest for backend too.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ 11. MISSING FEATURES (FROM ARCHITECTURE PLAN)
+═══════════════════════════════════════════════════════════════════════════════
+
+[HIGH] MF1 — AI Website Builder
+  Status: Not implemented
+  Plan:   LLM-driven theme/layout generation based on industry + brand.
+  Now:    Basic manual template selection only.
+
+[HIGH] MF2 — Notifications system
+  Status: Not implemented
+  Plan:   In-app, email, and push notifications for all events (order
+          placed, payment received, delivery status, etc.).
+  Now:    Zero notification capability.
+
+[MEDIUM] MF3 — Webhooks / Events Outbox
+  Status: Not implemented
+  Plan:   webhooks + events_outbox tables for external integrations.
+  Now:    No webhook delivery.
+
+[MEDIUM] MF4 — Analytics & Reporting engine
+  Status: Not implemented
+  Plan:   Revenue reporting, customer segmentation, product performance.
+  Now:    Dashboard shows live counts only.
+
+[MEDIUM] MF5 — Shop suspension enforcement
+  Status: Not implemented
+  Plan:   shops.status can be 'suspended' but no middleware blocks API
+          access for suspended shops.
+
+[MEDIUM] MF6 — Multi-currency support
+  Status: Not implemented
+  Plan:   Per-shop currency + conversion at checkout.
+
+[MEDIUM] MF7 — Custom domain support
+  Status: Not implemented
+  Plan:   CNAME/custom domain mapping per shop.
+  Now:    Slug-based paths only.
+
+[LOW] MF8 — Internationalization (i18n)
+  Status: Not implemented
+  Plan:   Multi-language support for storefronts.
+
+[LOW] MF9 — A/B testing framework
+  Status: Not implemented
+  Plan:   Phase 4.2 of architecture plan.
+
+[LOW] MF10 — Wishlist / Favorites
+  Status: Not implemented
+  Plan:   Customer wishlist functionality.
+
+[LOW] MF11 — Product Reviews & Ratings
+  Status: Not implemented
+  Plan:   Customer reviews on products.
+
+[LOW] MF12 — Inventory low-stock alerts
+  Status: Not implemented
+  Plan:   Notify when stock drops below threshold.
+
+[LOW] MF13 — Storefront search / autocomplete
+  Status: Not implemented
+  Plan:   Full-text product search for customers.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+ Total findings:  95+
+
+ By severity:
+   CRITICAL:    8  (must fix before production)
+   HIGH:       35  (needed for first release)
+   MEDIUM:     32  (important for polished product)
+   LOW:        20+ (future roadmap)
+
+ Top 10 items to fix FIRST:
+   1. S1  — Fail fast if JWT_SECRET is not set
+   2. O1  — Stock validation before order creation
+   3. P1  — Wire actual refund to payment gateway
+   4. P2  — Use per-shop SSLCommerz credentials
+   5. A4  — Check is_active on login
+   6. S2  — Lock down CORS origins
+   7. S3  — Enable CSP with proper directives
+   8. S4  — Hash refresh tokens in DB
+   9. A1  — Email verification flow
+   10. O3  — Order cancellation with inventory restore
+
+===============================================================================
+ END OF DOCUMENT
+===============================================================================

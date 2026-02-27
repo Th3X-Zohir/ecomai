@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { deliveries } from '../api';
-import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination } from '../components/UI';
+import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination, StatCard, Card, PageSkeleton, useToast } from '../components/UI';
 
 const STATUSES = ['requested', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
 
@@ -14,6 +14,7 @@ export default function Deliveries() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const toast = useToast();
 
   const load = (p = page) => {
     setLoading(true);
@@ -31,6 +32,7 @@ export default function Deliveries() {
     try {
       await deliveries.updateStatus(updating.id, newStatus);
       setUpdating(null);
+      toast('Delivery status updated!', 'success');
       load();
     } catch (err) { setError(err.message); } finally { setSaving(false); }
   };
@@ -40,46 +42,162 @@ export default function Deliveries() {
     return map[s] || 'default';
   };
 
+  const statusIcon = (s) => {
+    const icons = {
+      requested: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+      assigned: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
+      picked_up: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>,
+      in_transit: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>,
+      delivered: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+      cancelled: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    };
+    return icons[s] || icons.requested;
+  };
+
+  const formatAddress = (addr) => {
+    if (!addr) return '—';
+    if (typeof addr === 'object') return `${addr.street || ''}, ${addr.city || ''} ${addr.zip || ''}`.replace(/^,\s*/, '').trim() || '—';
+    return String(addr).slice(0, 40);
+  };
+
+  // Stats
+  const inTransit = items.filter(d => d.status === 'in_transit').length;
+  const delivered = items.filter(d => d.status === 'delivered').length;
+  const pending = items.filter(d => ['requested', 'assigned'].includes(d.status)).length;
+
   const columns = [
-    { key: 'id', label: 'ID', render: (r) => <span className="font-mono text-xs">{r.id.slice(0, 12)}...</span> },
-    { key: 'order_id', label: 'Order', render: (r) => <span className="font-mono text-xs">{r.order_id.slice(0, 12)}...</span> },
-    { key: 'provider', label: 'Provider', render: (r) => <Badge variant="default">{r.provider}</Badge> },
-    { key: 'status', label: 'Status', render: (r) => <Badge variant={statusVariant(r.status)}>{r.status}</Badge> },
-    { key: 'pickup_address', label: 'Pickup', render: (r) => (
-      <span className="text-xs">{typeof r.pickup_address === 'object' ? `${r.pickup_address.street}, ${r.pickup_address.city}` : String(r.pickup_address).slice(0, 30)}</span>
+    { key: 'id', label: 'Delivery', render: (r) => (
+      <div className="flex items-center gap-3">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+          r.status === 'delivered' ? 'bg-emerald-100 text-emerald-600' :
+          r.status === 'in_transit' ? 'bg-indigo-100 text-indigo-600' :
+          r.status === 'cancelled' ? 'bg-red-100 text-red-600' :
+          'bg-amber-100 text-amber-600'
+        }`}>
+          {statusIcon(r.status)}
+        </div>
+        <div>
+          <p className="font-mono text-xs font-medium text-gray-900">{r.id.slice(0, 10)}</p>
+          <p className="text-[10px] text-gray-500">Order #{r.order_id.slice(-6)}</p>
+        </div>
+      </div>
     )},
-    { key: 'dropoff_address', label: 'Dropoff', render: (r) => (
-      <span className="text-xs">{typeof r.dropoff_address === 'object' ? `${r.dropoff_address.street}, ${r.dropoff_address.city}` : String(r.dropoff_address).slice(0, 30)}</span>
+    { key: 'provider', label: 'Provider', render: (r) => (
+      <Badge variant="default">{r.provider}</Badge>
+    )},
+    { key: 'status', label: 'Status', render: (r) => <Badge variant={statusVariant(r.status)} dot>{r.status.replace('_', ' ')}</Badge> },
+    { key: 'pickup_address', label: 'Route', render: (r) => (
+      <div className="text-xs max-w-[200px]">
+        <div className="flex items-start gap-1.5 mb-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0" />
+          <span className="text-gray-600 truncate">{formatAddress(r.pickup_address)}</span>
+        </div>
+        <div className="flex items-start gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+          <span className="text-gray-600 truncate">{formatAddress(r.dropoff_address)}</span>
+        </div>
+      </div>
+    )},
+    { key: 'created_at', label: 'Requested', render: (r) => (
+      <span className="text-sm text-gray-500">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
     )},
     { key: 'actions', label: '', render: (r) => (
       r.status !== 'delivered' && r.status !== 'cancelled' ? (
-        <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); setUpdating(r); setNewStatus(r.status); }}>Update</Button>
+        <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); setUpdating(r); setNewStatus(r.status); }}
+          icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}>
+          Update
+        </Button>
       ) : null
     )},
   ];
 
-  if (loading) return <div className="flex justify-center p-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>;
+  if (loading && items.length === 0) return <PageSkeleton />;
 
   return (
     <div>
-      <PageHeader title="Deliveries" description={`${total} delivery request${total !== 1 ? 's' : ''}`} />
+      <PageHeader title="Deliveries" description="Track and manage delivery requests" />
 
-      <Table columns={columns} data={items} emptyMessage="No delivery requests yet. Create one from an order." />
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+        <StatCard label="Total Deliveries" value={total} icon={
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>
+        } />
+        <StatCard label="In Transit" value={inTransit} trend={inTransit > 0 ? 'up' : undefined} trendLabel="On the way" icon={
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+        } />
+        <StatCard label="Pending" value={pending} icon={
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        } />
+        <StatCard label="Delivered" value={delivered} trend={delivered > 0 ? 'up' : undefined} trendLabel="Completed" icon={
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        } />
+      </div>
+
+      {/* Delivery pipeline mini-visual */}
+      {items.length > 0 && (
+        <Card className="mb-6">
+          <div className="p-4">
+            <div className="flex items-center gap-1">
+              {STATUSES.filter(s => s !== 'cancelled').map((s) => {
+                const count = items.filter(d => d.status === s).length;
+                return (
+                  <div key={s} className="flex-1 text-center">
+                    <div className={`h-1.5 rounded-full mb-1.5 ${count > 0 ? {
+                      requested: 'bg-amber-400', assigned: 'bg-blue-400', picked_up: 'bg-indigo-400', in_transit: 'bg-purple-400', delivered: 'bg-emerald-400'
+                    }[s] : 'bg-gray-200'}`} />
+                    <p className="text-[10px] text-gray-500 capitalize">{s.replace('_', ' ')}</p>
+                    <p className={`text-xs font-semibold ${count > 0 ? 'text-gray-900' : 'text-gray-300'}`}>{count}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <Table columns={columns} data={items} loading={loading} emptyMessage="No delivery requests yet. Create one from an order detail page." emptyIcon="🚚" />
       <Pagination page={page} totalPages={totalPages} total={total} onPageChange={(p) => load(p)} />
 
-      <Modal open={!!updating} onClose={() => setUpdating(null)} title="Update Delivery Status">
-        {error && <div className="mb-4 p-3 bg-danger-50 text-danger-600 text-sm rounded-lg">{error}</div>}
-        <form onSubmit={handleStatusUpdate}>
-          <FormField label="Status">
-            <Select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
-              {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </Select>
-          </FormField>
-          <div className="flex gap-2 justify-end mt-4">
-            <Button variant="secondary" type="button" onClick={() => setUpdating(null)}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Updating...' : 'Update Status'}</Button>
-          </div>
-        </form>
+      {/* Update Status Modal */}
+      <Modal open={!!updating} onClose={() => setUpdating(null)} title="Update Delivery Status" size="sm">
+        {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">{error}</div>}
+        {updating && (
+          <form onSubmit={handleStatusUpdate}>
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-6 h-6 rounded flex items-center justify-center ${
+                  updating.status === 'in_transit' ? 'bg-indigo-100 text-indigo-600' : 'bg-amber-100 text-amber-600'
+                }`}>
+                  {statusIcon(updating.status)}
+                </div>
+                <span className="text-sm font-medium text-gray-700">Current: <Badge variant={statusVariant(updating.status)} dot>{updating.status.replace('_', ' ')}</Badge></span>
+              </div>
+              <p className="text-xs text-gray-500">Delivery #{updating.id.slice(0, 10)} • {updating.provider}</p>
+            </div>
+
+            <FormField label="New Status">
+              <Select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+                {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>)}
+              </Select>
+            </FormField>
+
+            {/* Status flow visualization */}
+            <div className="mt-3 flex items-center gap-1">
+              {STATUSES.filter(s => s !== 'cancelled').map((s, i) => {
+                const targetIdx = STATUSES.indexOf(newStatus);
+                const isActive = i <= targetIdx && newStatus !== 'cancelled';
+                return (
+                  <div key={s} className={`flex-1 h-1 rounded-full transition-colors ${isActive ? 'bg-indigo-500' : 'bg-gray-200'}`} />
+                );
+              })}
+            </div>
+
+            <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-gray-100">
+              <Button variant="secondary" type="button" onClick={() => setUpdating(null)}>Cancel</Button>
+              <Button type="submit" loading={saving}>Update Status</Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );
