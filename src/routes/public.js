@@ -20,8 +20,8 @@ router.get('/shops/:slug', asyncHandler(async (req, res) => {
   if (!shop || shop.status !== 'active') {
     throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
   }
-  // Return safe public info
-  const { sslcommerz_store_id, sslcommerz_store_passwd, owner_id, ...publicShop } = shop;
+  // Return safe public info — strip all sensitive fields using correct column names
+  const { sslcommerz_store_id, sslcommerz_store_pass, owner_user_id, ...publicShop } = shop;
   res.json(publicShop);
 }));
 

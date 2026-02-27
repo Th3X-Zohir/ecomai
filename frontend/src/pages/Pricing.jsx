@@ -10,15 +10,13 @@ export default function Pricing() {
     register.plans().then(data => setPlans(data.items || [])).catch(() => {
       // Fallback plans if API unavailable
       setPlans([
-        { slug: 'free', name: 'Free', price_monthly: 0, features: { products_limit: 10, orders_limit: 50 } },
-        { slug: 'starter', name: 'Starter', price_monthly: 499, features: { products_limit: 100, orders_limit: 500 } },
-        { slug: 'growth', name: 'Growth', price_monthly: 1499, features: { products_limit: 1000, orders_limit: -1 } },
-        { slug: 'enterprise', name: 'Enterprise', price_monthly: 4999, features: { products_limit: -1, orders_limit: -1, priority_support: true } },
+        { slug: 'free', name: 'Free', price_monthly: 0, features: ['Basic storefront', '5 templates', 'Email support'] },
+        { slug: 'starter', name: 'Starter', price_monthly: 999, features: ['Everything in Free', 'SSLCommerz payments', 'Custom CSS', 'Priority email support'] },
+        { slug: 'growth', name: 'Growth', price_monthly: 2499, features: ['Everything in Starter', 'Unlimited products', 'Unlimited orders', 'API access'] },
+        { slug: 'enterprise', name: 'Enterprise', price_monthly: 0, features: ['Everything in Growth', 'Custom integrations', 'Dedicated support', 'SLA guarantee'] },
       ]);
     }).finally(() => setLoading(false));
   }, []);
-
-  const formatLimit = (v) => v === -1 ? 'Unlimited' : v?.toLocaleString();
 
   return (
     <div className="min-h-screen bg-white">
@@ -51,22 +49,38 @@ export default function Pricing() {
                 )}
                 <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
                 <div className="mt-4 mb-6">
-                  <span className="text-4xl font-extrabold text-gray-900">৳{plan.price_monthly?.toLocaleString()}</span>
-                  <span className="text-gray-500">/month</span>
+                  {plan.slug === 'enterprise' ? (
+                    <>
+                      <span className="text-4xl font-extrabold text-gray-900">Custom</span>
+                      <span className="text-gray-500 block text-sm mt-1">Contact us for pricing</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-extrabold text-gray-900">৳{plan.price_monthly?.toLocaleString()}</span>
+                      <span className="text-gray-500">/month</span>
+                    </>
+                  )}
                 </div>
                 <ul className="space-y-3 mb-8 flex-1 text-sm text-gray-600">
-                  <li>✓ {formatLimit(plan.features?.products_limit)} products</li>
-                  <li>✓ {formatLimit(plan.features?.orders_limit)} orders/month</li>
-                  <li>✓ Custom storefront</li>
-                  <li>✓ SSLCommerz payments</li>
-                  {plan.features?.priority_support && <li>✓ Priority support</li>}
-                  {plan.features?.api_access && <li>✓ API access</li>}
+                  {Array.isArray(plan.features)
+                    ? plan.features.map((f, i) => <li key={i}>✓ {f}</li>)
+                    : (
+                      <>
+                        <li>✓ {plan.features?.products_limit === -1 ? 'Unlimited' : plan.features?.products_limit?.toLocaleString()} products</li>
+                        <li>✓ {plan.features?.orders_limit === -1 ? 'Unlimited' : plan.features?.orders_limit?.toLocaleString()} orders/month</li>
+                        <li>✓ Custom storefront</li>
+                        <li>✓ SSLCommerz payments</li>
+                        {plan.features?.priority_support && <li>✓ Priority support</li>}
+                        {plan.features?.api_access && <li>✓ API access</li>}
+                      </>
+                    )
+                  }
                 </ul>
                 <Link
                   to={`/signup?plan=${plan.slug}`}
                   className={`w-full text-center py-3 rounded-lg font-semibold transition ${plan.slug === 'growth' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                 >
-                  {plan.price_monthly === 0 ? 'Start Free' : 'Get Started'}
+                  {plan.slug === 'enterprise' ? 'Contact Sales' : plan.price_monthly === 0 ? 'Start Free' : 'Get Started'}
                 </Link>
               </div>
             ))}
