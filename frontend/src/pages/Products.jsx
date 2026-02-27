@@ -9,7 +9,7 @@ export default function Products() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', slug: '', base_price: '', description: '', category: '', category_id: '', status: 'draft' });
+  const [form, setForm] = useState({ name: '', slug: '', base_price: '', description: '', category: '', category_id: '', status: 'active' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
@@ -41,7 +41,7 @@ export default function Products() {
     try {
       await products.create({ ...form, base_price: Number(form.base_price) });
       setShowCreate(false);
-      setForm({ name: '', slug: '', base_price: '', description: '', category: '', category_id: '', status: 'draft' });
+      setForm({ name: '', slug: '', base_price: '', description: '', category: '', category_id: '', status: 'active' });
       toast('Product created successfully!', 'success');
       load();
     } catch (err) { setError(err.message); } finally { setSaving(false); }

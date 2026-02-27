@@ -35,7 +35,7 @@ async function createProduct({ shop_id, name, slug, base_price, description, cat
   const res = await db.query(
     `INSERT INTO products (shop_id, name, slug, base_price, description, category, category_id, status, image_url, stock_quantity)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-    [shop_id, name, slug, Number(base_price), description || null, category || null, category_id || null, status || 'draft', image_url || null, stock_quantity || 0]
+    [shop_id, name, slug, Number(base_price), description || null, category || null, category_id || null, status || 'active', image_url || null, stock_quantity || 0]
   );
   return res.rows[0];
 }

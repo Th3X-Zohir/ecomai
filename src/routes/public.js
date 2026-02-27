@@ -48,10 +48,15 @@ router.get('/shops/:slug/products', asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-router.get('/shops/:slug/products/:productSlug', asyncHandler(async (req, res) => {
+router.get('/shops/:slug/products/:productIdOrSlug', asyncHandler(async (req, res) => {
   const shop = await shopRepo.findBySlug(req.params.slug);
   if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
-  const product = await productRepo.findBySlugAndShop(req.params.productSlug, shop.id);
+  const val = req.params.productIdOrSlug;
+  // Try by UUID first, then by slug
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+  const product = isUuid
+    ? await productRepo.findByIdAndShop(val, shop.id)
+    : await productRepo.findBySlugAndShop(val, shop.id);
   if (!product) throw new DomainError('PRODUCT_NOT_FOUND', 'Product not found', 404);
   // Include variants
   const variants = await variantRepo.listByProduct(shop.id, product.id);
