@@ -16,6 +16,7 @@ const variantRoutes = require('./routes/product-variants');
 const inventoryRoutes = require('./routes/inventory-movements');
 const websiteSettingsRoutes = require('./routes/website-settings');
 const driverRoutes = require('./routes/driver');
+const publicRoutes = require('./routes/public');
 
 const app = express();
 
@@ -27,6 +28,11 @@ app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
 
 // API routes
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+
+// Public storefront API (no auth required)
+app.use('/v1/public', publicRoutes);
+
+// Authenticated API routes
 app.use('/v1/auth', authRoutes);
 app.use('/v1/products', productRoutes);
 app.use('/v1/orders', orderRoutes);
