@@ -37,13 +37,15 @@ export const storeApi = {
   login: (slug, data) => request('POST', `/shops/${slug}/auth/login`, data),
   getProfile: (slug, token) => request('GET', `/shops/${slug}/account/me`, null, token),
   updateProfile: (slug, data, token) => request('PATCH', `/shops/${slug}/account/me`, data, token),
+  changePassword: (slug, data, token) => request('POST', `/shops/${slug}/account/change-password`, data, token),
   getOrders: (slug, token, params) => {
     const p = new URLSearchParams();
     if (params) Object.entries(params).forEach(([k, v]) => { if (v) p.set(k, v); });
     const qs = p.toString();
     return request('GET', `/shops/${slug}/account/orders${qs ? `?${qs}` : ''}`, null, token);
   },
+  getOrderDetail: (slug, orderId, token) => request('GET', `/shops/${slug}/account/orders/${orderId}`, null, token),
 
-  // Checkout (creates order + initiates SSLCommerz payment)
+  // Checkout (creates order + initiates SSLCommerz payment + auto-creates customer)
   checkout: (slug, data) => request('POST', `/shops/${slug}/checkout`, data),
 };

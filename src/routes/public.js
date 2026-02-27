@@ -146,6 +146,27 @@ router.get('/shops/:slug/account/orders', customerAuth, asyncHandler(async (req,
   res.json(result);
 }));
 
+// Order detail for a customer
+router.get('/shops/:slug/account/orders/:orderId', customerAuth, asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const order = await orderService.getOrder(shop.id, req.params.orderId);
+  // Ensure customer owns this order
+  if (order.customer_id !== req.customer.sub) {
+    throw new DomainError('FORBIDDEN', 'You do not have access to this order', 403);
+  }
+  res.json(order);
+}));
+
+// Change password
+router.post('/shops/:slug/account/change-password', customerAuth, asyncHandler(async (req, res) => {
+  const result = await customerService.changePassword(req.customer.sub, {
+    currentPassword: req.body.current_password,
+    newPassword: req.body.new_password,
+  });
+  res.json(result);
+}));
+
 // --- Storefront checkout ---
 
 router.post('/shops/:slug/checkout', asyncHandler(async (req, res) => {
@@ -154,9 +175,29 @@ router.post('/shops/:slug/checkout', asyncHandler(async (req, res) => {
 
   const { customer_email, customer_id, items, shipping_address, customer_name, customer_phone } = req.body;
 
-  // Create order
+  // Auto-create or find customer by email
+  const { customer, token: customerToken } = await customerService.findOrCreateByEmail({
+    shopId: shop.id, email: customer_email, full_name: customer_name, phone: customer_phone,
+  });
+
+  // Save shipping address to customer's addresses list if not already saved
+  if (shipping_address && customer) {
+    try {
+      const profile = await customerService.getCustomerProfile(customer.id);
+      const addrs = Array.isArray(profile.addresses) ? profile.addresses : [];
+      const addrStr = JSON.stringify(shipping_address);
+      const alreadySaved = addrs.some(a => JSON.stringify(a) === addrStr);
+      if (!alreadySaved && addrs.length < 5) {
+        await customerService.updateCustomerProfile(customer.id, {
+          addresses: [...addrs, shipping_address],
+        });
+      }
+    } catch (_) { /* non-critical */ }
+  }
+
+  // Create order linked to customer
   const order = await orderService.createOrder({
-    shopId: shop.id, customer_email, customer_id, items, shipping_address,
+    shopId: shop.id, customer_email, customer_id: customer.id, items, shipping_address,
   });
 
   // Initiate SSLCommerz payment
@@ -166,7 +207,7 @@ router.post('/shops/:slug/checkout', asyncHandler(async (req, res) => {
     customerPhone: customer_phone, shippingAddress: shipping_address,
   });
 
-  res.status(201).json({ order, payment: paymentResult });
+  res.status(201).json({ order, payment: paymentResult, customerToken, customer });
 }));
 
 module.exports = router;
