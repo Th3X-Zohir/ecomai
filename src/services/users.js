@@ -61,6 +61,11 @@ async function listUsers(shopId, opts) {
   return { ...result, items: result.items.map(sanitizeUser) };
 }
 
+async function listAllUsers(opts) {
+  const result = await userRepo.listAll(opts);
+  return { ...result, items: result.items.map(sanitizeUser) };
+}
+
 async function updateUser(userId, patch) {
   const user = await userRepo.findById(userId);
   if (!user) throw new DomainError('USER_NOT_FOUND', 'User not found', 404);
@@ -73,4 +78,12 @@ async function updateUser(userId, patch) {
   return sanitizeUser(updated);
 }
 
-module.exports = { getMe, createUser, listUsers, updateUser };
+async function deleteUser(userId) {
+  const user = await userRepo.findById(userId);
+  if (!user) throw new DomainError('USER_NOT_FOUND', 'User not found', 404);
+  if (user.role === 'super_admin') throw new DomainError('FORBIDDEN', 'Cannot delete super admin', 403);
+  await userRepo.deleteUser(userId);
+  return { deleted: true };
+}
+
+module.exports = { getMe, createUser, listUsers, listAllUsers, updateUser, deleteUser };

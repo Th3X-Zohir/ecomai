@@ -36,7 +36,7 @@ export default function ProductDetail() {
   };
 
   useEffect(() => { load(); }, [id]);
-  useEffect(() => { categoriesApi.list({ status: 'active' }).then(setCategoryList).catch(() => {}); }, []);
+  useEffect(() => { categoriesApi.list({ status: 'active' }).then(data => setCategoryList(data.items || data)).catch(() => {}); }, []);
 
   const handleUpdate = async (e) => {
     e.preventDefault();

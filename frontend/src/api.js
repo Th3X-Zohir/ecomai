@@ -67,7 +67,10 @@ export const register = {
 export const users = {
   me: () => request('GET', '/users/me'),
   list: (params) => request('GET', `/users${qs(params)}`),
+  listAll: (params) => request('GET', `/users/all${qs(params)}`),
   create: (data) => request('POST', '/users', data),
+  update: (id, data) => request('PATCH', `/users/${id}`, data),
+  delete: (id) => request('DELETE', `/users/${id}`),
 };
 
 export const shops = {

@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { jwtSecret, jwtAccessExpires, jwtRefreshExpires } = require('../config');
@@ -15,7 +16,7 @@ function signAccessToken(user) {
 
 function signRefreshToken(user) {
   return jwt.sign(
-    { sub: user.id, token_type: 'refresh' },
+    { sub: user.id, token_type: 'refresh', jti: crypto.randomUUID() },
     jwtSecret,
     { expiresIn: jwtRefreshExpires }
   );
@@ -35,6 +36,9 @@ async function login(email, password) {
   if (!valid) {
     throw new DomainError('INVALID_CREDENTIALS', 'Invalid credentials', 401);
   }
+
+  // Clean up expired / excess tokens for this user
+  await db.query('DELETE FROM refresh_tokens WHERE user_id = $1 AND (expires_at < NOW() OR id NOT IN (SELECT id FROM refresh_tokens WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5))', [user.id]);
 
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);

@@ -21,9 +21,11 @@ const icons = {
   logout: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
   collapse: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>,
   expand: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>,
+  allShops: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 3h7v7H3V3zm11 0h7v7h-7V3zm0 11h7v7h-7v-7zm-11 0h7v7H3v-7z" /></svg>,
+  allUsers: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197" /></svg>,
 };
 
-const navSections = [
+const baseNavSections = [
   {
     label: 'Main',
     items: [
@@ -56,9 +58,17 @@ const navSections = [
   },
 ];
 
+const superAdminSection = {
+  label: 'Platform',
+  items: [
+    { to: '/admin/all-shops', label: 'All Shops', icon: 'allShops' },
+    { to: '/admin/all-users', label: 'All Users', icon: 'allUsers' },
+  ],
+};
+
 export default function Layout() {
   const { user, logout } = useAuth();
-  const { isSuperAdmin, shopList, selectedShop, selectShop, currentShop } = useAdmin();
+  const { isSuperAdmin } = useAdmin();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
@@ -85,32 +95,9 @@ export default function Layout() {
         )}
       </div>
 
-      {/* Shop selector for super_admin */}
-      {isSuperAdmin && !collapsed && shopList.length > 0 && (
-        <div className="px-3 py-3 border-b border-gray-800/50">
-          <label className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 px-2 mb-1.5 block">Viewing Shop</label>
-          <select
-            value={selectedShop || ''}
-            onChange={(e) => { selectShop(e.target.value); window.location.reload(); }}
-            className="w-full bg-gray-900 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-          >
-            {shopList.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
-      )}
-      {isSuperAdmin && collapsed && shopList.length > 0 && (
-        <div className="px-2 py-3 border-b border-gray-800/50 flex justify-center">
-          <div className="w-8 h-8 bg-primary-600/20 rounded-lg flex items-center justify-center text-primary-400 text-xs font-bold" title={currentShop?.name || 'Shop'}>
-            {(currentShop?.name || 'S')[0].toUpperCase()}
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
-        {navSections.map((section) => (
+        {(isSuperAdmin ? [superAdminSection, ...baseNavSections] : baseNavSections).map((section) => (
           <div key={section.label} className="mb-4">
             {!collapsed && (
               <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">

@@ -33,8 +33,25 @@ async function listByShop(shopId, { page = 1, limit = 50 } = {}) {
   return { items: res.rows, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
+async function listAll({ page = 1, limit = 50, search, role } = {}) {
+  const conditions = [];
+  const params = [];
+  let idx = 1;
+  if (search) { conditions.push(`(email ILIKE $${idx} OR full_name ILIKE $${idx})`); params.push(`%${search}%`); idx++; }
+  if (role) { conditions.push(`role = $${idx}`); params.push(role); idx++; }
+  const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+  const countRes = await db.query(`SELECT COUNT(*) FROM users ${where}`, params);
+  const total = parseInt(countRes.rows[0].count, 10);
+  const offset = (page - 1) * limit;
+  const res = await db.query(
+    `SELECT u.*, s.name as shop_name, s.slug as shop_slug FROM users u LEFT JOIN shops s ON u.shop_id = s.id ${where} ORDER BY u.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
+    [...params, limit, offset]
+  );
+  return { items: res.rows, total, page, limit, totalPages: Math.ceil(total / limit) };
+}
+
 async function updateUser(userId, patch) {
-  const allowed = ['full_name', 'phone', 'role', 'is_active', 'password_hash'];
+  const allowed = ['full_name', 'phone', 'role', 'is_active', 'password_hash', 'shop_id'];
   const sets = [];
   const params = [];
   let idx = 1;
@@ -55,5 +72,10 @@ async function updateUser(userId, patch) {
   return res.rows[0] || null;
 }
 
-module.exports = { findByEmail, findById, createUser, listByShop, updateUser };
+async function deleteUser(userId) {
+  const res = await db.query('DELETE FROM users WHERE id = $1 RETURNING *', [userId]);
+  return res.rows[0] || null;
+}
+
+module.exports = { findByEmail, findById, createUser, listByShop, listAll, updateUser, deleteUser };
 

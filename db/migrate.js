@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 
 // Load .env for local dev; Docker sets DATABASE_URL directly
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
@@ -33,6 +34,42 @@ async function run() {
 
     // Run seed if requested
     if (shouldSeed) {
+      // Bootstrap demo shop + users with proper bcrypt hashes
+      console.log('Bootstrapping demo shop & users...');
+      const demoPassword = await bcrypt.hash('password123', 10);
+
+      await pool.query(`
+        INSERT INTO shops (id, name, slug, status, industry, subscription_plan)
+        VALUES ('00000000-0000-0000-0000-000000000001', 'Demo Coffee', 'demo-coffee', 'active', 'food_beverage', 'free')
+        ON CONFLICT (slug) DO NOTHING
+      `);
+
+      await pool.query(`
+        INSERT INTO subscription_plans (id, name, slug, price_monthly, price_yearly, product_limit, order_limit, features)
+        VALUES
+          ('00000000-0000-0000-0002-000000000001', 'Free',         'free',         0,     0,     50,   100,  '["basic_analytics"]'),
+          ('00000000-0000-0000-0002-000000000002', 'Starter',      'starter',      990,   9900,  500,  1000, '["basic_analytics","custom_domain"]'),
+          ('00000000-0000-0000-0002-000000000003', 'Professional', 'professional', 2990,  29900, 5000, 10000,'["basic_analytics","custom_domain","priority_support"]'),
+          ('00000000-0000-0000-0002-000000000004', 'Enterprise',   'enterprise',   9990,  99900, -1,   -1,   '["basic_analytics","custom_domain","priority_support","dedicated_account_manager"]')
+        ON CONFLICT (slug) DO NOTHING
+      `);
+
+      const demoUsers = [
+        ['00000000-0000-0000-0001-000000000001', null,                                    'super@ecomai.dev',  'super_admin',    'Super Admin'],
+        ['00000000-0000-0000-0001-000000000002', '00000000-0000-0000-0000-000000000001',  'admin@coffee.dev',  'shop_admin',     'Coffee Admin'],
+        ['00000000-0000-0000-0001-000000000003', '00000000-0000-0000-0000-000000000001',  'staff@coffee.dev',  'shop_user',      'Coffee Staff'],
+        ['00000000-0000-0000-0001-000000000004', '00000000-0000-0000-0000-000000000001',  'driver@ecomai.dev', 'delivery_agent', 'Demo Driver'],
+      ];
+
+      for (const [id, shopId, email, role, name] of demoUsers) {
+        await pool.query(`
+          INSERT INTO users (id, shop_id, email, password_hash, role, full_name)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (email) DO UPDATE SET password_hash = $4
+        `, [id, shopId, email, demoPassword, role, name]);
+      }
+      console.log('Demo shop & users ready (password: password123).\n');
+
       const seedPath = path.join(__dirname, 'seed.sql');
       const seed = fs.readFileSync(seedPath, 'utf8');
       console.log('Applying seed data...');

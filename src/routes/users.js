@@ -34,4 +34,26 @@ router.post('/', asyncHandler(async (req, res) => {
   res.status(201).json(created);
 }));
 
+// ── Super-admin: all users across all shops ──
+
+router.get('/all', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
+  const result = await usersService.listAllUsers({
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 50,
+    search: req.query.search,
+    role: req.query.role,
+  });
+  res.json(result);
+}));
+
+router.patch('/:userId', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
+  const updated = await usersService.updateUser(req.params.userId, req.body);
+  res.json(updated);
+}));
+
+router.delete('/:userId', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
+  await usersService.deleteUser(req.params.userId);
+  res.json({ deleted: true });
+}));
+
 module.exports = router;

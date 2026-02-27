@@ -20,7 +20,7 @@ export default function Products() {
   // Category filtering is handled client-side via Products list page search
 
   const loadCategories = () => {
-    categoriesApi.list({ status: 'active' }).then(setCategoryList).catch(() => {});
+    categoriesApi.list({ status: 'active' }).then(data => setCategoryList(data.items || data)).catch(() => {});
   };
 
   const load = (p = page, q = search) => {

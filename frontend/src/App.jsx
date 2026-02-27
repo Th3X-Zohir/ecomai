@@ -24,6 +24,8 @@ import Payments from './pages/Payments';
 import Categories from './pages/Categories';
 import WebsiteSettings from './pages/WebsiteSettings';
 import ShopSettings from './pages/ShopSettings';
+import AllShops from './pages/AllShops';
+import AllUsers from './pages/AllUsers';
 
 // Storefront pages
 import StorefrontLayout from './storefront/StorefrontLayout';
@@ -105,6 +107,8 @@ export default function App() {
         <Route path="payments" element={<Payments />} />
         <Route path="website-settings" element={<WebsiteSettings />} />
         <Route path="shop" element={<ShopSettings />} />
+        <Route path="all-shops" element={<AllShops />} />
+        <Route path="all-users" element={<AllUsers />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
