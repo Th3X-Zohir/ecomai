@@ -4,6 +4,8 @@ const shopRepo = require('../repositories/shops');
 const productRepo = require('../repositories/products');
 const variantRepo = require('../repositories/product-variants');
 const websiteRepo = require('../repositories/website-settings');
+const categoryRepo = require('../repositories/categories');
+const catReqRepo = require('../repositories/category-requests');
 const customerService = require('../services/customers');
 const orderService = require('../services/orders');
 const paymentService = require('../services/payments');
@@ -40,6 +42,7 @@ router.get('/shops/:slug/products', asyncHandler(async (req, res) => {
     limit: Number(req.query.limit) || 50,
     search: req.query.search,
     category: req.query.category,
+    category_id: req.query.category_id,
     status: 'active',
   });
   res.json(result);
@@ -53,6 +56,30 @@ router.get('/shops/:slug/products/:productSlug', asyncHandler(async (req, res) =
   // Include variants
   const variants = await variantRepo.listByProduct(shop.id, product.id);
   res.json({ ...product, variants });
+}));
+
+// --- Public categories ---
+
+router.get('/shops/:slug/categories', asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const cats = await categoryRepo.getProductCounts(shop.id);
+  res.json(cats);
+}));
+
+// --- Category request (anonymous or authenticated customer) ---
+
+router.post('/shops/:slug/category-requests', asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const { name, reason, customer_id } = req.body;
+  if (!name || name.trim().length < 2) {
+    throw new DomainError('VALIDATION_ERROR', 'Category name is required (min 2 chars)', 400);
+  }
+  const request = await catReqRepo.create({
+    shop_id: shop.id, customer_id: customer_id || null, name: name.trim(), reason: reason || null,
+  });
+  res.status(201).json(request);
 }));
 
 // --- Customer auth ---

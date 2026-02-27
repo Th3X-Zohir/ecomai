@@ -28,6 +28,10 @@ export const storeApi = {
   },
   getProduct: (slug, productSlug) => request('GET', `/shops/${slug}/products/${productSlug}`),
 
+  // Categories
+  getCategories: (slug) => request('GET', `/shops/${slug}/categories`),
+  submitCategoryRequest: (slug, data) => request('POST', `/shops/${slug}/category-requests`, data),
+
   // Customer auth
   register: (slug, data) => request('POST', `/shops/${slug}/auth/register`, data),
   login: (slug, data) => request('POST', `/shops/${slug}/auth/login`, data),

@@ -30,6 +30,17 @@ export default function WebsiteSettings() {
   const [heroCta, setHeroCta] = useState('');
   const [featuredTitle, setFeaturedTitle] = useState('');
 
+  /* ── New expanded settings state ── */
+  const [socialLinks, setSocialLinks] = useState({ facebook: '', instagram: '', twitter: '', tiktok: '', youtube: '', whatsapp: '' });
+  const [businessInfo, setBusinessInfo] = useState({ phone: '', email: '', address: '', whatsapp: '', hours: '' });
+  const [announcement, setAnnouncement] = useState({ enabled: false, text: '', link: '', bg_color: '#4f46e5', text_color: '#ffffff' });
+  const [storePolicies, setStorePolicies] = useState({ return_policy: '', privacy_policy: '', terms: '', about_us: '' });
+  const [trustBadges, setTrustBadges] = useState([
+    { icon: '🔒', title: 'Secure Checkout', text: '100% secure payment' },
+    { icon: '🚀', title: 'Fast Shipping', text: 'Free delivery on orders over $50' },
+    { icon: '💬', title: '24/7 Support', text: 'Dedicated customer support' },
+  ]);
+
   const iframeRef = useRef(null);
 
   useEffect(() => {
@@ -56,6 +67,17 @@ export default function WebsiteSettings() {
         setHeroSubtitle(hp?.hero?.subtitle || '');
         setHeroCta(hp?.hero?.cta || '');
         setFeaturedTitle(hp?.featured_title || '');
+
+        /* Load new expanded settings */
+        const sl = data.social_links || {};
+        setSocialLinks({ facebook: sl.facebook || '', instagram: sl.instagram || '', twitter: sl.twitter || '', tiktok: sl.tiktok || '', youtube: sl.youtube || '', whatsapp: sl.whatsapp || '' });
+        const bi = data.business_info || {};
+        setBusinessInfo({ phone: bi.phone || '', email: bi.email || '', address: bi.address || '', whatsapp: bi.whatsapp || '', hours: bi.hours || '' });
+        const ann = data.announcement || {};
+        setAnnouncement({ enabled: !!ann.enabled, text: ann.text || '', link: ann.link || '', bg_color: ann.bg_color || '#4f46e5', text_color: ann.text_color || '#ffffff' });
+        const sp = data.store_policies || {};
+        setStorePolicies({ return_policy: sp.return_policy || '', privacy_policy: sp.privacy_policy || '', terms: sp.terms || '', about_us: sp.about_us || '' });
+        if (data.trust_badges && Array.isArray(data.trust_badges) && data.trust_badges.length > 0) setTrustBadges(data.trust_badges);
 
         if (user.role !== 'super_admin') {
           const s = await shops.me();
@@ -92,6 +114,11 @@ export default function WebsiteSettings() {
           title: seoTitle || undefined,
           description: seoDescription || undefined,
         },
+        social_links: socialLinks,
+        business_info: businessInfo,
+        announcement: announcement,
+        store_policies: storePolicies,
+        trust_badges: trustBadges,
       };
       const updated = await websiteSettings.update(patch);
       setSettings(updated);
@@ -132,6 +159,10 @@ export default function WebsiteSettings() {
     { id: 'theme', label: 'Template', icon: '🎨' },
     { id: 'colors', label: 'Colors & Fonts', icon: '🖌️' },
     { id: 'homepage', label: 'Homepage', icon: '🏠' },
+    { id: 'announcement', label: 'Announcement', icon: '📢' },
+    { id: 'social', label: 'Social & Contact', icon: '🌐' },
+    { id: 'policies', label: 'Policies', icon: '📜' },
+    { id: 'trust', label: 'Trust Badges', icon: '🛡️' },
     { id: 'seo', label: 'SEO', icon: '🔍' },
     { id: 'advanced', label: 'Advanced', icon: '⚙️' },
   ];
@@ -308,6 +339,150 @@ export default function WebsiteSettings() {
                     <FormField label="Call-to-Action"><Input value={heroCta} onChange={e => setHeroCta(e.target.value)} placeholder="Shop Now" /></FormField>
                     <FormField label="Featured Section Title"><Input value={featuredTitle} onChange={e => setFeaturedTitle(e.target.value)} placeholder="Featured Products" /></FormField>
                   </div>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* ── Announcement Bar ── */}
+          {activeTab === 'announcement' && (
+            <Card>
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Announcement Bar</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Show a banner at the top of your store for sales, announcements, etc.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={announcement.enabled} onChange={e => setAnnouncement({...announcement, enabled: e.target.checked})} className="sr-only peer" />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+                <div className="space-y-3">
+                  <FormField label="Announcement Text">
+                    <Input value={announcement.text} onChange={e => setAnnouncement({...announcement, text: e.target.value})} placeholder="🎉 Free shipping on orders over $50! Use code SHIP50" />
+                  </FormField>
+                  <FormField label="Link (optional)">
+                    <Input value={announcement.link} onChange={e => setAnnouncement({...announcement, link: e.target.value})} placeholder="/products or https://..." />
+                  </FormField>
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField label="Background Color">
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={announcement.bg_color} onChange={e => setAnnouncement({...announcement, bg_color: e.target.value})} className="w-9 h-9 rounded-lg border cursor-pointer" />
+                        <Input value={announcement.bg_color} onChange={e => setAnnouncement({...announcement, bg_color: e.target.value})} />
+                      </div>
+                    </FormField>
+                    <FormField label="Text Color">
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={announcement.text_color} onChange={e => setAnnouncement({...announcement, text_color: e.target.value})} className="w-9 h-9 rounded-lg border cursor-pointer" />
+                        <Input value={announcement.text_color} onChange={e => setAnnouncement({...announcement, text_color: e.target.value})} />
+                      </div>
+                    </FormField>
+                  </div>
+                </div>
+                {announcement.enabled && announcement.text && (
+                  <div className="mt-4 p-3 rounded-lg text-center text-sm font-medium" style={{ backgroundColor: announcement.bg_color, color: announcement.text_color }}>
+                    {announcement.text}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* ── Social & Contact ── */}
+          {activeTab === 'social' && (
+            <>
+              <Card>
+                <div className="p-5">
+                  <h3 className="font-semibold text-gray-900 mb-1">Social Media Links</h3>
+                  <p className="text-xs text-gray-500 mb-4">Add your social profiles. Shown in the storefront footer and contact section.</p>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField label="📘 Facebook"><Input value={socialLinks.facebook} onChange={e => setSocialLinks({...socialLinks, facebook: e.target.value})} placeholder="https://facebook.com/yourpage" /></FormField>
+                      <FormField label="📸 Instagram"><Input value={socialLinks.instagram} onChange={e => setSocialLinks({...socialLinks, instagram: e.target.value})} placeholder="https://instagram.com/yourprofile" /></FormField>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField label="🐦 Twitter / X"><Input value={socialLinks.twitter} onChange={e => setSocialLinks({...socialLinks, twitter: e.target.value})} placeholder="https://x.com/yourhandle" /></FormField>
+                      <FormField label="🎵 TikTok"><Input value={socialLinks.tiktok} onChange={e => setSocialLinks({...socialLinks, tiktok: e.target.value})} placeholder="https://tiktok.com/@yourhandle" /></FormField>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField label="📺 YouTube"><Input value={socialLinks.youtube} onChange={e => setSocialLinks({...socialLinks, youtube: e.target.value})} placeholder="https://youtube.com/@yourchannel" /></FormField>
+                      <FormField label="💬 WhatsApp"><Input value={socialLinks.whatsapp} onChange={e => setSocialLinks({...socialLinks, whatsapp: e.target.value})} placeholder="+880XXXXXXXXXX" /></FormField>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              <Card>
+                <div className="p-5">
+                  <h3 className="font-semibold text-gray-900 mb-1">Business Contact Info</h3>
+                  <p className="text-xs text-gray-500 mb-4">Shown on your storefront for customer trust. Also enables a floating contact button.</p>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField label="Phone"><Input value={businessInfo.phone} onChange={e => setBusinessInfo({...businessInfo, phone: e.target.value})} placeholder="+880 1XXX XXXXXX" /></FormField>
+                      <FormField label="Email"><Input value={businessInfo.email} onChange={e => setBusinessInfo({...businessInfo, email: e.target.value})} placeholder="hello@yourshop.com" /></FormField>
+                    </div>
+                    <FormField label="WhatsApp Number (for floating chat button)">
+                      <Input value={businessInfo.whatsapp} onChange={e => setBusinessInfo({...businessInfo, whatsapp: e.target.value})} placeholder="+880XXXXXXXXXX (with country code)" />
+                    </FormField>
+                    <FormField label="Business Address"><Input value={businessInfo.address} onChange={e => setBusinessInfo({...businessInfo, address: e.target.value})} placeholder="123 Main St, Dhaka, Bangladesh" /></FormField>
+                    <FormField label="Business Hours"><Input value={businessInfo.hours} onChange={e => setBusinessInfo({...businessInfo, hours: e.target.value})} placeholder="Mon-Fri: 9am-6pm, Sat: 10am-4pm" /></FormField>
+                  </div>
+                </div>
+              </Card>
+            </>
+          )}
+
+          {/* ── Store Policies ── */}
+          {activeTab === 'policies' && (
+            <>
+              <Card>
+                <div className="p-5">
+                  <h3 className="font-semibold text-gray-900 mb-1">Store Policies</h3>
+                  <p className="text-xs text-gray-500 mb-4">These build customer trust. Shown as links in your storefront footer and dedicated pages.</p>
+                  <div className="space-y-4">
+                    <FormField label="About Us" hint="Tell customers your story">
+                      <Textarea value={storePolicies.about_us} onChange={e => setStorePolicies({...storePolicies, about_us: e.target.value})} placeholder="We are a small business passionate about..." className="!h-24" />
+                    </FormField>
+                    <FormField label="Return & Refund Policy" hint="Helps customers feel safe purchasing">
+                      <Textarea value={storePolicies.return_policy} onChange={e => setStorePolicies({...storePolicies, return_policy: e.target.value})} placeholder="We offer a 30-day return policy on all unused items..." className="!h-24" />
+                    </FormField>
+                    <FormField label="Privacy Policy" hint="Required for customer data protection">
+                      <Textarea value={storePolicies.privacy_policy} onChange={e => setStorePolicies({...storePolicies, privacy_policy: e.target.value})} placeholder="We respect your privacy. Your data is..." className="!h-24" />
+                    </FormField>
+                    <FormField label="Terms of Service">
+                      <Textarea value={storePolicies.terms} onChange={e => setStorePolicies({...storePolicies, terms: e.target.value})} placeholder="By using our store, you agree to..." className="!h-24" />
+                    </FormField>
+                  </div>
+                </div>
+              </Card>
+            </>
+          )}
+
+          {/* ── Trust Badges ── */}
+          {activeTab === 'trust' && (
+            <Card>
+              <div className="p-5">
+                <h3 className="font-semibold text-gray-900 mb-1">Trust Badges</h3>
+                <p className="text-xs text-gray-500 mb-4">Shown on your homepage to build customer confidence. Edit icon, title, and description.</p>
+                <div className="space-y-4">
+                  {trustBadges.map((badge, idx) => (
+                    <div key={idx} className="flex gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex-shrink-0">
+                        <Input value={badge.icon} onChange={e => { const nb = [...trustBadges]; nb[idx] = {...nb[idx], icon: e.target.value}; setTrustBadges(nb); }} className="!w-16 text-center text-xl !px-2" />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <Input value={badge.title} onChange={e => { const nb = [...trustBadges]; nb[idx] = {...nb[idx], title: e.target.value}; setTrustBadges(nb); }} placeholder="Badge title" />
+                        <Input value={badge.text} onChange={e => { const nb = [...trustBadges]; nb[idx] = {...nb[idx], text: e.target.value}; setTrustBadges(nb); }} placeholder="Badge description" />
+                      </div>
+                      <button onClick={() => setTrustBadges(trustBadges.filter((_, i) => i !== idx))} className="text-gray-400 hover:text-red-500 self-start mt-2">✕</button>
+                    </div>
+                  ))}
+                  {trustBadges.length < 6 && (
+                    <button onClick={() => setTrustBadges([...trustBadges, { icon: '⭐', title: 'New Badge', text: 'Description' }])}
+                      className="w-full p-3 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition">
+                      + Add Trust Badge
+                    </button>
+                  )}
                 </div>
               </div>
             </Card>

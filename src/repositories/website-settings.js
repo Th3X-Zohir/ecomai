@@ -27,14 +27,16 @@ async function createDefault(shopId) {
 }
 
 async function updateForShop(shopId, patch) {
-  const allowed = ['template', 'theme', 'header', 'footer', 'homepage', 'custom_css', 'custom_js', 'seo_defaults'];
+  const allowed = ['template', 'theme', 'header', 'footer', 'homepage', 'custom_css', 'custom_js', 'seo_defaults',
+                    'social_links', 'business_info', 'store_policies', 'announcement', 'trust_badges'];
+  const jsonCols = ['theme', 'header', 'footer', 'homepage', 'seo_defaults', 'social_links', 'business_info', 'store_policies', 'announcement', 'trust_badges'];
   const sets = [];
   const params = [];
   let idx = 1;
   for (const k of allowed) {
     if (Object.prototype.hasOwnProperty.call(patch, k)) {
       sets.push(`${k} = $${idx}`);
-      params.push(['theme', 'header', 'footer', 'homepage', 'seo_defaults'].includes(k) ? JSON.stringify(patch[k]) : patch[k]);
+      params.push(jsonCols.includes(k) ? JSON.stringify(patch[k]) : patch[k]);
       idx++;
     }
   }

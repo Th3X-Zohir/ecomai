@@ -5,7 +5,7 @@ import { storeApi } from '../../api-public';
 import { resolveTokens } from '../templates';
 
 export default function StoreHome() {
-  const { shop, shopSlug, theme, tokens, homepage } = useStore();
+  const { shop, shopSlug, theme, tokens, homepage, trustBadges } = useStore();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,6 +23,13 @@ export default function StoreHome() {
   const heroSubtitle =
     homepage?.hero?.subtitle || 'Discover our curated collection of premium products.';
   const heroCta = homepage?.hero?.cta || 'Shop Now';
+
+  const defaultBadges = [
+    { icon: '🚀', title: 'Fast Shipping', text: 'Free delivery on orders over $50' },
+    { icon: '🔒', title: 'Secure Checkout', text: '100% secure payment processing' },
+    { icon: '💬', title: '24/7 Support', text: 'Dedicated support for every customer' },
+  ];
+  const badges = (trustBadges && trustBadges.length > 0) ? trustBadges : defaultBadges;
 
   return (
     <div>
@@ -158,28 +165,14 @@ export default function StoreHome() {
       {/* Trust / Social proof section */}
       <section className="py-16" style={{ backgroundColor: t.surface }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            <div className="p-6">
-              <div className="text-3xl mb-3">🚀</div>
-              <h3 className="font-semibold mb-2" style={{ color: t.text }}>Fast Shipping</h3>
-              <p className="text-sm" style={{ color: t.textMuted }}>
-                Free delivery on orders over $50
-              </p>
-            </div>
-            <div className="p-6">
-              <div className="text-3xl mb-3">🔒</div>
-              <h3 className="font-semibold mb-2" style={{ color: t.text }}>Secure Checkout</h3>
-              <p className="text-sm" style={{ color: t.textMuted }}>
-                100% secure payment processing
-              </p>
-            </div>
-            <div className="p-6">
-              <div className="text-3xl mb-3">💬</div>
-              <h3 className="font-semibold mb-2" style={{ color: t.text }}>24/7 Support</h3>
-              <p className="text-sm" style={{ color: t.textMuted }}>
-                Dedicated support for every customer
-              </p>
-            </div>
+          <div className={`grid grid-cols-1 md:grid-cols-${Math.min(badges.length, 4)} gap-8 text-center`}>
+            {badges.map((badge, idx) => (
+              <div key={idx} className="p-6">
+                <div className="text-3xl mb-3">{badge.icon}</div>
+                <h3 className="font-semibold mb-2" style={{ color: t.text }}>{badge.title}</h3>
+                <p className="text-sm" style={{ color: t.textMuted }}>{badge.text}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

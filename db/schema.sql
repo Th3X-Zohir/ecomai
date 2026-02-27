@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS products (
   base_price      NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (base_price >= 0),
   description     TEXT,
   category        TEXT,
+  category_id     UUID REFERENCES categories(id) ON DELETE SET NULL,
   status          TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','archived')),
   image_url       TEXT,
   stock_quantity  INT NOT NULL DEFAULT 0,
@@ -206,20 +207,54 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ── Categories (per-shop, admin-managed) ───────────────────
+CREATE TABLE IF NOT EXISTS categories (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id     UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  slug        TEXT NOT NULL,
+  description TEXT,
+  image_url   TEXT,
+  parent_id   UUID REFERENCES categories(id) ON DELETE SET NULL,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','archived')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(shop_id, slug)
+);
+
+-- ── Category Requests (customer suggestions) ───────────────
+CREATE TABLE IF NOT EXISTS category_requests (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id      UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  customer_id  UUID REFERENCES customers(id) ON DELETE SET NULL,
+  name         TEXT NOT NULL,
+  reason       TEXT,
+  status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  admin_notes  TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ── Website Settings ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS website_settings (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  shop_id       UUID NOT NULL UNIQUE REFERENCES shops(id) ON DELETE CASCADE,
-  template      TEXT NOT NULL DEFAULT 'starter',
-  theme         JSONB NOT NULL DEFAULT '{}',
-  header        JSONB NOT NULL DEFAULT '{}',
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id         UUID NOT NULL UNIQUE REFERENCES shops(id) ON DELETE CASCADE,
+  template        TEXT NOT NULL DEFAULT 'starter',
+  theme           JSONB NOT NULL DEFAULT '{}',
+  header          JSONB NOT NULL DEFAULT '{}',
   footer        JSONB NOT NULL DEFAULT '{}',
   homepage      JSONB NOT NULL DEFAULT '{}',
   custom_css    TEXT,
   custom_js     TEXT,
-  seo_defaults  JSONB NOT NULL DEFAULT '{}',
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  seo_defaults    JSONB NOT NULL DEFAULT '{}',
+  social_links    JSONB NOT NULL DEFAULT '{}',
+  business_info   JSONB NOT NULL DEFAULT '{}',
+  store_policies  JSONB NOT NULL DEFAULT '{}',
+  announcement    JSONB NOT NULL DEFAULT '{}',
+  trust_badges    JSONB NOT NULL DEFAULT '[]',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ── Refresh Tokens ─────────────────────────────────────────
@@ -263,6 +298,10 @@ CREATE INDEX IF NOT EXISTS idx_delivery_driver     ON delivery_requests(assigned
 CREATE INDEX IF NOT EXISTS idx_campaigns_shop      ON marketing_campaigns(shop_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_shop      ON inventory_movements(shop_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_variant   ON inventory_movements(variant_id);
+CREATE INDEX IF NOT EXISTS idx_categories_shop     ON categories(shop_id);
+CREATE INDEX IF NOT EXISTS idx_categories_parent   ON categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_cat_requests_shop   ON category_requests(shop_id);
+CREATE INDEX IF NOT EXISTS idx_products_category   ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_website_shop        ON website_settings(shop_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_user        ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_hash        ON refresh_tokens(token);

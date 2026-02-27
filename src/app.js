@@ -19,6 +19,7 @@ const campaignRoutes = require('./routes/marketing-campaigns');
 const variantRoutes = require('./routes/product-variants');
 const inventoryRoutes = require('./routes/inventory-movements');
 const websiteSettingsRoutes = require('./routes/website-settings');
+const categoryRoutes = require('./routes/categories');
 const driverRoutes = require('./routes/driver');
 const publicRoutes = require('./routes/public');
 
@@ -63,6 +64,7 @@ app.use('/v1/marketing-campaigns', campaignRoutes);
 app.use('/v1', variantRoutes);
 app.use('/v1/inventory-movements', inventoryRoutes);
 app.use('/v1/website-settings', websiteSettingsRoutes);
+app.use('/v1/categories', categoryRoutes);
 app.use('/v1/driver', driverRoutes);
 
 // SPA fallback — serve index.html for any non-API route

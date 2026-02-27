@@ -36,9 +36,16 @@ export function StoreProvider({ shopSlug, children }) {
   const customJs = siteSettings.custom_js || '';             // injected JS
   const seoDefaults = siteSettings.seo_defaults || {};       // meta tags
 
+  // New expanded settings
+  const socialLinks = siteSettings.social_links || {};       // facebook, instagram, etc.
+  const businessInfo = siteSettings.business_info || {};     // phone, email, address, whatsapp, hours
+  const announcement = siteSettings.announcement || {};      // { enabled, text, link, bg_color, text_color }
+  const storePolicies = siteSettings.store_policies || {};   // about_us, return_policy, privacy_policy, terms
+  const trustBadges = siteSettings.trust_badges || [];       // [{ icon, title, text }]
+
   return (
     <StoreContext.Provider
-      value={{ shop, settings: siteSettings, theme, tokens, nav, footer, homepage, customCss, customJs, seoDefaults, loading, error, shopSlug }}
+      value={{ shop, settings: siteSettings, theme, tokens, nav, footer, homepage, customCss, customJs, seoDefaults, socialLinks, businessInfo, announcement, storePolicies, trustBadges, loading, error, shopSlug }}
     >
       {children}
     </StoreContext.Provider>

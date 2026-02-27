@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { products } from '../api';
+import { products, categories as categoriesApi } from '../api';
 import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Pagination, SearchInput, Card, PageSkeleton, useToast } from '../components/UI';
 
 export default function Products() {
@@ -9,13 +9,19 @@ export default function Products() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: '', slug: '', base_price: '', description: '', category: '', status: 'draft' });
+  const [form, setForm] = useState({ name: '', slug: '', base_price: '', description: '', category: '', category_id: '', status: 'draft' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [categoryList, setCategoryList] = useState([]);
+  const [filterCategory, setFilterCategory] = useState('');
+
+  const loadCategories = () => {
+    categoriesApi.list({ status: 'active' }).then(setCategoryList).catch(() => {});
+  };
 
   const load = (p = page, q = search) => {
     setLoading(true);
@@ -25,7 +31,7 @@ export default function Products() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(1); }, []);
+  useEffect(() => { load(1); loadCategories(); }, []);
 
   const handleSearch = (val) => { setSearch(val); load(1, val); };
 
@@ -35,7 +41,7 @@ export default function Products() {
     try {
       await products.create({ ...form, base_price: Number(form.base_price) });
       setShowCreate(false);
-      setForm({ name: '', slug: '', base_price: '', description: '', category: '', status: 'draft' });
+      setForm({ name: '', slug: '', base_price: '', description: '', category: '', category_id: '', status: 'draft' });
       toast('Product created successfully!', 'success');
       load();
     } catch (err) { setError(err.message); } finally { setSaving(false); }
@@ -61,7 +67,7 @@ export default function Products() {
       </div>
     )},
     { key: 'category', label: 'Category', render: (r) => (
-      <span className="text-sm text-gray-600">{r.category || <span className="text-gray-400">—</span>}</span>
+      <span className="text-sm text-gray-600">{r.category_name || r.category || <span className="text-gray-400">—</span>}</span>
     )},
     { key: 'base_price', label: 'Price', render: (r) => (
       <span className="font-semibold text-gray-900">${Number(r.base_price).toFixed(2)}</span>
@@ -131,7 +137,13 @@ export default function Products() {
             </FormField>
           </div>
           <FormField label="Category">
-            <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Beverages" />
+            <Select value={form.category_id} onChange={(e) => {
+              const cat = categoryList.find(c => c.id === e.target.value);
+              setForm({ ...form, category_id: e.target.value, category: cat?.name || '' });
+            }}>
+              <option value="">— Select Category —</option>
+              {categoryList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
           </FormField>
           <FormField label="Description">
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Write a compelling product description..." />

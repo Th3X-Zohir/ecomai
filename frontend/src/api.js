@@ -127,3 +127,17 @@ export const websiteSettings = {
   get: () => request('GET', '/website-settings/me'),
   update: (data) => request('PATCH', '/website-settings/me', data),
 };
+
+export const categories = {
+  list: (params) => request('GET', `/categories${qs(params)}`),
+  withCounts: () => request('GET', '/categories/with-counts'),
+  get: (id) => request('GET', `/categories/${id}`),
+  create: (data) => request('POST', '/categories', data),
+  update: (id, data) => request('PATCH', `/categories/${id}`, data),
+  delete: (id) => request('DELETE', `/categories/${id}`),
+  // Category requests (admin)
+  requests: (params) => request('GET', `/categories/requests/list${qs(params)}`),
+  pendingCount: () => request('GET', '/categories/requests/pending-count'),
+  approveRequest: (id, data) => request('POST', `/categories/requests/${id}/approve`, data),
+  rejectRequest: (id, data) => request('POST', `/categories/requests/${id}/reject`, data),
+};

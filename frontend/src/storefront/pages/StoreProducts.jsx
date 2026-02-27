@@ -7,6 +7,7 @@ import { resolveTokens } from '../templates';
 export default function StoreProducts() {
   const { shopSlug, theme, tokens } = useStore();
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
@@ -14,18 +15,21 @@ export default function StoreProducts() {
   const t = resolveTokens(theme, tokens);
 
   useEffect(() => {
-    storeApi
-      .getProducts(shopSlug)
-      .then((data) => setProducts(data.items))
+    Promise.all([
+      storeApi.getProducts(shopSlug),
+      storeApi.getCategories(shopSlug),
+    ])
+      .then(([prodData, catData]) => {
+        setProducts(prodData.items);
+        setCategories(catData || []);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [shopSlug]);
 
-  const categories = [...new Set(products.map((p) => p.category).filter(Boolean))];
-
   const filtered = products.filter((p) => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
-    const matchCategory = !category || p.category === category;
+    const matchCategory = !category || p.category_id === category || p.category_name === category || p.category === category;
     return matchSearch && matchCategory;
   });
 
@@ -70,7 +74,7 @@ export default function StoreProducts() {
           >
             <option value="">All Categories</option>
             {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
+              <option key={c.id} value={c.id}>{c.name}{c.product_count ? ` (${c.product_count})` : ''}</option>
             ))}
           </select>
         )}
@@ -118,7 +122,7 @@ export default function StoreProducts() {
                   <h3 className="font-semibold text-sm mb-1 group-hover:opacity-70 transition" style={{ color: t.text }}>
                     {product.name}
                   </h3>
-                  {product.category && (
+                  {(product.category_name || product.category) && (
                     <span
                       className="inline-block text-xs px-2 py-0.5 mb-2 w-fit"
                       style={{
@@ -127,7 +131,7 @@ export default function StoreProducts() {
                         borderRadius: t.buttonRadius,
                       }}
                     >
-                      {product.category}
+                      {product.category_name || product.category}
                     </span>
                   )}
                   {product.description && (

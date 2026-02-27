@@ -21,7 +21,7 @@ async function getProductBySlug(shopId, slug) {
   return product;
 }
 
-async function createProduct({ shopId, name, slug, base_price, description, category, image_url, stock_quantity }) {
+async function createProduct({ shopId, name, slug, base_price, description, category, category_id, image_url, stock_quantity }) {
   if (!name || !slug || base_price == null) {
     throw new DomainError('VALIDATION_ERROR', 'name, slug, base_price are required', 400);
   }
@@ -37,6 +37,7 @@ async function createProduct({ shopId, name, slug, base_price, description, cate
     base_price: Number(base_price),
     description: description || null,
     category: category || null,
+    category_id: category_id || null,
     image_url: image_url || null,
     stock_quantity: stock_quantity != null ? Number(stock_quantity) : 0,
   });

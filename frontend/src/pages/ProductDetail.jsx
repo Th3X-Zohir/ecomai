@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { products, variants } from '../api';
+import { products, variants, categories as categoriesApi } from '../api';
 import { PageHeader, Card, Button, Badge, Modal, FormField, Input, Select, Textarea, Table, ConfirmDialog, PageSkeleton, useToast } from '../components/UI';
 
 export default function ProductDetail() {
@@ -18,13 +18,14 @@ export default function ProductDetail() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDeleteVariant, setConfirmDeleteVariant] = useState(null);
+  const [categoryList, setCategoryList] = useState([]);
 
   const load = async () => {
     setLoading(true);
     try {
       const p = await products.get(id);
       setProduct(p);
-      setForm({ name: p.name, slug: p.slug, base_price: p.base_price, description: p.description || '', category: p.category || '', status: p.status });
+      setForm({ name: p.name, slug: p.slug, base_price: p.base_price, description: p.description || '', category: p.category || '', category_id: p.category_id || '', status: p.status });
       const v = await variants.list(id);
       setProductVariants(v.items);
     } catch { navigate('/admin/products'); }
@@ -32,6 +33,7 @@ export default function ProductDetail() {
   };
 
   useEffect(() => { load(); }, [id]);
+  useEffect(() => { categoriesApi.list({ status: 'active' }).then(setCategoryList).catch(() => {}); }, []);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -198,7 +200,15 @@ export default function ProductDetail() {
               </Select>
             </FormField>
           </div>
-          <FormField label="Category"><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></FormField>
+          <FormField label="Category">
+            <Select value={form.category_id} onChange={(e) => {
+              const cat = categoryList.find(c => c.id === e.target.value);
+              setForm({ ...form, category_id: e.target.value, category: cat?.name || '' });
+            }}>
+              <option value="">— Select Category —</option>
+              {categoryList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </FormField>
           <FormField label="Description"><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></FormField>
           <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-gray-100">
             <Button variant="secondary" type="button" onClick={() => setEditing(false)}>Cancel</Button>

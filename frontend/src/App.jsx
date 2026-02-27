@@ -20,6 +20,7 @@ import Customers from './pages/Customers';
 import Campaigns from './pages/Campaigns';
 import Deliveries from './pages/Deliveries';
 import Payments from './pages/Payments';
+import Categories from './pages/Categories';
 import WebsiteSettings from './pages/WebsiteSettings';
 import ShopSettings from './pages/ShopSettings';
 
@@ -33,6 +34,7 @@ import StoreCheckout from './storefront/pages/StoreCheckout';
 import StoreLogin from './storefront/pages/StoreLogin';
 import StoreRegister from './storefront/pages/StoreRegister';
 import StoreAccount from './storefront/pages/StoreAccount';
+import StorePolicy from './storefront/pages/StorePolicy';
 import CheckoutSuccess from './storefront/pages/CheckoutSuccess';
 import CheckoutFail from './storefront/pages/CheckoutFail';
 import CheckoutCancel from './storefront/pages/CheckoutCancel';
@@ -60,6 +62,7 @@ function StorefrontWrapper() {
           <Route path="auth/login" element={<StoreLogin />} />
           <Route path="auth/register" element={<StoreRegister />} />
           <Route path="account" element={<StoreAccount />} />
+          <Route path="policy/:type" element={<StorePolicy />} />
         </Route>
       </Routes>
     </CartProvider>
@@ -92,6 +95,7 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="products" element={<Products />} />
         <Route path="products/:id" element={<ProductDetail />} />
+        <Route path="categories" element={<Categories />} />
         <Route path="orders" element={<Orders />} />
         <Route path="orders/:id" element={<OrderDetail />} />
         <Route path="customers" element={<Customers />} />

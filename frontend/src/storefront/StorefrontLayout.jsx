@@ -5,7 +5,7 @@ import { useCart } from '../contexts/CartContext';
 import { resolveTokens, tokensToCssVars } from './templates';
 
 export default function StorefrontLayout() {
-  const { shop, theme, tokens, nav, footer, customCss, customJs, seoDefaults, loading, error, shopSlug } = useStore();
+  const { shop, theme, tokens, nav, footer, customCss, customJs, seoDefaults, socialLinks, businessInfo, announcement, storePolicies, loading, error, shopSlug } = useStore();
   const { count } = useCart();
   const navigate = useNavigate();
   const [customerToken, setCustomerToken] = useState(null);
@@ -86,6 +86,20 @@ export default function StorefrontLayout() {
         .storefront a { color: inherit; }
         ${customCss}
       `}</style>
+
+      {/* Announcement Bar */}
+      {announcement?.enabled && announcement?.text && (
+        <div
+          className="text-center text-sm font-medium py-2 px-4"
+          style={{ backgroundColor: announcement.bg_color || '#4f46e5', color: announcement.text_color || '#ffffff' }}
+        >
+          {announcement.link ? (
+            <Link to={announcement.link} className="hover:underline">{announcement.text}</Link>
+          ) : (
+            <span>{announcement.text}</span>
+          )}
+        </div>
+      )}
 
       {/* Header */}
       <header
@@ -193,12 +207,22 @@ export default function StorefrontLayout() {
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <h3 className="text-lg font-bold mb-3" style={{ color: resolved.primary }}>{shop?.name}</h3>
               <p className="text-sm opacity-70">
                 {footer.tagline || 'Powered by Ecomai — Multi-tenant Commerce Platform'}
               </p>
+              {/* Social Links */}
+              {Object.values(socialLinks).some(Boolean) && (
+                <div className="flex items-center gap-3 mt-4">
+                  {socialLinks.facebook && <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="Facebook">📘</a>}
+                  {socialLinks.instagram && <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="Instagram">📸</a>}
+                  {socialLinks.twitter && <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="Twitter">🐦</a>}
+                  {socialLinks.tiktok && <a href={socialLinks.tiktok} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="TikTok">🎵</a>}
+                  {socialLinks.youtube && <a href={socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="YouTube">📺</a>}
+                </div>
+              )}
             </div>
             <div>
               <h4 className="font-semibold mb-3 text-sm uppercase tracking-wider opacity-60">Quick Links</h4>
@@ -210,9 +234,25 @@ export default function StorefrontLayout() {
               </ul>
             </div>
             <div>
+              <h4 className="font-semibold mb-3 text-sm uppercase tracking-wider opacity-60">Policies</h4>
+              <ul className="space-y-2 text-sm">
+                {storePolicies.about_us && <li><Link to={`/store/${shopSlug}/policy/about`} className="hover:opacity-70 transition">About Us</Link></li>}
+                {storePolicies.return_policy && <li><Link to={`/store/${shopSlug}/policy/return`} className="hover:opacity-70 transition">Return Policy</Link></li>}
+                {storePolicies.privacy_policy && <li><Link to={`/store/${shopSlug}/policy/privacy`} className="hover:opacity-70 transition">Privacy Policy</Link></li>}
+                {storePolicies.terms && <li><Link to={`/store/${shopSlug}/policy/terms`} className="hover:opacity-70 transition">Terms of Service</Link></li>}
+                {!storePolicies.about_us && !storePolicies.return_policy && !storePolicies.privacy_policy && !storePolicies.terms && (
+                  <li className="opacity-50">No policies set up yet</li>
+                )}
+              </ul>
+            </div>
+            <div>
               <h4 className="font-semibold mb-3 text-sm uppercase tracking-wider opacity-60">Contact</h4>
-              <p className="text-sm opacity-70">{footer.contact_email || `support@${shop?.slug}.ecomai.dev`}</p>
-              {footer.contact_phone && <p className="text-sm opacity-70 mt-1">{footer.contact_phone}</p>}
+              <div className="space-y-2 text-sm opacity-70">
+                <p>{businessInfo.email || footer.contact_email || `support@${shop?.slug}.ecomai.dev`}</p>
+                {(businessInfo.phone || footer.contact_phone) && <p>{businessInfo.phone || footer.contact_phone}</p>}
+                {businessInfo.address && <p>{businessInfo.address}</p>}
+                {businessInfo.hours && <p className="mt-2 text-xs opacity-80">Hours: {businessInfo.hours}</p>}
+              </div>
             </div>
           </div>
           <div className="mt-8 pt-6 border-t text-sm text-center opacity-50" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
@@ -220,6 +260,20 @@ export default function StorefrontLayout() {
           </div>
         </div>
       </footer>
+
+      {/* WhatsApp Floating Button */}
+      {(businessInfo.whatsapp || socialLinks.whatsapp) && (
+        <a
+          href={`https://wa.me/${(businessInfo.whatsapp || socialLinks.whatsapp).replace(/[^0-9]/g, '')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 flex items-center justify-center rounded-full shadow-lg text-2xl transition-transform hover:scale-110"
+          style={{ backgroundColor: '#25D366', color: '#fff' }}
+          title="Chat on WhatsApp"
+        >
+          💬
+        </a>
+      )}
     </div>
   );
 }
