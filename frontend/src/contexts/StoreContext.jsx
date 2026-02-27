@@ -5,30 +5,40 @@ const StoreContext = createContext(null);
 
 export function StoreProvider({ shopSlug, children }) {
   const [shop, setShop] = useState(null);
+  const [siteSettings, setSiteSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    storeApi
-      .getShop(shopSlug)
-      .then(setShop)
+    Promise.all([
+      storeApi.getShop(shopSlug),
+      storeApi.getSettings(shopSlug),
+    ])
+      .then(([shopData, settingsData]) => {
+        setShop(shopData);
+        setSiteSettings(settingsData || {});
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [shopSlug]);
 
-  const settings = shop?.settings || {};
-  const theme = settings.theme_name || 'classic';
-  const tokens = settings.design_tokens || {};
-  const layout = settings.layout_config || {};
-  const nav = settings.navigation_config || {};
-  const homepage = settings.homepage_config || {};
-  const customCss = settings.custom_css || '';
+  /* Map DB column names → context values consumed by storefront components.
+     DB columns: template, theme (JSONB), header (JSONB), footer (JSONB),
+                 homepage (JSONB), custom_css, custom_js, seo_defaults (JSONB) */
+  const theme = siteSettings.template || 'classic';        // template ID string
+  const tokens = siteSettings.theme || {};                  // design-token overrides
+  const nav = siteSettings.header || {};                    // header / navigation config
+  const footer = siteSettings.footer || {};                 // footer config
+  const homepage = siteSettings.homepage || {};              // hero, featured, cta
+  const customCss = siteSettings.custom_css || '';           // injected CSS
+  const customJs = siteSettings.custom_js || '';             // injected JS
+  const seoDefaults = siteSettings.seo_defaults || {};       // meta tags
 
   return (
     <StoreContext.Provider
-      value={{ shop, settings, theme, tokens, layout, nav, homepage, customCss, loading, error, shopSlug }}
+      value={{ shop, settings: siteSettings, theme, tokens, nav, footer, homepage, customCss, customJs, seoDefaults, loading, error, shopSlug }}
     >
       {children}
     </StoreContext.Provider>

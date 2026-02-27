@@ -5,7 +5,7 @@ import { useCart } from '../contexts/CartContext';
 import { resolveTokens, tokensToCssVars } from './templates';
 
 export default function StorefrontLayout() {
-  const { shop, theme, tokens, nav, customCss, loading, error, shopSlug } = useStore();
+  const { shop, theme, tokens, nav, footer, customCss, customJs, seoDefaults, loading, error, shopSlug } = useStore();
   const { count } = useCart();
   const navigate = useNavigate();
   const [customerToken, setCustomerToken] = useState(null);
@@ -19,6 +19,24 @@ export default function StorefrontLayout() {
     const interval = setInterval(onStorage, 1000);
     return () => { window.removeEventListener('storage', onStorage); clearInterval(interval); };
   }, [shopSlug]);
+
+  /* Apply SEO defaults to document head */
+  useEffect(() => {
+    if (seoDefaults.title) document.title = seoDefaults.title;
+    else if (shop?.name) document.title = shop.name;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (seoDefaults.description && metaDesc) metaDesc.setAttribute('content', seoDefaults.description);
+  }, [seoDefaults, shop]);
+
+  /* Inject custom JS safely */
+  useEffect(() => {
+    if (!customJs) return;
+    const script = document.createElement('script');
+    script.textContent = customJs;
+    script.setAttribute('data-store-custom', 'true');
+    document.body.appendChild(script);
+    return () => { script.remove(); };
+  }, [customJs]);
 
   if (loading) {
     return (
@@ -179,7 +197,7 @@ export default function StorefrontLayout() {
             <div>
               <h3 className="text-lg font-bold mb-3" style={{ color: resolved.primary }}>{shop?.name}</h3>
               <p className="text-sm opacity-70">
-                Powered by Ecomai — Multi-tenant Commerce Platform
+                {footer.tagline || 'Powered by Ecomai — Multi-tenant Commerce Platform'}
               </p>
             </div>
             <div>
@@ -193,11 +211,12 @@ export default function StorefrontLayout() {
             </div>
             <div>
               <h4 className="font-semibold mb-3 text-sm uppercase tracking-wider opacity-60">Contact</h4>
-              <p className="text-sm opacity-70">support@{shop?.slug}.ecomai.dev</p>
+              <p className="text-sm opacity-70">{footer.contact_email || `support@${shop?.slug}.ecomai.dev`}</p>
+              {footer.contact_phone && <p className="text-sm opacity-70 mt-1">{footer.contact_phone}</p>}
             </div>
           </div>
           <div className="mt-8 pt-6 border-t text-sm text-center opacity-50" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-            &copy; {new Date().getFullYear()} {shop?.name}. All rights reserved.
+            {footer.copyright || `\u00A9 ${new Date().getFullYear()} ${shop?.name}. All rights reserved.`}
           </div>
         </div>
       </footer>
