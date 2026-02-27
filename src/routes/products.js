@@ -16,28 +16,20 @@ router.get('/', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  if (!req.tenantShopId) {
-    return res.status(400).json({ message: 'x-shop-id is required for super_admin' });
+  try {
+    const product = productService.createProduct({
+      shopId: req.tenantShopId,
+      ...req.body,
+    });
+
+    return res.status(201).json(product);
+  } catch (err) {
+    if (err instanceof DomainError) {
+      return res.status(err.status).json({ code: err.code, message: err.message });
+    }
+
+    return res.status(500).json({ message: 'Failed to create product' });
   }
-
-  const { name, slug, base_price, description } = req.body;
-  if (!name || !slug || base_price == null) {
-    return res.status(400).json({ message: 'name, slug, base_price are required' });
-  }
-
-  const product = {
-    id: createId('prod'),
-    shop_id: req.tenantShopId,
-    name,
-    slug,
-    base_price,
-    description: description || null,
-    status: 'draft',
-    created_at: new Date().toISOString(),
-  };
-
-  products.push(product);
-  return res.status(201).json(product);
 });
 
 module.exports = router;
