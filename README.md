@@ -1,3 +1,5 @@
 # Ecomai Project
 
-This is the Ecomai e-commerce platform.
+This repository contains the architecture and execution plan for a multi-tenant AI-powered e-commerce SaaS platform.
+
+- Full master plan: `docs/platform-architecture-plan.md`
