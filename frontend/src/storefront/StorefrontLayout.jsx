@@ -188,9 +188,9 @@ export default function StorefrontLayout() {
         <Outlet />
       </main>
 
-      {/* Footer */}
+      {/* Footer — hidden on mobile (bottom nav replaces it) */}
       <footer
-        className="mt-auto"
+        className="mt-auto hidden md:block"
         style={{
           backgroundColor: resolved.footerBg,
           color: resolved.footerText,
