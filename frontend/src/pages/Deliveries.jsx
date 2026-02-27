@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { deliveries } from '../api';
-import { PageHeader, Table, Badge, Button, Modal, FormField, Select } from '../components/UI';
+import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination } from '../components/UI';
 
 const STATUSES = ['requested', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
 
@@ -11,16 +11,19 @@ export default function Deliveries() {
   const [newStatus, setNewStatus] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const load = () => {
+  const load = (p = page) => {
     setLoading(true);
-    deliveries.list()
-      .then((data) => setItems(data.items))
+    deliveries.list({ page: p, limit: 20 })
+      .then((data) => { setItems(data.items); setTotalPages(data.totalPages); setTotal(data.total); setPage(data.page); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
 
   const handleStatusUpdate = async (e) => {
     e.preventDefault();
@@ -59,9 +62,10 @@ export default function Deliveries() {
 
   return (
     <div>
-      <PageHeader title="Deliveries" description={`${items.length} delivery request${items.length !== 1 ? 's' : ''}`} />
+      <PageHeader title="Deliveries" description={`${total} delivery request${total !== 1 ? 's' : ''}`} />
 
       <Table columns={columns} data={items} emptyMessage="No delivery requests yet. Create one from an order." />
+      <Pagination page={page} totalPages={totalPages} total={total} onPageChange={(p) => load(p)} />
 
       <Modal open={!!updating} onClose={() => setUpdating(null)} title="Update Delivery Status">
         {error && <div className="mb-4 p-3 bg-danger-50 text-danger-600 text-sm rounded-lg">{error}</div>}

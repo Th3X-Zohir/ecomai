@@ -10,7 +10,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/admin" replace />;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -18,7 +18,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/');
+      navigate('/admin');
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {

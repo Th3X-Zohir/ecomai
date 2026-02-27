@@ -1,39 +1,46 @@
 const shopRepo = require('../repositories/shops');
 const { DomainError } = require('../errors/domain-error');
 
-function listShops() {
-  return shopRepo.listShops();
+async function listShops(opts) {
+  return shopRepo.listShops(opts);
 }
 
-function getShop(shopId) {
-  const shop = shopRepo.findById(shopId);
+async function getShop(shopId) {
+  const shop = await shopRepo.findById(shopId);
   if (!shop) {
     throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
   }
   return shop;
 }
 
-function createShop({ name, slug, status, industry, subscription_plan }) {
+async function getShopBySlug(slug) {
+  const shop = await shopRepo.findBySlug(slug);
+  if (!shop) {
+    throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  }
+  return shop;
+}
+
+async function createShop({ name, slug, status, industry, subscription_plan, owner_id }) {
   if (!name || !slug) {
     throw new DomainError('VALIDATION_ERROR', 'name and slug are required', 400);
   }
-  if (shopRepo.findBySlug(slug)) {
+  const existing = await shopRepo.findBySlug(slug);
+  if (existing) {
     throw new DomainError('DUPLICATE_SLUG', 'shop slug already exists', 409);
   }
-  return shopRepo.createShop({ name, slug, status, industry, subscription_plan });
+  return shopRepo.createShop({ name, slug, status, industry, subscription_plan, owner_id });
 }
 
-function updateShop(shopId, patch) {
-  const shop = getShop(shopId);
-
+async function updateShop(shopId, patch) {
+  const shop = await getShop(shopId);
   if (patch.slug && patch.slug !== shop.slug) {
-    const existing = shopRepo.findBySlug(patch.slug);
+    const existing = await shopRepo.findBySlug(patch.slug);
     if (existing) {
       throw new DomainError('DUPLICATE_SLUG', 'shop slug already exists', 409);
     }
   }
-
-  return shopRepo.updateShop(shop, patch);
+  return shopRepo.updateShop(shopId, patch);
 }
 
-module.exports = { listShops, getShop, createShop, updateShop };
+module.exports = { listShops, getShop, getShopBySlug, createShop, updateShop };

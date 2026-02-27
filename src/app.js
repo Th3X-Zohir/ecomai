@@ -1,9 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { errorHandler } = require('./middleware/error-handler');
 
 // Routes
 const authRoutes = require('./routes/auth');
+const registerRoutes = require('./routes/register');
 const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
 const customerRoutes = require('./routes/customers');
@@ -20,8 +24,19 @@ const publicRoutes = require('./routes/public');
 
 const app = express();
 
+// Security
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true })); // SSLCommerz callbacks use form POST
+
+// Rate limiting
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+
+app.use('/v1', apiLimiter);
+app.use('/v1/auth', authLimiter);
+app.use('/v1/register', authLimiter);
 
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
@@ -29,11 +44,14 @@ app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
 // API routes
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-// Public storefront API (no auth required)
+// Public routes (no auth)
 app.use('/v1/public', publicRoutes);
+app.use('/v1/register', registerRoutes);
 
-// Authenticated API routes
+// Auth
 app.use('/v1/auth', authRoutes);
+
+// Authenticated admin API routes
 app.use('/v1/products', productRoutes);
 app.use('/v1/orders', orderRoutes);
 app.use('/v1/customers', customerRoutes);
@@ -54,5 +72,8 @@ app.get('*', (req, res) => {
   }
   return res.status(404).json({ message: 'Not found' });
 });
+
+// Global error handler — must be after all routes
+app.use(errorHandler);
 
 module.exports = app;

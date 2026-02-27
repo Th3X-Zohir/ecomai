@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orders, products } from '../api';
-import { PageHeader, Table, Button, Modal, FormField, Input, Badge } from '../components/UI';
+import { PageHeader, Table, Button, Modal, FormField, Input, Badge, Pagination } from '../components/UI';
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -12,16 +12,19 @@ export default function Orders() {
   const [form, setForm] = useState({ customer_email: '', items: [{ product_id: '', quantity: 1 }] });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const load = () => {
+  const load = (p = page) => {
     setLoading(true);
-    Promise.all([orders.list(), products.list()])
-      .then(([o, p]) => { setItems(o.items); setProductList(p.items); })
+    Promise.all([orders.list({ page: p, limit: 20 }), products.list({ limit: 100 })])
+      .then(([o, pr]) => { setItems(o.items); setTotalPages(o.totalPages); setTotal(o.total); setPage(o.page); setProductList(pr.items); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -63,7 +66,7 @@ export default function Orders() {
 
   return (
     <div>
-      <PageHeader title="Orders" description={`${items.length} order${items.length !== 1 ? 's' : ''}`}>
+      <PageHeader title="Orders" description={`${total} order${total !== 1 ? 's' : ''}`}>
         <Button onClick={() => setShowCreate(true)} disabled={productList.length === 0}>+ New Order</Button>
       </PageHeader>
 
@@ -73,7 +76,8 @@ export default function Orders() {
         </div>
       )}
 
-      <Table columns={columns} data={items} onRowClick={(row) => navigate(`/orders/${row.id}`)} emptyMessage="No orders yet" />
+      <Table columns={columns} data={items} onRowClick={(row) => navigate(`/admin/orders/${row.id}`)} emptyMessage="No orders yet" />
+      <Pagination page={page} totalPages={totalPages} total={total} onPageChange={(p) => load(p)} />
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create Order">
         {error && <div className="mb-4 p-3 bg-danger-50 text-danger-600 text-sm rounded-lg">{error}</div>}

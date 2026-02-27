@@ -1,22 +1,21 @@
-const test = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const { setup, teardown, shopId, adminUserId } = require('./helpers/setup');
 const marketingService = require('../src/services/marketing-campaigns');
 
-test('createAIDraftCampaign creates draft campaign with generated content', () => {
-  const campaign = marketingService.createAIDraftCampaign({
-    shopId: 'shop_1',
-    shopName: 'Demo Coffee',
-    createdBy: 'user_shop_admin',
-    campaign_name: `Weekend Boost ${Date.now()}`,
-    channel: 'email',
-    objective: 'Increase repeat orders',
-    productSummary: 'single-origin beans',
-    targeting: { segment: 'returning_customers' },
-  });
+describe('marketing campaign service', () => {
+  before(setup);
+  after(teardown);
 
-  assert.equal(campaign.shop_id, 'shop_1');
-  assert.equal(campaign.channel, 'email');
-  assert.equal(campaign.status, 'draft');
-  assert.equal(typeof campaign.content.headline, 'string');
-  assert.equal(campaign.targeting.segment, 'returning_customers');
+  it('creates AI draft campaign with generated content', async () => {
+    const campaign = await marketingService.createAIDraftCampaign({
+      shopId, shopName: 'Test Shop',
+      name: `Weekend Boost ${Date.now()}`, type: 'email',
+      objective: 'Increase repeat orders', productSummary: 'single-origin beans',
+    });
+    assert.equal(campaign.shop_id, shopId);
+    assert.equal(campaign.type, 'email');
+    assert.equal(campaign.status, 'draft');
+    assert.equal(typeof campaign.content.headline, 'string');
+  });
 });

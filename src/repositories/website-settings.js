@@ -1,49 +1,52 @@
-const { websiteSettings, createId } = require('../store');
+const db = require('../db');
 
-function getByShop(shopId) {
-  return websiteSettings.find((entry) => entry.shop_id === shopId) || null;
+async function getByShop(shopId) {
+  const res = await db.query('SELECT * FROM website_settings WHERE shop_id = $1', [shopId]);
+  return res.rows[0] || null;
 }
 
-function createDefault(shopId, updatedBy) {
-  const now = new Date().toISOString();
-  const settings = {
-    id: createId('ws'),
-    shop_id: shopId,
-    theme_name: 'default',
-    design_tokens: {},
-    layout_config: {},
-    navigation_config: {},
-    homepage_config: {},
-    custom_css: null,
-    published_version: 1,
-    draft_version: 1,
-    updated_by: updatedBy || null,
-    created_at: now,
-    updated_at: now,
+async function createDefault(shopId) {
+  const defaults = {
+    template: 'starter',
+    theme: { primaryColor: '#6366f1', fontFamily: 'Inter' },
+    header: { logo: null, nav: [] },
+    footer: { text: '', links: [] },
+    homepage: { hero: { title: 'Welcome', subtitle: '' }, sections: [] },
+    customCss: '',
+    customJs: '',
+    seoDefaults: { title: '', description: '' },
   };
-
-  websiteSettings.push(settings);
-  return settings;
+  const res = await db.query(
+    `INSERT INTO website_settings (shop_id, template, theme, header, footer, homepage, custom_css, custom_js, seo_defaults)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+    [shopId, defaults.template, JSON.stringify(defaults.theme), JSON.stringify(defaults.header),
+     JSON.stringify(defaults.footer), JSON.stringify(defaults.homepage),
+     defaults.customCss, defaults.customJs, JSON.stringify(defaults.seoDefaults)]
+  );
+  return res.rows[0];
 }
 
-function updateForShop(shopId, patch, updatedBy) {
-  let settings = getByShop(shopId);
-  if (!settings) {
-    settings = createDefault(shopId, updatedBy);
-  }
-
-  const allowed = ['theme_name', 'design_tokens', 'layout_config', 'navigation_config', 'homepage_config', 'custom_css'];
-  allowed.forEach((key) => {
-    if (Object.prototype.hasOwnProperty.call(patch, key)) {
-      settings[key] = patch[key];
+async function updateForShop(shopId, patch) {
+  const allowed = ['template', 'theme', 'header', 'footer', 'homepage', 'custom_css', 'custom_js', 'seo_defaults'];
+  const sets = [];
+  const params = [];
+  let idx = 1;
+  for (const k of allowed) {
+    if (Object.prototype.hasOwnProperty.call(patch, k)) {
+      sets.push(`${k} = $${idx}`);
+      params.push(['theme', 'header', 'footer', 'homepage', 'seo_defaults'].includes(k) ? JSON.stringify(patch[k]) : patch[k]);
+      idx++;
     }
-  });
-
-  settings.draft_version += 1;
-  settings.updated_by = updatedBy || settings.updated_by;
-  settings.updated_at = new Date().toISOString();
-
-  return settings;
+  }
+  if (sets.length === 0) return getByShop(shopId);
+  sets.push(`updated_at = now()`);
+  params.push(shopId);
+  const res = await db.query(
+    `UPDATE website_settings SET ${sets.join(', ')} WHERE shop_id = $${idx} RETURNING *`,
+    params
+  );
+  return res.rows[0] || null;
 }
 
 module.exports = { getByShop, createDefault, updateForShop };
+

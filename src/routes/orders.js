@@ -1,100 +1,61 @@
 const express = require('express');
 const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
+const { asyncHandler } = require('../middleware/async-handler');
 const orderService = require('../services/orders');
 const deliveryService = require('../services/delivery-requests');
 const paymentService = require('../services/payments');
-const { DomainError } = require('../errors/domain-error');
 
 const router = express.Router();
 
 router.use(authRequired, requireRoles(['super_admin', 'shop_admin', 'shop_user']), resolveTenant, requireTenantContext);
 
-router.get('/', (req, res) => {
-  const items = orderService.listOrdersByShop(req.tenantShopId);
-  return res.json({ items, count: items.length });
-});
+router.get('/', asyncHandler(async (req, res) => {
+  const result = await orderService.listOrdersByShop(req.tenantShopId, {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 50,
+    status: req.query.status,
+    search: req.query.search,
+  });
+  res.json(result);
+}));
 
-router.get('/:orderId', (req, res) => {
-  try {
-    const order = orderService.getOrder(req.tenantShopId, req.params.orderId);
-    return res.json(order);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to fetch order' });
-  }
-});
+router.get('/:orderId', asyncHandler(async (req, res) => {
+  const order = await orderService.getOrder(req.tenantShopId, req.params.orderId);
+  res.json(order);
+}));
 
-router.post('/', (req, res) => {
-  const { customer_email, items } = req.body;
-  if (!customer_email || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ message: 'customer_email and non-empty items are required' });
-  }
+router.post('/', asyncHandler(async (req, res) => {
+  const order = await orderService.createOrder({
+    shopId: req.tenantShopId,
+    customer_email: req.body.customer_email,
+    customer_id: req.body.customer_id,
+    items: req.body.items,
+    shipping_address: req.body.shipping_address,
+  });
+  res.status(201).json(order);
+}));
 
-  try {
-    const order = orderService.createOrder({
-      shopId: req.tenantShopId,
-      customer_email,
-      items,
-    });
+router.patch('/:orderId/status', asyncHandler(async (req, res) => {
+  const order = await orderService.updateOrderStatus(req.tenantShopId, req.params.orderId, req.body.status);
+  res.json(order);
+}));
 
-    return res.status(201).json(order);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to create order' });
-  }
-});
+router.post('/:orderId/delivery-requests', asyncHandler(async (req, res) => {
+  const delivery = await deliveryService.createDeliveryRequest({
+    shopId: req.tenantShopId, orderId: req.params.orderId,
+    pickup_address: req.body.pickup_address, delivery_address: req.body.delivery_address,
+    notes: req.body.notes,
+  });
+  res.status(201).json(delivery);
+}));
 
-router.patch('/:orderId/status', (req, res) => {
-  try {
-    const order = orderService.updateOrderStatus(req.tenantShopId, req.params.orderId, req.body.status);
-    return res.json(order);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to update order status' });
-  }
-});
-
-router.post('/:orderId/delivery-requests', (req, res) => {
-  try {
-    const delivery = deliveryService.createDeliveryRequest({
-      shopId: req.tenantShopId,
-      orderId: req.params.orderId,
-      provider: req.body.provider,
-      pickup_address: req.body.pickup_address,
-      dropoff_address: req.body.dropoff_address,
-    });
-    return res.status(201).json(delivery);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to create delivery request' });
-  }
-});
-
-router.post('/:orderId/payments', (req, res) => {
-  try {
-    const payment = paymentService.createPayment({
-      shopId: req.tenantShopId,
-      orderId: req.params.orderId,
-      amount: req.body.amount,
-      currency: req.body.currency,
-      provider: req.body.provider,
-    });
-    return res.status(201).json(payment);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to create payment' });
-  }
-});
+router.post('/:orderId/payments', asyncHandler(async (req, res) => {
+  const payment = await paymentService.createManualPayment({
+    shopId: req.tenantShopId, orderId: req.params.orderId,
+    amount: req.body.amount, currency: req.body.currency, method: req.body.method,
+  });
+  res.status(201).json(payment);
+}));
 
 module.exports = router;

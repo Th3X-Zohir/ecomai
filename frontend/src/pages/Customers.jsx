@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { customers } from '../api';
-import { PageHeader, Table, Button, Modal, FormField, Input } from '../components/UI';
+import { PageHeader, Table, Button, Modal, FormField, Input, Pagination, SearchInput } from '../components/UI';
 
 export default function Customers() {
   const [items, setItems] = useState([]);
@@ -9,16 +9,25 @@ export default function Customers() {
   const [form, setForm] = useState({ email: '', full_name: '', phone: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
 
-  const load = () => {
+  const load = (p = page, q = search) => {
     setLoading(true);
-    customers.list()
-      .then((data) => setItems(data.items))
+    customers.list({ page: p, limit: 20, search: q || undefined })
+      .then((data) => { setItems(data.items); setTotalPages(data.totalPages); setTotal(data.total); setPage(data.page); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
+
+  const handleSearch = (val) => {
+    setSearch(val);
+    load(1, val);
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -42,11 +51,16 @@ export default function Customers() {
 
   return (
     <div>
-      <PageHeader title="Customers" description={`${items.length} customer${items.length !== 1 ? 's' : ''}`}>
+      <PageHeader title="Customers" description={`${total} customer${total !== 1 ? 's' : ''}`}>
         <Button onClick={() => setShowCreate(true)}>+ New Customer</Button>
       </PageHeader>
 
+      <div className="mb-4 max-w-sm">
+        <SearchInput value={search} onChange={handleSearch} placeholder="Search customers..." />
+      </div>
+
       <Table columns={columns} data={items} emptyMessage="No customers yet" />
+      <Pagination page={page} totalPages={totalPages} total={total} onPageChange={(p) => load(p)} />
 
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Add Customer">
         {error && <div className="mb-4 p-3 bg-danger-50 text-danger-600 text-sm rounded-lg">{error}</div>}

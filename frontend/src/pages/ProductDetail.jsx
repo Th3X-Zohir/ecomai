@@ -25,7 +25,7 @@ export default function ProductDetail() {
       const v = await variants.list(id);
       setProductVariants(v.items);
     } catch {
-      navigate('/products');
+      navigate('/admin/products');
     } finally {
       setLoading(false);
     }
@@ -47,7 +47,7 @@ export default function ProductDetail() {
     if (!confirm('Delete this product?')) return;
     try {
       await products.delete(id);
-      navigate('/products');
+      navigate('/admin/products');
     } catch (err) { alert(err.message); }
   };
 
@@ -92,7 +92,7 @@ export default function ProductDetail() {
   return (
     <div>
       <PageHeader title={product.name} description={`SKU slug: ${product.slug}`}>
-        <Button variant="secondary" onClick={() => navigate('/products')}>← Back</Button>
+        <Button variant="secondary" onClick={() => navigate('/admin/products')}>← Back</Button>
         <Button variant="secondary" onClick={() => setEditing(true)}>Edit</Button>
         <Button variant="danger" onClick={handleDelete}>Delete</Button>
       </PageHeader>

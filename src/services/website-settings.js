@@ -1,16 +1,16 @@
 const websiteRepo = require('../repositories/website-settings');
 
-function getWebsiteSettings(shopId, userId) {
-  const existing = websiteRepo.getByShop(shopId);
-  if (existing) {
-    return existing;
-  }
-
-  return websiteRepo.createDefault(shopId, userId);
+async function getWebsiteSettings(shopId) {
+  const existing = await websiteRepo.getByShop(shopId);
+  if (existing) return existing;
+  return websiteRepo.createDefault(shopId);
 }
 
-function updateWebsiteSettings(shopId, patch, userId) {
-  return websiteRepo.updateForShop(shopId, patch, userId);
+async function updateWebsiteSettings(shopId, patch) {
+  // Ensure defaults exist first
+  const existing = await websiteRepo.getByShop(shopId);
+  if (!existing) await websiteRepo.createDefault(shopId);
+  return websiteRepo.updateForShop(shopId, patch);
 }
 
 module.exports = { getWebsiteSettings, updateWebsiteSettings };

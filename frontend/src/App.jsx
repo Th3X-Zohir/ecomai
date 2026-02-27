@@ -1,8 +1,15 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { StoreProvider } from './contexts/StoreContext';
+
+// Public pages
+import Landing from './pages/Landing';
+import Pricing from './pages/Pricing';
+import Signup from './pages/Signup';
 import Login from './pages/Login';
+
+// Admin pages
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
@@ -16,13 +23,19 @@ import Payments from './pages/Payments';
 import WebsiteSettings from './pages/WebsiteSettings';
 import ShopSettings from './pages/ShopSettings';
 
-// Storefront
+// Storefront pages
 import StorefrontLayout from './storefront/StorefrontLayout';
 import StoreHome from './storefront/pages/StoreHome';
 import StoreProducts from './storefront/pages/StoreProducts';
 import StoreProductDetail from './storefront/pages/StoreProductDetail';
 import StoreCart from './storefront/pages/StoreCart';
 import StoreCheckout from './storefront/pages/StoreCheckout';
+import StoreLogin from './storefront/pages/StoreLogin';
+import StoreRegister from './storefront/pages/StoreRegister';
+import StoreAccount from './storefront/pages/StoreAccount';
+import CheckoutSuccess from './storefront/pages/CheckoutSuccess';
+import CheckoutFail from './storefront/pages/CheckoutFail';
+import CheckoutCancel from './storefront/pages/CheckoutCancel';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -41,6 +54,12 @@ function StorefrontWrapper() {
           <Route path="products/:productId" element={<StoreProductDetail />} />
           <Route path="cart" element={<StoreCart />} />
           <Route path="checkout" element={<StoreCheckout />} />
+          <Route path="checkout/success" element={<CheckoutSuccess />} />
+          <Route path="checkout/fail" element={<CheckoutFail />} />
+          <Route path="checkout/cancel" element={<CheckoutCancel />} />
+          <Route path="auth/login" element={<StoreLogin />} />
+          <Route path="auth/register" element={<StoreRegister />} />
+          <Route path="account" element={<StoreAccount />} />
         </Route>
       </Routes>
     </CartProvider>
@@ -56,18 +75,20 @@ function StorefrontShell() {
   );
 }
 
-import { useParams } from 'react-router-dom';
-
 export default function App() {
   return (
     <Routes>
+      {/* Public marketing pages */}
+      <Route path="/" element={<Landing />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
 
       {/* Public storefront — no auth needed */}
       <Route path="/store/*" element={<StorefrontWrapper />} />
 
       {/* Admin dashboard — auth required */}
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      <Route path="/admin" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="products" element={<Products />} />
         <Route path="products/:id" element={<ProductDetail />} />

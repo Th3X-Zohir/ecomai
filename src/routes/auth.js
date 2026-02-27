@@ -1,36 +1,22 @@
 const express = require('express');
+const { asyncHandler } = require('../middleware/async-handler');
 const authService = require('../services/auth');
-const { DomainError } = require('../errors/domain-error');
 
 const router = express.Router();
 
-router.post('/login', (req, res) => {
-  try {
-    const tokens = authService.login(req.body.email, req.body.password);
-    return res.json(tokens);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Login failed' });
-  }
-});
+router.post('/login', asyncHandler(async (req, res) => {
+  const tokens = await authService.login(req.body.email, req.body.password);
+  res.json(tokens);
+}));
 
-router.post('/refresh', (req, res) => {
-  try {
-    const tokens = authService.refresh(req.body.refreshToken);
-    return res.json(tokens);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Refresh failed' });
-  }
-});
+router.post('/refresh', asyncHandler(async (req, res) => {
+  const tokens = await authService.refresh(req.body.refreshToken);
+  res.json(tokens);
+}));
 
-router.post('/logout', (req, res) => {
-  const result = authService.logout(req.body.refreshToken);
-  return res.json(result);
-});
+router.post('/logout', asyncHandler(async (req, res) => {
+  const result = await authService.logout(req.body.refreshToken);
+  res.json(result);
+}));
 
 module.exports = router;

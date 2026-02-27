@@ -1,38 +1,29 @@
-const test = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const { setup, teardown, shopId, adminUserId } = require('./helpers/setup');
 const marketingService = require('../src/services/marketing-campaigns');
 
-test('marketing campaign lifecycle supports status update and performance ingest', () => {
-  const campaign = marketingService.createCampaign({
-    shopId: 'shop_1',
-    createdBy: 'user_shop_admin',
-    campaign_name: `Lifecycle Campaign ${Date.now()}`,
-    channel: 'instagram',
-    objective: 'Increase engagement',
-    content: { caption: 'New launch', cta: 'Shop now' },
-    targeting: { segment: 'all' },
+describe('marketing campaign lifecycle', () => {
+  before(setup);
+  after(teardown);
+
+  let campaignId;
+
+  it('creates a campaign', async () => {
+    const campaign = await marketingService.createCampaign({
+      shopId,
+      name: `Lifecycle ${Date.now()}`, type: 'instagram',
+      content: { headline: 'New launch', body: 'Check it out', cta: 'Shop now' },
+    });
+    assert.ok(campaign.id);
+    campaignId = campaign.id;
   });
 
-  const scheduled = marketingService.updateCampaignStatus({
-    shopId: 'shop_1',
-    campaignId: campaign.id,
-    status: 'scheduled',
-    scheduled_at: new Date(Date.now() + 3600000).toISOString(),
-  });
-  assert.equal(scheduled.status, 'scheduled');
+  it('gets and updates a campaign', async () => {
+    const fetched = await marketingService.getCampaign(shopId, campaignId);
+    assert.equal(fetched.id, campaignId);
 
-  const launched = marketingService.updateCampaignStatus({
-    shopId: 'shop_1',
-    campaignId: campaign.id,
-    status: 'launched',
+    const updated = await marketingService.updateCampaign(shopId, campaignId, { status: 'active' });
+    assert.equal(updated.status, 'active');
   });
-  assert.equal(launched.status, 'launched');
-  assert.equal(typeof launched.launched_at, 'string');
-
-  const withPerf = marketingService.ingestPerformance({
-    shopId: 'shop_1',
-    campaignId: campaign.id,
-    metrics: { impressions: 1000, clicks: 120, conversions: 11 },
-  });
-  assert.equal(withPerf.performance.clicks, 120);
 });

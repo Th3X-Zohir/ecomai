@@ -1,10 +1,19 @@
 const movementRepo = require('../repositories/inventory-movements');
 
-function listMovements(shopId, variantId) {
-  if (variantId) {
-    return movementRepo.listByVariant(shopId, variantId);
-  }
-  return movementRepo.listByShop(shopId);
+async function listMovements(shopId, opts) {
+  return movementRepo.listByShop(shopId, opts);
 }
 
-module.exports = { listMovements };
+async function listByVariant(variantId, opts) {
+  return movementRepo.listByVariant(variantId, opts);
+}
+
+async function listByProduct(productId, opts) {
+  return movementRepo.listByProduct(productId, opts);
+}
+
+async function createMovement(data) {
+  return movementRepo.createMovement(data);
+}
+
+module.exports = { listMovements, listByVariant, listByProduct, createMovement };

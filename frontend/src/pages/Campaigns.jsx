@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { campaigns } from '../api';
-import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Card } from '../components/UI';
+import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Card, Pagination } from '../components/UI';
 
 const CHANNELS = ['email', 'facebook', 'instagram', 'tiktok', 'google_ads', 'sms'];
 
@@ -14,16 +14,19 @@ export default function Campaigns() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [aiResult, setAiResult] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const load = () => {
+  const load = (p = page) => {
     setLoading(true);
-    campaigns.list()
-      .then((data) => setItems(data.items))
+    campaigns.list({ page: p, limit: 20 })
+      .then((data) => { setItems(data.items); setTotalPages(data.totalPages); setTotal(data.total); setPage(data.page); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -68,7 +71,7 @@ export default function Campaigns() {
 
   return (
     <div>
-      <PageHeader title="Marketing Campaigns" description={`${items.length} campaign${items.length !== 1 ? 's' : ''}`}>
+      <PageHeader title="Marketing Campaigns" description={`${total} campaign${total !== 1 ? 's' : ''}`}>
         <Button variant="secondary" onClick={() => setShowAI(true)}>🤖 AI Draft</Button>
         <Button onClick={() => setShowCreate(true)}>+ New Campaign</Button>
       </PageHeader>
@@ -90,6 +93,7 @@ export default function Campaigns() {
       )}
 
       <Table columns={columns} data={items} emptyMessage="No campaigns yet. Create one or try AI draft!" />
+      <Pagination page={page} totalPages={totalPages} total={total} onPageChange={(p) => load(p)} />
 
       {/* Manual Create */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create Campaign">

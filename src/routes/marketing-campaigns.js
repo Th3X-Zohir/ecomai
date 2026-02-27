@@ -1,55 +1,47 @@
 const express = require('express');
 const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
+const { asyncHandler } = require('../middleware/async-handler');
 const campaignService = require('../services/marketing-campaigns');
-const { shops } = require('../store');
-const { DomainError } = require('../errors/domain-error');
+const shopService = require('../services/shops');
 
 const router = express.Router();
 
 router.use(authRequired, requireRoles(['super_admin', 'shop_admin', 'shop_user']), resolveTenant, requireTenantContext);
 
-router.get('/', (req, res) => {
-  const items = campaignService.listCampaigns(req.tenantShopId);
-  return res.json({ items, count: items.length });
-});
+router.get('/', asyncHandler(async (req, res) => {
+  const result = await campaignService.listCampaigns(req.tenantShopId, {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 50,
+    status: req.query.status,
+    type: req.query.type,
+  });
+  res.json(result);
+}));
 
-router.post('/', (req, res) => {
-  try {
-    const campaign = campaignService.createCampaign({
-      shopId: req.tenantShopId,
-      createdBy: req.auth.sub,
-      ...req.body,
-    });
+router.get('/:campaignId', asyncHandler(async (req, res) => {
+  const campaign = await campaignService.getCampaign(req.tenantShopId, req.params.campaignId);
+  res.json(campaign);
+}));
 
-    return res.status(201).json(campaign);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
+router.post('/', asyncHandler(async (req, res) => {
+  const campaign = await campaignService.createCampaign({
+    shopId: req.tenantShopId, ...req.body,
+  });
+  res.status(201).json(campaign);
+}));
 
-    return res.status(500).json({ message: 'Failed to create campaign' });
-  }
-});
+router.post('/generate-draft', asyncHandler(async (req, res) => {
+  const shop = await shopService.getShop(req.tenantShopId);
+  const campaign = await campaignService.createAIDraftCampaign({
+    shopId: req.tenantShopId, shopName: shop.name, ...req.body,
+  });
+  res.status(201).json(campaign);
+}));
 
-router.post('/generate-draft', (req, res) => {
-  try {
-    const shop = shops.find((entry) => entry.id === req.tenantShopId);
-    const campaign = campaignService.createAIDraftCampaign({
-      shopId: req.tenantShopId,
-      shopName: shop ? shop.name : 'Your Shop',
-      createdBy: req.auth.sub,
-      ...req.body,
-    });
-
-    return res.status(201).json(campaign);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-
-    return res.status(500).json({ message: 'Failed to generate campaign draft' });
-  }
-});
+router.patch('/:campaignId', asyncHandler(async (req, res) => {
+  const campaign = await campaignService.updateCampaign(req.tenantShopId, req.params.campaignId, req.body);
+  res.json(campaign);
+}));
 
 module.exports = router;

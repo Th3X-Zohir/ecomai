@@ -18,10 +18,10 @@ export default function Dashboard() {
       user.role !== 'super_admin' ? shops.me() : Promise.resolve(null),
     ]).then(([p, o, c, m, s]) => {
       setStats({
-        products: p.status === 'fulfilled' ? p.value.count : 0,
-        orders: o.status === 'fulfilled' ? o.value.count : 0,
-        customers: c.status === 'fulfilled' ? c.value.count : 0,
-        campaigns: m.status === 'fulfilled' ? m.value.count : 0,
+        products: p.status === 'fulfilled' ? p.value.total : 0,
+        orders: o.status === 'fulfilled' ? o.value.total : 0,
+        customers: c.status === 'fulfilled' ? c.value.total : 0,
+        campaigns: m.status === 'fulfilled' ? m.value.total : 0,
       });
       if (o.status === 'fulfilled') {
         setRecentOrders(o.value.items.slice(-5).reverse());

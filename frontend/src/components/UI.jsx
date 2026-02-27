@@ -184,3 +184,65 @@ export function Textarea({ className = '', ...props }) {
     />
   );
 }
+
+export function Pagination({ page, totalPages, total, onPageChange }) {
+  if (!totalPages || totalPages <= 1) return null;
+  const pages = [];
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  return (
+    <div className="flex items-center justify-between mt-4 px-1">
+      <p className="text-sm text-gray-500">{total} result{total !== 1 ? 's' : ''}</p>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+          className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition"
+        >
+          ←
+        </button>
+        {start > 1 && <span className="px-2 text-gray-400 text-sm">...</span>}
+        {pages.map((p) => (
+          <button
+            key={p}
+            onClick={() => onPageChange(p)}
+            className={`px-3 py-1.5 text-sm rounded-lg border transition ${
+              p === page
+                ? 'bg-primary-600 text-white border-primary-600'
+                : 'border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+        {end < totalPages && <span className="px-2 text-gray-400 text-sm">...</span>}
+        <button
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= totalPages}
+          className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition"
+        >
+          →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function SearchInput({ value, onChange, placeholder = 'Search...' }) {
+  return (
+    <div className="relative">
+      <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-sm"
+      />
+    </div>
+  );
+}

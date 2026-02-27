@@ -1,53 +1,73 @@
-const { products, createId } = require('../store');
+const db = require('../db');
 
-function listByShop(shopId) {
-  return products.filter((entry) => entry.shop_id === shopId);
+async function listByShop(shopId, { page = 1, limit = 50, search, category, status } = {}) {
+  const conditions = ['shop_id = $1'];
+  const params = [shopId];
+  let idx = 2;
+  if (search) { conditions.push(`(name ILIKE $${idx} OR slug ILIKE $${idx})`); params.push(`%${search}%`); idx++; }
+  if (category) { conditions.push(`category = $${idx}`); params.push(category); idx++; }
+  if (status) { conditions.push(`status = $${idx}`); params.push(status); idx++; }
+  const where = 'WHERE ' + conditions.join(' AND ');
+  const countRes = await db.query(`SELECT COUNT(*) FROM products ${where}`, params);
+  const total = parseInt(countRes.rows[0].count, 10);
+  const offset = (page - 1) * limit;
+  const res = await db.query(
+    `SELECT * FROM products ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
+    [...params, limit, offset]
+  );
+  return { items: res.rows, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
-function findByIdAndShop(id, shopId) {
-  return products.find((entry) => entry.id === id && entry.shop_id === shopId);
+async function findByIdAndShop(id, shopId) {
+  const res = await db.query('SELECT * FROM products WHERE id = $1 AND shop_id = $2', [id, shopId]);
+  return res.rows[0] || null;
 }
 
-function findBySlugAndShop(slug, shopId) {
-  return products.find((entry) => entry.slug === slug && entry.shop_id === shopId);
+async function findBySlugAndShop(slug, shopId) {
+  const res = await db.query('SELECT * FROM products WHERE slug = $1 AND shop_id = $2', [slug, shopId]);
+  return res.rows[0] || null;
 }
 
-function createProduct({ shop_id, name, slug, base_price, description, category }) {
-  const product = {
-    id: createId('prod'),
-    shop_id,
-    name,
-    slug,
-    base_price,
-    description,
-    category: category || null,
-    status: 'draft',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  products.push(product);
-  return product;
+async function createProduct({ shop_id, name, slug, base_price, description, category, status, image_url, stock_quantity }) {
+  const res = await db.query(
+    `INSERT INTO products (shop_id, name, slug, base_price, description, category, status, image_url, stock_quantity)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+    [shop_id, name, slug, Number(base_price), description || null, category || null, status || 'draft', image_url || null, stock_quantity || 0]
+  );
+  return res.rows[0];
 }
 
-function updateProduct(product, patch) {
-  const allowed = ['name', 'slug', 'base_price', 'description', 'category', 'status'];
-  allowed.forEach((k) => {
+async function updateProduct(productId, shopId, patch) {
+  const allowed = ['name', 'slug', 'base_price', 'description', 'category', 'status', 'image_url', 'stock_quantity'];
+  const sets = [];
+  const params = [];
+  let idx = 1;
+  for (const k of allowed) {
     if (Object.prototype.hasOwnProperty.call(patch, k)) {
-      product[k] = k === 'base_price' ? Number(patch[k]) : patch[k];
+      sets.push(`${k} = $${idx}`);
+      params.push(k === 'base_price' ? Number(patch[k]) : patch[k]);
+      idx++;
     }
-  });
-  product.updated_at = new Date().toISOString();
-  return product;
-}
-
-function deleteProduct(productId) {
-  const idx = products.findIndex((entry) => entry.id === productId);
-  if (idx >= 0) {
-    products.splice(idx, 1);
-    return true;
   }
-  return false;
+  if (sets.length === 0) return findByIdAndShop(productId, shopId);
+  sets.push(`updated_at = now()`);
+  params.push(productId, shopId);
+  const res = await db.query(
+    `UPDATE products SET ${sets.join(', ')} WHERE id = $${idx} AND shop_id = $${idx + 1} RETURNING *`,
+    params
+  );
+  return res.rows[0] || null;
 }
 
-module.exports = { listByShop, findByIdAndShop, findBySlugAndShop, createProduct, updateProduct, deleteProduct };
+async function deleteProduct(productId, shopId) {
+  const res = await db.query('DELETE FROM products WHERE id = $1 AND shop_id = $2 RETURNING id', [productId, shopId]);
+  return res.rowCount > 0;
+}
+
+async function countByShop(shopId) {
+  const res = await db.query('SELECT COUNT(*) FROM products WHERE shop_id = $1', [shopId]);
+  return parseInt(res.rows[0].count, 10);
+}
+
+module.exports = { listByShop, findByIdAndShop, findBySlugAndShop, createProduct, updateProduct, deleteProduct, countByShop };
+

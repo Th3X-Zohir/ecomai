@@ -1,89 +1,74 @@
 const deliveryRepo = require('../repositories/delivery-requests');
-const { ensureOrderExists } = require('./orders');
+const orderRepo = require('../repositories/orders');
 const { DomainError } = require('../errors/domain-error');
 
-const ALLOWED_STATUSES = ['requested', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
+const ALLOWED_STATUSES = ['pending', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
 
-function createDeliveryRequest({ shopId, orderId, provider, pickup_address, dropoff_address }) {
-  if (!pickup_address || !dropoff_address) {
-    throw new DomainError('VALIDATION_ERROR', 'pickup_address and dropoff_address are required', 400);
+async function createDeliveryRequest({ shopId, orderId, pickup_address, delivery_address, notes }) {
+  if (!pickup_address || !delivery_address) {
+    throw new DomainError('VALIDATION_ERROR', 'pickup_address and delivery_address are required', 400);
   }
-
-  ensureOrderExists(shopId, orderId);
-
-  const existing = deliveryRepo.findByOrderAndShop(orderId, shopId);
+  const order = await orderRepo.findById(orderId);
+  if (!order || order.shop_id !== shopId) {
+    throw new DomainError('ORDER_NOT_FOUND', 'Order not found', 404);
+  }
+  const existing = await deliveryRepo.findByOrderAndShop(orderId, shopId);
   if (existing) {
     throw new DomainError('DELIVERY_ALREADY_EXISTS', 'delivery request already exists for this order', 409);
   }
-
   return deliveryRepo.createDeliveryRequest({
-    shopId,
-    orderId,
-    provider,
-    pickup_address,
-    dropoff_address,
+    order_id: orderId, shop_id: shopId, pickup_address, delivery_address, notes,
   });
 }
 
-function listDeliveryRequests(shopId) {
-  return deliveryRepo.listByShop(shopId);
+async function listDeliveryRequests(shopId, opts) {
+  return deliveryRepo.listByShop(shopId, opts);
 }
 
-function updateDeliveryStatus({ shopId, deliveryRequestId, status }) {
-  const request = deliveryRepo.findByIdAndShop(deliveryRequestId, shopId);
-  if (!request) {
-    throw new DomainError('DELIVERY_NOT_FOUND', 'delivery request not found', 404);
-  }
-
+async function updateDeliveryStatus({ shopId, deliveryRequestId, status }) {
+  const request = await deliveryRepo.findByIdAndShop(deliveryRequestId, shopId);
+  if (!request) throw new DomainError('DELIVERY_NOT_FOUND', 'delivery request not found', 404);
   if (!ALLOWED_STATUSES.includes(status)) {
     throw new DomainError('INVALID_STATUS', `status must be one of: ${ALLOWED_STATUSES.join(', ')}`, 400);
   }
-
-  request.status = status;
-  request.updated_at = new Date().toISOString();
-  if (status === 'delivered') {
-    request.delivered_at = request.updated_at;
-  }
-
-  return request;
+  return deliveryRepo.updateDeliveryRequest(deliveryRequestId, { status });
 }
 
-module.exports = { createDeliveryRequest, listDeliveryRequests, updateDeliveryStatus, listDriverAssignments, driverPostLocation, driverUpdateStatus };
-
-function listDriverAssignments(driverUserId) {
-  return deliveryRepo.listByShop(null).filter(
-    (d) => d.assigned_driver_user_id === driverUserId
-  );
+async function assignDriver({ shopId, deliveryRequestId, driverUserId }) {
+  const request = await deliveryRepo.findByIdAndShop(deliveryRequestId, shopId);
+  if (!request) throw new DomainError('DELIVERY_NOT_FOUND', 'delivery request not found', 404);
+  return deliveryRepo.updateDeliveryRequest(deliveryRequestId, {
+    assigned_driver_user_id: driverUserId, status: 'assigned',
+  });
 }
 
-function driverPostLocation({ driverUserId, deliveryRequestId, lat, lng }) {
-  const all = deliveryRepo.listByShop(null);
-  const request = all.find(
-    (d) => d.id === deliveryRequestId && d.assigned_driver_user_id === driverUserId
-  );
-  if (!request) {
+// Driver-specific functions
+async function listDriverAssignments(driverUserId, opts) {
+  return deliveryRepo.listByDriver(driverUserId, opts);
+}
+
+async function driverPostLocation({ driverUserId, deliveryRequestId, lat, lng }) {
+  const request = await deliveryRepo.findById(deliveryRequestId);
+  if (!request || request.assigned_driver_user_id !== driverUserId) {
     throw new DomainError('DELIVERY_NOT_FOUND', 'delivery request not found or not assigned to you', 404);
   }
-  if (!request.metadata) request.metadata = {};
-  request.metadata.last_location = { lat, lng, updated_at: new Date().toISOString() };
-  return request;
+  const updates = request.location_updates || [];
+  updates.push({ lat, lng, updated_at: new Date().toISOString() });
+  return deliveryRepo.updateDeliveryRequest(deliveryRequestId, { location_updates: updates });
 }
 
-function driverUpdateStatus({ driverUserId, deliveryRequestId, status }) {
-  const all = deliveryRepo.listByShop(null);
-  const request = all.find(
-    (d) => d.id === deliveryRequestId && d.assigned_driver_user_id === driverUserId
-  );
-  if (!request) {
+async function driverUpdateStatus({ driverUserId, deliveryRequestId, status }) {
+  const request = await deliveryRepo.findById(deliveryRequestId);
+  if (!request || request.assigned_driver_user_id !== driverUserId) {
     throw new DomainError('DELIVERY_NOT_FOUND', 'delivery request not found or not assigned to you', 404);
   }
   if (!ALLOWED_STATUSES.includes(status)) {
     throw new DomainError('INVALID_STATUS', `status must be one of: ${ALLOWED_STATUSES.join(', ')}`, 400);
   }
-  request.status = status;
-  request.updated_at = new Date().toISOString();
-  if (status === 'delivered') {
-    request.delivered_at = request.updated_at;
-  }
-  return request;
+  return deliveryRepo.updateDeliveryRequest(deliveryRequestId, { status });
 }
+
+module.exports = {
+  createDeliveryRequest, listDeliveryRequests, updateDeliveryStatus, assignDriver,
+  listDriverAssignments, driverPostLocation, driverUpdateStatus,
+};

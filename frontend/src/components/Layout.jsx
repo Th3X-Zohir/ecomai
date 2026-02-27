@@ -2,15 +2,15 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const nav = [
-  { to: '/', label: 'Dashboard', icon: '📊' },
-  { to: '/products', label: 'Products', icon: '📦' },
-  { to: '/orders', label: 'Orders', icon: '🛒' },
-  { to: '/customers', label: 'Customers', icon: '👥' },
-  { to: '/campaigns', label: 'Marketing', icon: '📣' },
-  { to: '/deliveries', label: 'Deliveries', icon: '🚚' },
-  { to: '/payments', label: 'Payments', icon: '💳' },
-  { to: '/website-settings', label: 'Website', icon: '🎨' },
-  { to: '/shop', label: 'Shop', icon: '🏪' },
+  { to: '/admin', label: 'Dashboard', icon: '📊' },
+  { to: '/admin/products', label: 'Products', icon: '📦' },
+  { to: '/admin/orders', label: 'Orders', icon: '🛒' },
+  { to: '/admin/customers', label: 'Customers', icon: '👥' },
+  { to: '/admin/campaigns', label: 'Marketing', icon: '📣' },
+  { to: '/admin/deliveries', label: 'Deliveries', icon: '🚚' },
+  { to: '/admin/payments', label: 'Payments', icon: '💳' },
+  { to: '/admin/website-settings', label: 'Website', icon: '🎨' },
+  { to: '/admin/shop', label: 'Shop', icon: '🏪' },
 ];
 
 export default function Layout() {
@@ -32,7 +32,7 @@ export default function Layout() {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
+              end={item.to === '/admin'}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
                   isActive

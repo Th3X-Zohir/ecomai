@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { payments } from '../api';
-import { PageHeader, Table, Badge, Button, Modal, FormField, Input, Textarea } from '../components/UI';
+import { PageHeader, Table, Badge, Button, Modal, FormField, Input, Textarea, Pagination } from '../components/UI';
 
 export default function Payments() {
   const [items, setItems] = useState([]);
@@ -9,16 +9,19 @@ export default function Payments() {
   const [refundForm, setRefundForm] = useState({ amount: '', reason: '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const load = () => {
+  const load = (p = page) => {
     setLoading(true);
-    payments.list()
-      .then((data) => setItems(data.items))
+    payments.list({ page: p, limit: 20 })
+      .then((data) => { setItems(data.items); setTotalPages(data.totalPages); setTotal(data.total); setPage(data.page); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(1); }, []);
 
   const handleRefund = async (e) => {
     e.preventDefault();
@@ -50,9 +53,10 @@ export default function Payments() {
 
   return (
     <div>
-      <PageHeader title="Payments" description={`${items.length} payment${items.length !== 1 ? 's' : ''}`} />
+      <PageHeader title="Payments" description={`${total} payment${total !== 1 ? 's' : ''}`} />
 
       <Table columns={columns} data={items} emptyMessage="No payments yet. Record payments from order detail pages." />
+      <Pagination page={page} totalPages={totalPages} total={total} onPageChange={(p) => load(p)} />
 
       <Modal open={!!refunding} onClose={() => setRefunding(null)} title="Process Refund">
         {error && <div className="mb-4 p-3 bg-danger-50 text-danger-600 text-sm rounded-lg">{error}</div>}

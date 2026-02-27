@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../contexts/StoreContext';
 import { useCart } from '../contexts/CartContext';
@@ -7,6 +8,17 @@ export default function StorefrontLayout() {
   const { shop, theme, tokens, nav, customCss, loading, error, shopSlug } = useStore();
   const { count } = useCart();
   const navigate = useNavigate();
+  const [customerToken, setCustomerToken] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem(`customer_token_${shopSlug}`);
+    setCustomerToken(token);
+    const onStorage = () => setCustomerToken(localStorage.getItem(`customer_token_${shopSlug}`));
+    window.addEventListener('storage', onStorage);
+    // Also poll for same-tab changes
+    const interval = setInterval(onStorage, 1000);
+    return () => { window.removeEventListener('storage', onStorage); clearInterval(interval); };
+  }, [shopSlug]);
 
   if (loading) {
     return (
@@ -23,7 +35,7 @@ export default function StorefrontLayout() {
           <h1 className="text-4xl font-bold text-gray-800 mb-2">Store Not Found</h1>
           <p className="text-gray-500">This shop doesn't exist or is no longer active.</p>
           <Link to="/" className="mt-4 inline-block text-blue-600 hover:underline">
-            Go to admin
+            Go home
           </Link>
         </div>
       </div>
@@ -90,16 +102,34 @@ export default function StorefrontLayout() {
               ))}
             </nav>
 
-            {/* Cart button */}
-            <button
-              onClick={() => navigate(`/store/${shopSlug}/cart`)}
-              className="relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition hover:opacity-80"
-              style={{
-                backgroundColor: resolved.primary,
-                color: resolved.bg,
-                borderRadius: resolved.buttonRadius,
-              }}
-            >
+            {/* Account & Cart */}
+            <div className="flex items-center gap-3">
+              {customerToken ? (
+                <Link
+                  to={`/store/${shopSlug}/account`}
+                  className="text-sm font-medium px-3 py-2 rounded-lg transition hover:opacity-80"
+                  style={{ border: `1px solid ${resolved.border}`, borderRadius: resolved.buttonRadius }}
+                >
+                  My Account
+                </Link>
+              ) : (
+                <Link
+                  to={`/store/${shopSlug}/auth/login`}
+                  className="text-sm font-medium px-3 py-2 rounded-lg transition hover:opacity-80"
+                  style={{ border: `1px solid ${resolved.border}`, borderRadius: resolved.buttonRadius }}
+                >
+                  Sign In
+                </Link>
+              )}
+              <button
+                onClick={() => navigate(`/store/${shopSlug}/cart`)}
+                className="relative flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition hover:opacity-80"
+                style={{
+                  backgroundColor: resolved.primary,
+                  color: resolved.bg,
+                  borderRadius: resolved.buttonRadius,
+                }}
+              >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
               </svg>
@@ -113,6 +143,7 @@ export default function StorefrontLayout() {
                 </span>
               )}
             </button>
+            </div>
           </div>
 
           {/* Mobile nav */}
@@ -157,6 +188,7 @@ export default function StorefrontLayout() {
                 <li><Link to={`/store/${shopSlug}`} className="hover:opacity-70 transition">Home</Link></li>
                 <li><Link to={`/store/${shopSlug}/products`} className="hover:opacity-70 transition">Products</Link></li>
                 <li><Link to={`/store/${shopSlug}/cart`} className="hover:opacity-70 transition">Cart</Link></li>
+                <li><Link to={`/store/${shopSlug}/account`} className="hover:opacity-70 transition">My Account</Link></li>
               </ul>
             </div>
             <div>

@@ -18,7 +18,7 @@ export default function StoreCheckout() {
     city: '',
     state: '',
     zip: '',
-    country: 'US',
+    country: 'BD',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -31,6 +31,7 @@ export default function StoreCheckout() {
     setError('');
     setLoading(true);
     try {
+      const customerToken = localStorage.getItem(`customer_token_${shopSlug}`);
       const result = await storeApi.checkout(shopSlug, {
         customer_email: form.email,
         customer_name: form.name,
@@ -48,6 +49,15 @@ export default function StoreCheckout() {
           country: form.country,
         },
       });
+
+      // SSLCommerz flow: redirect to payment gateway
+      if (result.gatewayUrl) {
+        clearCart();
+        window.location.href = result.gatewayUrl;
+        return;
+      }
+
+      // Fallback: direct order confirmation (no online payment)
       setOrder(result);
       clearCart();
     } catch (err) {
@@ -271,14 +281,14 @@ export default function StoreCheckout() {
                       {item.name} {item.variant_title ? `(${item.variant_title})` : ''} × {item.quantity}
                     </span>
                     <span className="font-medium" style={{ color: t.text }}>
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ৳{(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
                 ))}
                 <hr style={{ borderColor: t.border }} />
                 <div className="flex justify-between text-sm">
                   <span style={{ color: t.textMuted }}>Subtotal</span>
-                  <span className="font-medium" style={{ color: t.text }}>${total.toFixed(2)}</span>
+                  <span className="font-medium" style={{ color: t.text }}>৳{total.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span style={{ color: t.textMuted }}>Shipping</span>
@@ -287,7 +297,7 @@ export default function StoreCheckout() {
                 <hr style={{ borderColor: t.border }} />
                 <div className="flex justify-between">
                   <span className="font-bold" style={{ color: t.text }}>Total</span>
-                  <span className="text-xl font-bold" style={{ color: t.primary }}>${total.toFixed(2)}</span>
+                  <span className="text-xl font-bold" style={{ color: t.primary }}>৳{total.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -301,11 +311,11 @@ export default function StoreCheckout() {
                   borderRadius: t.buttonRadius,
                 }}
               >
-                {loading ? 'Placing Order...' : `Place Order — $${total.toFixed(2)}`}
+                {loading ? 'Proceeding to Payment...' : `Pay Now — ৳${total.toFixed(2)}`}
               </button>
 
               <p className="text-xs text-center mt-3" style={{ color: t.textMuted }}>
-                🔒 Secure checkout. Your data is encrypted.
+                🔒 Secure checkout via SSLCommerz. Your data is encrypted.
               </p>
             </div>
           </div>

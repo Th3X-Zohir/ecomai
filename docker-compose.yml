@@ -1,0 +1,71 @@
+services:
+  # ── PostgreSQL ─────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecomai_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ecomai
+      POSTGRES_USER: ecomai
+      POSTGRES_PASSWORD: ecomai_secret
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ecomai']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── DB Migration (runs once then exits) ────────────────
+  migrate:
+    build: .
+    container_name: ecomai_migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://ecomai:ecomai_secret@postgres:5432/ecomai
+    command: ['bun', 'run', 'db/migrate.js', '--seed']
+    restart: 'no'
+
+  # ── Backend API ────────────────────────────────────────
+  backend:
+    build: .
+    container_name: ecomai_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://ecomai:ecomai_secret@postgres:5432/ecomai
+      JWT_SECRET: ecomai-dev-secret-k3y-ch4ng3-1n-pr0duct10n-2026
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_EXPIRES: 7d
+      SSLCOMMERZ_STORE_ID: neege6997413bb22cd
+      SSLCOMMERZ_STORE_PASSWD: neege6997413bb22cd@ssl
+      SSLCOMMERZ_IS_LIVE: 'false'
+      APP_URL: http://localhost:5173
+      API_URL: http://localhost:3000
+      PORT: '3000'
+      NODE_ENV: development
+
+  # ── Frontend (Vite Dev Server) ─────────────────────────
+  frontend:
+    build: ./frontend
+    container_name: ecomai_web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '5173:5173'
+    environment:
+      VITE_API_URL: http://backend:3000
+
+volumes:
+  pgdata:

@@ -1,61 +1,39 @@
 const express = require('express');
 const authService = require('../services/auth');
 const { authRequired, requireRoles } = require('../middleware/auth');
+const { asyncHandler } = require('../middleware/async-handler');
 const deliveryService = require('../services/delivery-requests');
-const { DomainError } = require('../errors/domain-error');
 
 const router = express.Router();
 
-router.post('/auth/login', (req, res) => {
-  try {
-    const tokens = authService.login(req.body.email, req.body.password);
-    return res.json(tokens);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to login driver' });
-  }
-});
+router.post('/auth/login', asyncHandler(async (req, res) => {
+  const tokens = await authService.login(req.body.email, req.body.password);
+  res.json(tokens);
+}));
 
 router.use(authRequired, requireRoles(['delivery_agent']));
 
-router.get('/assignments', (req, res) => {
-  const items = deliveryService.listDriverAssignments(req.auth.sub);
-  return res.json({ items, count: items.length });
-});
+router.get('/assignments', asyncHandler(async (req, res) => {
+  const result = await deliveryService.listDriverAssignments(req.auth.sub, {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 50,
+  });
+  res.json(result);
+}));
 
-router.post('/assignments/:id/location', (req, res) => {
-  try {
-    const request = deliveryService.driverPostLocation({
-      driverUserId: req.auth.sub,
-      deliveryRequestId: req.params.id,
-      lat: req.body.lat,
-      lng: req.body.lng,
-    });
-    return res.json(request);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to post location update' });
-  }
-});
+router.post('/assignments/:id/location', asyncHandler(async (req, res) => {
+  const request = await deliveryService.driverPostLocation({
+    driverUserId: req.auth.sub, deliveryRequestId: req.params.id,
+    lat: req.body.lat, lng: req.body.lng,
+  });
+  res.json(request);
+}));
 
-router.patch('/assignments/:id/status', (req, res) => {
-  try {
-    const request = deliveryService.driverUpdateStatus({
-      driverUserId: req.auth.sub,
-      deliveryRequestId: req.params.id,
-      status: req.body.status,
-    });
-    return res.json(request);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to update assignment status' });
-  }
-});
+router.patch('/assignments/:id/status', asyncHandler(async (req, res) => {
+  const request = await deliveryService.driverUpdateStatus({
+    driverUserId: req.auth.sub, deliveryRequestId: req.params.id, status: req.body.status,
+  });
+  res.json(request);
+}));
 
 module.exports = router;

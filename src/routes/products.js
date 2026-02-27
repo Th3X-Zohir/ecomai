@@ -1,69 +1,42 @@
 const express = require('express');
 const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
+const { asyncHandler } = require('../middleware/async-handler');
 const productService = require('../services/products');
-const { DomainError } = require('../errors/domain-error');
 
 const router = express.Router();
 
 router.use(authRequired, requireRoles(['super_admin', 'shop_admin', 'shop_user']), resolveTenant, requireTenantContext);
 
-router.get('/', (req, res) => {
-  const items = productService.listProducts(req.tenantShopId);
-  return res.json({ items, count: items.length });
-});
+router.get('/', asyncHandler(async (req, res) => {
+  const result = await productService.listProducts(req.tenantShopId, {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 50,
+    search: req.query.search,
+    category: req.query.category,
+    status: req.query.status,
+  });
+  res.json(result);
+}));
 
-router.get('/:productId', (req, res) => {
-  try {
-    const product = productService.getProduct(req.tenantShopId, req.params.productId);
-    return res.json(product);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to fetch product' });
-  }
-});
+router.get('/:productId', asyncHandler(async (req, res) => {
+  const product = await productService.getProduct(req.tenantShopId, req.params.productId);
+  res.json(product);
+}));
 
-router.post('/', (req, res) => {
-  try {
-    const product = productService.createProduct({
-      shopId: req.tenantShopId,
-      ...req.body,
-    });
+router.post('/', asyncHandler(async (req, res) => {
+  const product = await productService.createProduct({ shopId: req.tenantShopId, ...req.body });
+  res.status(201).json(product);
+}));
 
-    return res.status(201).json(product);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
+router.patch('/:productId', asyncHandler(async (req, res) => {
+  const product = await productService.updateProduct(req.tenantShopId, req.params.productId, req.body);
+  res.json(product);
+}));
 
-    return res.status(500).json({ message: 'Failed to create product' });
-  }
-});
-
-router.patch('/:productId', (req, res) => {
-  try {
-    const product = productService.updateProduct(req.tenantShopId, req.params.productId, req.body);
-    return res.json(product);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to update product' });
-  }
-});
-
-router.delete('/:productId', (req, res) => {
-  try {
-    const result = productService.deleteProduct(req.tenantShopId, req.params.productId);
-    return res.json(result);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to delete product' });
-  }
-});
+router.delete('/:productId', asyncHandler(async (req, res) => {
+  const result = await productService.deleteProduct(req.tenantShopId, req.params.productId);
+  res.json(result);
+}));
 
 module.exports = router;

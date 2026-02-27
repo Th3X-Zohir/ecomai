@@ -1,28 +1,37 @@
-const test = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const { setup, teardown, shopId } = require('./helpers/setup');
 const shopService = require('../src/services/shops');
 const usersService = require('../src/services/users');
 
-test('super admin can create and update shop', () => {
-  const shop = shopService.createShop({
-    name: 'Demo Electronics',
-    slug: `demo-electronics-${Date.now()}`,
-    industry: 'electronics',
+describe('shop and user service', () => {
+  before(setup);
+  after(teardown);
+
+  let newShopId;
+
+  it('creates a shop', async () => {
+    const shop = await shopService.createShop({
+      name: 'Test Electronics', slug: `test-elec-${Date.now()}`, industry: 'electronics',
+    });
+    assert.ok(shop.id);
+    newShopId = shop.id;
   });
 
-  const updated = shopService.updateShop(shop.id, { status: 'paused' });
-  assert.equal(updated.status, 'paused');
-});
-
-test('super admin can create shop_admin user bound to shop', () => {
-  const created = usersService.createUser({
-    actorRole: 'super_admin',
-    email: `new-admin-${Date.now()}@shop.dev`,
-    password: 'password123',
-    role: 'shop_admin',
-    shopId: 'shop_1',
+  it('updates a shop', async () => {
+    const updated = await shopService.updateShop(newShopId, { status: 'paused' });
+    assert.equal(updated.status, 'paused');
   });
 
-  assert.equal(created.role, 'shop_admin');
-  assert.equal(created.shop_id, 'shop_1');
+  it('creates a user', async () => {
+    const created = await usersService.createUser({
+      actorRole: 'super_admin',
+      email: `new-admin-${Date.now()}@shop.dev`,
+      password: 'password123',
+      role: 'shop_admin',
+      shopId,
+    });
+    assert.equal(created.role, 'shop_admin');
+    assert.equal(created.shop_id, shopId);
+  });
 });

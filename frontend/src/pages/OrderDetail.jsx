@@ -31,7 +31,7 @@ export default function OrderDetail() {
       const p = await payments.list(id);
       setOrderPayments(p.items);
     } catch {
-      navigate('/orders');
+      navigate('/admin/orders');
     } finally { setLoading(false); }
   };
 
@@ -96,7 +96,7 @@ export default function OrderDetail() {
   return (
     <div>
       <PageHeader title={`Order ${order.id.slice(0, 12)}...`}>
-        <Button variant="secondary" onClick={() => navigate('/orders')}>← Back</Button>
+        <Button variant="secondary" onClick={() => navigate('/admin/orders')}>← Back</Button>
         <Button variant="secondary" onClick={() => setShowStatusModal(true)}>Update Status</Button>
         <Button variant="success" onClick={() => setShowPaymentModal(true)}>Record Payment</Button>
         <Button onClick={() => setShowDeliveryModal(true)}>Request Delivery</Button>
