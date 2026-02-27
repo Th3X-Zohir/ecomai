@@ -82,7 +82,7 @@ export default function Campaigns() {
           </div>
           <div>
             <p className="font-medium text-gray-900">{r.campaign_name}</p>
-            <p className="text-xs text-gray-500 capitalize">{r.channel.replace('_', ' ')}</p>
+            <p className="text-xs text-gray-500 capitalize">{(r.channel || 'email').replace('_', ' ')}</p>
           </div>
         </div>
       );

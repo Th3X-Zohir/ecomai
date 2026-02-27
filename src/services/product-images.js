@@ -4,13 +4,13 @@ const DomainError = require('../errors/domain-error');
 
 async function listImages(productId, shopId) {
   // Verify product belongs to shop
-  const product = await productRepo.findById(productId, shopId);
+  const product = await productRepo.findByIdAndShop(productId, shopId);
   if (!product) throw new DomainError('NOT_FOUND', 'Product not found', 404);
   return imageRepo.listByProduct(productId, shopId);
 }
 
 async function addImage(productId, shopId, imageData) {
-  const product = await productRepo.findById(productId, shopId);
+  const product = await productRepo.findByIdAndShop(productId, shopId);
   if (!product) throw new DomainError('NOT_FOUND', 'Product not found', 404);
 
   // Check limit (max 10 images per product)

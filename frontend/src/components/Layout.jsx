@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Avatar, Dropdown, DropdownItem } from './UI';
@@ -60,6 +60,13 @@ export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+
+  /* Set admin page title */
+  useEffect(() => {
+    const segment = location.pathname.replace('/admin', '').replace(/^\//, '');
+    const page = segment ? segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ') : 'Dashboard';
+    document.title = `${page} — Ecomai Admin`;
+  }, [location.pathname]);
 
   const SidebarContent = () => (
     <>

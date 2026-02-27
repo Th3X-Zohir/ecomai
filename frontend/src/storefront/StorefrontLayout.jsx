@@ -25,6 +25,7 @@ export default function StorefrontLayout() {
   useEffect(() => {
     if (seoDefaults.title) document.title = seoDefaults.title;
     else if (shop?.name) document.title = shop.name;
+    else document.title = 'Ecomai — Commerce Platform';
     const metaDesc = document.querySelector('meta[name="description"]');
     if (seoDefaults.description && metaDesc) metaDesc.setAttribute('content', seoDefaults.description);
   }, [seoDefaults, shop]);
