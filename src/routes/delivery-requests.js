@@ -13,19 +13,6 @@ router.get('/', (req, res) => {
   return res.json({ items, count: items.length });
 });
 
-router.get('/:deliveryRequestId', (req, res) => {
-  try {
-    const request = deliveryService.getDeliveryRequest(req.tenantShopId, req.params.deliveryRequestId);
-    return res.json(request);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-
-    return res.status(500).json({ message: 'Failed to fetch delivery request' });
-  }
-});
-
 router.patch('/:deliveryRequestId/status', (req, res) => {
   try {
     const request = deliveryService.updateDeliveryStatus({
@@ -41,24 +28,6 @@ router.patch('/:deliveryRequestId/status', (req, res) => {
     }
 
     return res.status(500).json({ message: 'Failed to update delivery request status' });
-  }
-});
-
-router.patch('/:deliveryRequestId/assign-driver', (req, res) => {
-  try {
-    const request = deliveryService.assignDriver({
-      shopId: req.tenantShopId,
-      deliveryRequestId: req.params.deliveryRequestId,
-      driverUserId: req.body.driverUserId,
-    });
-
-    return res.json(request);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-
-    return res.status(500).json({ message: 'Failed to assign delivery driver' });
   }
 });
 

@@ -41,13 +41,6 @@ function updateVariant(variant, patch) {
   return variant;
 }
 
-function adjustInventory(variant, deltaQty) {
-  const nextQty = Number(variant.inventory_qty) + Number(deltaQty);
-  variant.inventory_qty = nextQty;
-  variant.updated_at = new Date().toISOString();
-  return variant;
-}
-
 function deleteVariant(variantId) {
   const idx = productVariants.findIndex((entry) => entry.id === variantId);
   if (idx >= 0) {
@@ -63,6 +56,5 @@ module.exports = {
   findBySkuAndShop,
   createVariant,
   updateVariant,
-  adjustInventory,
   deleteVariant,
 };

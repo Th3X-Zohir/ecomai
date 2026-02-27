@@ -1,28 +1,18 @@
 const express = require('express');
+const { products, createId } = require('../store');
 const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
-const { requireTenantContext } = require('../middleware/tenant');
-const productService = require('../services/products');
-const { DomainError } = require('../errors/domain-error');
 
 const router = express.Router();
 
-router.use(authRequired, requireRoles(['super_admin', 'shop_admin', 'shop_user']), resolveTenant, requireTenantContext);
+router.use(authRequired, requireRoles(['super_admin', 'shop_admin', 'shop_user']), resolveTenant);
 
 router.get('/', (req, res) => {
-  const items = productService.listProducts(req.tenantShopId);
-  return res.json({ items, count: items.length });
-});
-
-router.get('/:productId', (req, res) => {
-  try {
-    const product = productService.getProductById(req.tenantShopId, req.params.productId);
-    return res.json(product);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to get product' });
+  if (!req.tenantShopId) {
+    return res.status(400).json({ message: 'x-shop-id is required for super_admin' });
   }
+
+  const items = products.filter((p) => p.shop_id === req.tenantShopId);
+  return res.json({ items, count: items.length });
 });
 
 router.post('/', (req, res) => {
@@ -39,37 +29,6 @@ router.post('/', (req, res) => {
     }
 
     return res.status(500).json({ message: 'Failed to create product' });
-  }
-});
-
-router.patch('/:productId', (req, res) => {
-  try {
-    const product = productService.updateProduct({
-      shopId: req.tenantShopId,
-      productId: req.params.productId,
-      patch: req.body,
-    });
-    return res.json(product);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to update product' });
-  }
-});
-
-router.delete('/:productId', (req, res) => {
-  try {
-    const product = productService.archiveProduct({
-      shopId: req.tenantShopId,
-      productId: req.params.productId,
-    });
-    return res.json(product);
-  } catch (err) {
-    if (err instanceof DomainError) {
-      return res.status(err.status).json({ code: err.code, message: err.message });
-    }
-    return res.status(500).json({ message: 'Failed to archive product' });
   }
 });
 
