@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { campaigns } from '../api';
-import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Card, Pagination, StatCard, Tabs, PageSkeleton, useToast } from '../components/UI';
+import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Card, Pagination, StatCard, SearchInput, Tabs, PageSkeleton, useToast } from '../components/UI';
 
 const CHANNELS = ['email', 'facebook', 'instagram', 'tiktok', 'google_ads', 'sms'];
 
@@ -13,7 +13,7 @@ const channelMeta = {
   sms: { icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>, color: 'emerald' },
 };
 
-const bgMap = { indigo: 'bg-indigo-100 text-indigo-600', blue: 'bg-blue-100 text-blue-600', pink: 'bg-pink-100 text-pink-600', gray: 'bg-gray-100 text-gray-600', red: 'bg-red-100 text-red-600', emerald: 'bg-emerald-100 text-emerald-600' };
+const bgMap = { indigo: 'bg-primary-100 text-primary-600', blue: 'bg-blue-100 text-blue-600', pink: 'bg-pink-100 text-pink-600', gray: 'bg-gray-100 text-gray-600', red: 'bg-red-100 text-red-600', emerald: 'bg-emerald-100 text-emerald-600' };
 
 export default function Campaigns() {
   const [items, setItems] = useState([]);
@@ -29,17 +29,18 @@ export default function Campaigns() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [channelFilter, setChannelFilter] = useState('all');
+  const [search, setSearch] = useState('');
   const toast = useToast();
 
-  const load = (p = page) => {
+  const load = (p = page, q = search) => {
     setLoading(true);
-    campaigns.list({ page: p, limit: 20 })
+    campaigns.list({ page: p, limit: 20, search: q || undefined, type: channelFilter !== 'all' ? channelFilter : undefined })
       .then((data) => { setItems(data.items); setTotalPages(data.totalPages); setTotal(data.total); setPage(data.page); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(1); }, []);
+  useEffect(() => { load(1); }, [channelFilter]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -70,7 +71,7 @@ export default function Campaigns() {
   const draftCount = items.filter(c => c.status === 'draft').length;
   const activeCount = items.filter(c => c.status === 'active').length;
 
-  const filteredItems = channelFilter === 'all' ? items : items.filter(c => c.channel === channelFilter);
+  const filteredItems = items;
 
   const columns = [
     { key: 'campaign_name', label: 'Campaign', render: (r) => {
@@ -133,14 +134,14 @@ export default function Campaigns() {
 
       {/* AI Result banner */}
       {aiResult && (
-        <Card className="mb-6 border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+        <Card className="mb-6 border-primary-200 bg-gradient-to-r from-primary-50 to-purple-50">
           <div className="p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
                 </div>
-                <h3 className="font-semibold text-indigo-700">AI Draft Generated</h3>
+                <h3 className="font-semibold text-primary-700">AI Draft Generated</h3>
               </div>
               <button onClick={() => setAiResult(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-white/50 transition">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -157,26 +158,33 @@ export default function Campaigns() {
               </div>
               <div className="bg-white/60 rounded-lg p-3">
                 <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Call to Action</p>
-                <p className="font-semibold text-indigo-600">{aiResult.content?.cta}</p>
+                <p className="font-semibold text-primary-600">{aiResult.content?.cta}</p>
               </div>
             </div>
           </div>
         </Card>
       )}
 
+      {/* Search + Channel filter */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="sm:w-80">
+          <SearchInput value={search} onChange={(v) => { setSearch(v); load(1, v); }} placeholder="Search campaigns..." />
+        </div>
+      </div>
+
       {/* Channel filter tabs */}
       <div className="mb-4 flex items-center gap-2 flex-wrap">
         <button
           onClick={() => setChannelFilter('all')}
-          className={`px-3 py-1.5 text-xs font-medium rounded-full transition ${channelFilter === 'all' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'}`}
-        >All ({items.length})</button>
+          className={`px-3 py-1.5 text-xs font-medium rounded-full transition ${channelFilter === 'all' ? 'bg-primary-100 text-primary-700' : 'text-gray-500 hover:bg-gray-100'}`}
+        >All ({total})</button>
         {CHANNELS.map(ch => {
           const count = items.filter(c => c.channel === ch).length;
           if (count === 0) return null;
           const meta = channelMeta[ch];
           return (
             <button key={ch} onClick={() => setChannelFilter(ch)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-full transition flex items-center gap-1.5 ${channelFilter === ch ? 'bg-indigo-100 text-indigo-700' : 'text-gray-500 hover:bg-gray-100'}`}>
+              className={`px-3 py-1.5 text-xs font-medium rounded-full transition flex items-center gap-1.5 ${channelFilter === ch ? 'bg-primary-100 text-primary-700' : 'text-gray-500 hover:bg-gray-100'}`}>
               {meta.icon}
               <span className="capitalize">{ch.replace('_', ' ')}</span>
               <span className="text-[10px] opacity-70">({count})</span>
@@ -232,9 +240,9 @@ export default function Campaigns() {
       {/* AI Draft Modal */}
       <Modal open={showAI} onClose={() => setShowAI(false)} title="Generate AI Campaign Draft">
         {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">{error}</div>}
-        <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center gap-3">
-          <svg className="w-5 h-5 text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-          <p className="text-xs text-indigo-700">AI will generate campaign content based on your inputs. You can edit the resulting campaign afterward.</p>
+        <div className="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-lg flex items-center gap-3">
+          <svg className="w-5 h-5 text-primary-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+          <p className="text-xs text-primary-700">AI will generate campaign content based on your inputs. You can edit the resulting campaign afterward.</p>
         </div>
         <form onSubmit={handleAIDraft}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">

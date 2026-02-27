@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { payments } from '../api';
-import { PageHeader, Table, Badge, Button, Modal, FormField, Input, Textarea, Pagination, StatCard, Card, ConfirmDialog, PageSkeleton, useToast } from '../components/UI';
+import { PageHeader, Table, Badge, Button, Modal, FormField, Input, Textarea, Pagination, StatCard, Card, ConfirmDialog, SearchInput, PageSkeleton, useToast } from '../components/UI';
 
 export default function Payments() {
   const [items, setItems] = useState([]);
@@ -13,11 +13,12 @@ export default function Payments() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [search, setSearch] = useState('');
   const toast = useToast();
 
-  const load = (p = page) => {
+  const load = (p = page, q = search) => {
     setLoading(true);
-    payments.list({ page: p, limit: 20 })
+    payments.list({ page: p, limit: 20, search: q || undefined })
       .then((data) => { setItems(data.items); setTotalPages(data.totalPages); setTotal(data.total); setPage(data.page); })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -49,7 +50,7 @@ export default function Payments() {
   const providerIcon = (provider) => {
     const icons = {
       manual: <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
-      stripe: <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
+      stripe: <svg className="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
       paypal: <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
       sslcommerz: <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
       cash: <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
@@ -114,6 +115,12 @@ export default function Payments() {
         <StatCard label="Refunded" value={`৳${totalRefunded.toFixed(2)}`} trend={totalRefunded > 0 ? 'down' : undefined} icon={
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
         } />
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="sm:w-80">
+          <SearchInput value={search} onChange={(v) => { setSearch(v); load(1, v); }} placeholder="Search by transaction ID, method..." />
+        </div>
       </div>
 
       <Table columns={columns} data={items} loading={loading} emptyMessage="No payments yet. Record payments from order detail pages." emptyIcon="💳" />

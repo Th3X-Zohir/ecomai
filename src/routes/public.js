@@ -179,11 +179,12 @@ router.post('/shops/:slug/checkout', asyncHandler(async (req, res) => {
   const shop = await shopRepo.findBySlug(req.params.slug);
   if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
 
-  const { customer_email, customer_id, items, shipping_address, customer_name, customer_phone } = req.body;
+  const { customer_email, customer_id, items, shipping_address, customer_name, customer_phone, customer_password, order_notes } = req.body;
 
   // Auto-create or find customer by email
   const { customer, token: customerToken } = await customerService.findOrCreateByEmail({
     shopId: shop.id, email: customer_email, full_name: customer_name, phone: customer_phone,
+    password: customer_password || undefined,
   });
 
   // Save shipping address to customer's addresses list if not already saved
@@ -204,6 +205,7 @@ router.post('/shops/:slug/checkout', asyncHandler(async (req, res) => {
   // Create order linked to customer
   const order = await orderService.createOrder({
     shopId: shop.id, customer_email, customer_id: customer.id, items, shipping_address,
+    notes: order_notes || undefined,
   });
 
   // Initiate SSLCommerz payment

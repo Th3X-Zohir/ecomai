@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { AdminProvider } from './contexts/AdminContext';
 import { CartProvider } from './contexts/CartContext';
 import { StoreProvider } from './contexts/StoreContext';
 
@@ -91,7 +92,7 @@ export default function App() {
       <Route path="/store/*" element={<StorefrontWrapper />} />
 
       {/* Admin dashboard — auth required */}
-      <Route path="/admin" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      <Route path="/admin" element={<ProtectedRoute><AdminProvider><Layout /></AdminProvider></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="products" element={<Products />} />
         <Route path="products/:id" element={<ProductDetail />} />

@@ -1,23 +1,54 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useStore } from '../../contexts/StoreContext';
+import { useCart } from '../../contexts/CartContext';
 import { storeApi } from '../../api-public';
 import { resolveTokens } from '../templates';
 
+/* Animated counter */
+function AnimatedCounter({ end, duration = 1500, suffix = '' }) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (!end) return;
+    let start = 0;
+    const step = Math.max(1, Math.floor(end / (duration / 30)));
+    const id = setInterval(() => {
+      start += step;
+      if (start >= end) { setVal(end); clearInterval(id); }
+      else setVal(start);
+    }, 30);
+    return () => clearInterval(id);
+  }, [end, duration]);
+  return <>{val.toLocaleString()}{suffix}</>;
+}
+
 export default function StoreHome() {
   const { shop, shopSlug, theme, tokens, homepage, trustBadges, formatPrice } = useStore();
+  const { addItem } = useCart();
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [addedId, setAddedId] = useState(null);
 
   const t = resolveTokens(theme, tokens);
 
   useEffect(() => {
-    storeApi
-      .getProducts(shopSlug)
-      .then((data) => setProducts(data.items.slice(0, 8)))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      storeApi.getProducts(shopSlug),
+      storeApi.getCategories(shopSlug).catch(() => []),
+    ]).then(([prodData, catData]) => {
+      setProducts(prodData.items.slice(0, 8));
+      setCategories((catData || []).slice(0, 6));
+    }).catch(() => {}).finally(() => setLoading(false));
   }, [shopSlug]);
+
+  const handleQuickAdd = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addItem(product, null, 1);
+    setAddedId(product.id);
+    setTimeout(() => setAddedId(null), 1500);
+  };
 
   const heroHeadline = homepage?.hero?.headline || `Welcome to ${shop?.name}`;
   const heroSubtitle =
@@ -87,6 +118,68 @@ export default function StoreHome() {
         </div>
       </section>
 
+      {/* Social Proof Bar */}
+      <section className="py-6 border-b" style={{ backgroundColor: t.surface, borderColor: t.border }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <div>
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: t.primary }}><AnimatedCounter end={products.length * 12} suffix="+" /></p>
+              <p className="text-xs font-medium uppercase tracking-wider mt-1" style={{ color: t.textMuted }}>Happy Customers</p>
+            </div>
+            <div>
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: t.primary }}><AnimatedCounter end={products.length || 50} suffix="+" /></p>
+              <p className="text-xs font-medium uppercase tracking-wider mt-1" style={{ color: t.textMuted }}>Products</p>
+            </div>
+            <div>
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: t.primary }}>4.9</p>
+              <p className="text-xs font-medium uppercase tracking-wider mt-1" style={{ color: t.textMuted }}>⭐ Avg. Rating</p>
+            </div>
+            <div>
+              <p className="text-2xl md:text-3xl font-bold" style={{ color: t.primary }}><AnimatedCounter end={24} /></p>
+              <p className="text-xs font-medium uppercase tracking-wider mt-1" style={{ color: t.textMuted }}>Hour Support</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Browse by Category */}
+      {categories.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-bold" style={{ color: t.text }}>Shop by Category</h2>
+              <p className="text-sm mt-1" style={{ color: t.textMuted }}>Find exactly what you're looking for</p>
+            </div>
+            <Link to={`/store/${shopSlug}/products`} className="text-sm font-semibold hover:opacity-70 transition hidden sm:block" style={{ color: t.primary }}>
+              View All →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {categories.map((cat) => (
+              <Link
+                key={cat.id}
+                to={`/store/${shopSlug}/products?category=${cat.id}`}
+                className="group p-5 text-center transition hover:shadow-md"
+                style={{
+                  backgroundColor: t.surface,
+                  borderRadius: t.radius,
+                  border: `1px solid ${t.border}`,
+                }}
+              >
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center text-xl transition-transform group-hover:scale-110"
+                  style={{ backgroundColor: t.primary + '12' }}>
+                  {cat.icon || '📁'}
+                </div>
+                <p className="text-sm font-semibold truncate" style={{ color: t.text }}>{cat.name}</p>
+                {cat.product_count > 0 && (
+                  <p className="text-xs mt-0.5" style={{ color: t.textMuted }}>{cat.product_count} items</p>
+                )}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Featured Products */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
@@ -108,15 +201,15 @@ export default function StoreHome() {
             <p className="text-sm mt-2">Check back soon!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {products.map((product) => (
               <Link
                 key={product.id}
                 to={`/store/${shopSlug}/products/${product.id}`}
-                className="group block transition-transform hover:-translate-y-1"
+                className="group block"
               >
                 <div
-                  className="overflow-hidden"
+                  className="overflow-hidden transition-shadow hover:shadow-lg"
                   style={{
                     backgroundColor: t.surface,
                     borderRadius: t.radius,
@@ -124,19 +217,36 @@ export default function StoreHome() {
                     border: `1px solid ${t.border}`,
                   }}
                 >
-                  {/* Product image */}
+                  {/* Product image with quick add overlay */}
                   <div
-                    className="aspect-square overflow-hidden"
+                    className="aspect-square overflow-hidden relative"
                     style={{ backgroundColor: t.border + '40' }}
                   >
                     {product.images?.length > 0 ? (
-                      <img src={product.images.find(i => i.is_primary)?.url || product.images[0].url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img src={product.images.find(i => i.is_primary)?.url || product.images[0].url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-6xl">📦</div>
                     )}
+                    {/* Quick add-to-cart overlay */}
+                    <div className="absolute inset-x-0 bottom-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                      <button
+                        onClick={(e) => handleQuickAdd(e, product)}
+                        className="w-full py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 backdrop-blur-md transition"
+                        style={{
+                          backgroundColor: addedId === product.id ? '#16a34a' : t.primary + 'ee',
+                          color: t.bg || '#fff',
+                        }}
+                      >
+                        {addedId === product.id ? (
+                          <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Added!</>
+                        ) : (
+                          <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg> Quick Add</>
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-semibold text-sm mb-1 group-hover:opacity-70 transition" style={{ color: t.text }}>
+                    <h3 className="font-semibold text-sm mb-1 group-hover:opacity-70 transition line-clamp-1" style={{ color: t.text }}>
                       {product.name}
                     </h3>
                     {product.category && (

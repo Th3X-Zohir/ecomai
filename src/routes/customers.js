@@ -17,11 +17,26 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
+router.get('/:customerId', asyncHandler(async (req, res) => {
+  const customer = await customerService.getCustomerAdmin(req.tenantShopId, req.params.customerId);
+  res.json(customer);
+}));
+
 router.post('/', asyncHandler(async (req, res) => {
   const customer = await customerService.createCustomer({
     shopId: req.tenantShopId, ...req.body,
   });
   res.status(201).json(customer);
+}));
+
+router.patch('/:customerId', asyncHandler(async (req, res) => {
+  const customer = await customerService.updateCustomerAdmin(req.tenantShopId, req.params.customerId, req.body);
+  res.json(customer);
+}));
+
+router.delete('/:customerId', asyncHandler(async (req, res) => {
+  const result = await customerService.deleteCustomer(req.tenantShopId, req.params.customerId);
+  res.json(result);
 }));
 
 module.exports = router;

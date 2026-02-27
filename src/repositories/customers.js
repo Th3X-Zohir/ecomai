@@ -28,7 +28,7 @@ async function createCustomer({ shop_id, email, password_hash, full_name, phone,
 }
 
 async function updateCustomer(customerId, patch) {
-  const allowed = ['full_name', 'phone', 'password_hash', 'is_registered', 'addresses'];
+  const allowed = ['full_name', 'phone', 'password_hash', 'is_registered', 'addresses', 'email'];
   const sets = [];
   const params = [];
   let idx = 1;
@@ -70,5 +70,9 @@ async function countByShop(shopId) {
   return parseInt(res.rows[0].count, 10);
 }
 
-module.exports = { findByEmail, findById, findByIdAndShop, createCustomer, updateCustomer, listByShop, countByShop };
+async function deleteCustomer(customerId, shopId) {
+  await db.query('DELETE FROM customers WHERE id = $1 AND shop_id = $2', [customerId, shopId]);
+}
+
+module.exports = { findByEmail, findById, findByIdAndShop, createCustomer, updateCustomer, deleteCustomer, listByShop, countByShop };
 

@@ -51,6 +51,7 @@ router.get('/', asyncHandler(async (req, res) => {
     page: Number(req.query.page) || 1,
     limit: Number(req.query.limit) || 50,
     status: req.query.status,
+    search: req.query.search,
   });
   res.json(result);
 }));

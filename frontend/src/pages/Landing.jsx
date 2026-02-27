@@ -99,10 +99,10 @@ export default function Landing() {
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-xl shadow-sm border-b border-gray-100' : 'bg-transparent'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-teal-500 flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Ecomai</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-teal-500 bg-clip-text text-transparent">Ecomai</span>
           </Link>
           {/* Desktop links */}
           <div className="hidden md:flex items-center gap-8">
@@ -110,7 +110,7 @@ export default function Landing() {
             <a href="#how-it-works" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition">How It Works</a>
             <Link to="/pricing" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition">Pricing</Link>
             <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition">Sign In</Link>
-            <Link to="/signup" className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-full text-sm font-semibold hover:shadow-lg hover:shadow-indigo-200 transition-all hover:-translate-y-0.5">
+            <Link to="/signup" className="bg-gradient-to-r from-primary-600 to-teal-500 text-white px-5 py-2 rounded-full text-sm font-semibold hover:shadow-lg hover:shadow-primary-200 transition-all hover:-translate-y-0.5">
               Get Started Free
             </Link>
           </div>
@@ -130,7 +130,7 @@ export default function Landing() {
             <a href="#how-it-works" onClick={() => setMobileOpen(false)} className="block text-sm font-medium text-gray-700 py-2">How It Works</a>
             <Link to="/pricing" className="block text-sm font-medium text-gray-700 py-2">Pricing</Link>
             <Link to="/login" className="block text-sm font-medium text-gray-700 py-2">Sign In</Link>
-            <Link to="/signup" className="block text-center bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold">
+            <Link to="/signup" className="block text-center bg-gradient-to-r from-primary-600 to-teal-500 text-white px-5 py-2.5 rounded-full text-sm font-semibold">
               Get Started Free
             </Link>
           </div>
@@ -141,22 +141,22 @@ export default function Landing() {
       <section ref={heroRef} className="relative pt-28 pb-20 sm:pt-36 sm:pb-28 overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #818cf8 0%, transparent 70%)' }} />
-          <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #a78bfa 0%, transparent 70%)' }} />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #4a9aed 0%, transparent 70%)' }} />
+          <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #14b8a6 0%, transparent 70%)' }} />
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23000\' fill-opacity=\'1\'%3E%3Cpath d=\'M0 0h1v1H0zm20 0h1v1h-1zm0 20h1v1h-1zM0 20h1v1H0z\'/%3E%3C/g%3E%3C/svg%3E")' }} />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div style={revealStyle(heroVisible, 0)}>
-            <div className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-full px-4 py-1.5 mb-6">
-              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span></span>
-              <span className="text-xs font-semibold text-indigo-700">Now in Public Beta — Free to try</span>
+            <div className="inline-flex items-center gap-2 bg-primary-50 border border-primary-100 rounded-full px-4 py-1.5 mb-6">
+              <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span></span>
+              <span className="text-xs font-semibold text-primary-700">Now in Public Beta — Free to try</span>
             </div>
           </div>
 
           <h1 style={revealStyle(heroVisible, 0.1)} className="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 leading-[1.1]">
             Build Your Online Store<br />
-            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">In Minutes, Not Months</span>
+            <span className="bg-gradient-to-r from-primary-600 via-teal-500 to-emerald-400 bg-clip-text text-transparent">In Minutes, Not Months</span>
           </h1>
 
           <p style={revealStyle(heroVisible, 0.2)} className="mt-6 text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed">
@@ -164,7 +164,7 @@ export default function Landing() {
           </p>
 
           <div style={revealStyle(heroVisible, 0.3)} className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/signup" className="w-full sm:w-auto bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3.5 rounded-full text-base font-semibold hover:shadow-xl hover:shadow-indigo-200 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2">
+            <Link to="/signup" className="w-full sm:w-auto bg-gradient-to-r from-primary-600 to-teal-500 text-white px-8 py-3.5 rounded-full text-base font-semibold hover:shadow-xl hover:shadow-primary-200 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2">
               Start Free Trial
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
             </Link>
@@ -184,7 +184,7 @@ export default function Landing() {
               </div>
               <div className="p-6 sm:p-8">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                  {[{ l: 'Revenue', v: '৳87,450', c: 'text-emerald-600', bg: 'bg-emerald-50' }, { l: 'Orders', v: '142', c: 'text-indigo-600', bg: 'bg-indigo-50' }, { l: 'Customers', v: '89', c: 'text-purple-600', bg: 'bg-purple-50' }, { l: 'Products', v: '18', c: 'text-amber-600', bg: 'bg-amber-50' }].map((s, i) => (
+                  {[{ l: 'Revenue', v: '৳87,450', c: 'text-emerald-600', bg: 'bg-emerald-50' }, { l: 'Orders', v: '142', c: 'text-primary-600', bg: 'bg-primary-50' }, { l: 'Customers', v: '89', c: 'text-teal-600', bg: 'bg-teal-50' }, { l: 'Products', v: '18', c: 'text-amber-600', bg: 'bg-amber-50' }].map((s, i) => (
                     <div key={i} className={`${s.bg} rounded-xl p-4 text-left`}>
                       <p className="text-xs font-medium text-gray-500">{s.l}</p>
                       <p className={`text-xl sm:text-2xl font-bold ${s.c} mt-1`}>{s.v}</p>
@@ -194,7 +194,7 @@ export default function Landing() {
                 {/* Mini chart bars */}
                 <div className="flex items-end gap-2 h-32 px-2">
                   {[40, 55, 35, 65, 80, 60, 90, 75, 95, 70, 85, 100].map((h, i) => (
-                    <div key={i} className="flex-1 rounded-t-md bg-gradient-to-t from-indigo-500 to-purple-400 transition-all duration-1000" style={{ height: heroVisible ? `${h}%` : '0%', transitionDelay: `${0.8 + i * 0.05}s` }} />
+                    <div key={i} className="flex-1 rounded-t-md bg-gradient-to-t from-primary-500 to-teal-300 transition-all duration-1000" style={{ height: heroVisible ? `${h}%` : '0%', transitionDelay: `${0.8 + i * 0.05}s` }} />
                   ))}
                 </div>
                 <div className="flex justify-between mt-2 text-[10px] text-gray-400 px-2">
@@ -212,7 +212,7 @@ export default function Landing() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((s, i) => (
               <div key={i} className="text-center" style={revealStyle(statsVisible, i * 0.1)}>
-                <div className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">{s.value}</div>
+                <div className="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-primary-600 to-teal-500 bg-clip-text text-transparent">{s.value}</div>
                 <div className="text-sm text-gray-500 mt-1 font-medium">{s.label}</div>
               </div>
             ))}
@@ -224,8 +224,8 @@ export default function Landing() {
       <section id="features" ref={featRef} className="py-20 sm:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16" style={revealStyle(featVisible, 0)}>
-            <div className="inline-flex items-center gap-2 bg-indigo-50 rounded-full px-4 py-1.5 mb-4">
-              <span className="text-xs font-semibold text-indigo-700">Powerful Features</span>
+            <div className="inline-flex items-center gap-2 bg-primary-50 rounded-full px-4 py-1.5 mb-4">
+              <span className="text-xs font-semibold text-primary-700">Powerful Features</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Everything You Need to Sell Online</h2>
             <p className="mt-4 text-lg text-gray-500 max-w-2xl mx-auto">Powerful tools designed for growing businesses. From storefront to delivery, we've got you covered.</p>
@@ -233,8 +233,8 @@ export default function Landing() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((f, i) => (
-              <div key={i} className="group relative rounded-2xl border border-gray-100 bg-white p-6 hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-50 transition-all duration-300" style={revealStyle(featVisible, 0.05 * i)}>
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 flex items-center justify-center text-indigo-600 group-hover:from-indigo-600 group-hover:to-purple-600 group-hover:text-white group-hover:border-transparent transition-all duration-300 mb-4">
+              <div key={i} className="group relative rounded-2xl border border-gray-100 bg-white p-6 hover:border-primary-200 hover:shadow-lg hover:shadow-primary-50 transition-all duration-300" style={revealStyle(featVisible, 0.05 * i)}>
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-50 to-teal-50 border border-primary-100 flex items-center justify-center text-primary-600 group-hover:from-primary-600 group-hover:to-teal-500 group-hover:text-white group-hover:border-transparent transition-all duration-300 mb-4">
                   <FeatureIcon type={f.icon} />
                 </div>
                 <h3 className="text-base font-semibold text-gray-900 mb-2">{f.title}</h3>
@@ -249,8 +249,8 @@ export default function Landing() {
       <section id="how-it-works" ref={stepsRef} className="py-20 sm:py-28 bg-gray-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16" style={revealStyle(stepsVisible, 0)}>
-            <div className="inline-flex items-center gap-2 bg-indigo-50 rounded-full px-4 py-1.5 mb-4">
-              <span className="text-xs font-semibold text-indigo-700">Simple Setup</span>
+            <div className="inline-flex items-center gap-2 bg-primary-50 rounded-full px-4 py-1.5 mb-4">
+              <span className="text-xs font-semibold text-primary-700">Simple Setup</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Up and Running in 3 Steps</h2>
             <p className="mt-4 text-lg text-gray-500 max-w-xl mx-auto">No technical skills needed. Go from zero to selling in minutes.</p>
@@ -260,9 +260,9 @@ export default function Landing() {
             {steps.map((s, i) => (
               <div key={i} className="relative text-center" style={revealStyle(stepsVisible, 0.15 * i)}>
                 {i < 2 && (
-                  <div className="hidden md:block absolute top-8 left-[60%] w-[80%] border-t-2 border-dashed border-indigo-200" />
+                  <div className="hidden md:block absolute top-8 left-[60%] w-[80%] border-t-2 border-dashed border-primary-200" />
                 )}
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white text-xl font-bold mb-5 relative z-10 shadow-lg shadow-indigo-200">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-600 to-teal-500 text-white text-xl font-bold mb-5 relative z-10 shadow-lg shadow-primary-200">
                   {s.num}
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{s.title}</h3>
@@ -277,8 +277,8 @@ export default function Landing() {
       <section ref={testRef} className="py-20 sm:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16" style={revealStyle(testVisible, 0)}>
-            <div className="inline-flex items-center gap-2 bg-indigo-50 rounded-full px-4 py-1.5 mb-4">
-              <span className="text-xs font-semibold text-indigo-700">Testimonials</span>
+            <div className="inline-flex items-center gap-2 bg-primary-50 rounded-full px-4 py-1.5 mb-4">
+              <span className="text-xs font-semibold text-primary-700">Testimonials</span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Loved by Business Owners</h2>
             <p className="mt-4 text-lg text-gray-500 max-w-xl mx-auto">Join thousands of entrepreneurs who trust Ecomai to power their online stores.</p>
@@ -290,7 +290,7 @@ export default function Landing() {
                 <Stars count={t.rating} />
                 <p className="mt-4 text-gray-600 leading-relaxed text-sm">"{t.text}"</p>
                 <div className="mt-6 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-teal-400 flex items-center justify-center text-white font-semibold text-sm">
                     {t.name.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div>
@@ -307,7 +307,7 @@ export default function Landing() {
       {/* ─── CTA ─── */}
       <section ref={ctaRef} className="py-20 sm:py-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-10 sm:p-16 text-center" style={revealStyle(ctaVisible)}>
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary-600 via-teal-500 to-emerald-400 p-10 sm:p-16 text-center" style={revealStyle(ctaVisible)}>
             {/* Glow decorations */}
             <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-30" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
             <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
@@ -319,7 +319,7 @@ export default function Landing() {
               Join thousands of store owners who trust Ecomai. Start your free trial today — no credit card required.
             </p>
             <div className="relative flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/signup" className="w-full sm:w-auto bg-white text-indigo-700 px-8 py-3.5 rounded-full text-base font-semibold hover:bg-gray-50 hover:shadow-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2">
+              <Link to="/signup" className="w-full sm:w-auto bg-white text-primary-700 px-8 py-3.5 rounded-full text-base font-semibold hover:bg-gray-50 hover:shadow-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2">
                 Create Your Store Now
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
               </Link>
@@ -338,7 +338,7 @@ export default function Landing() {
             {/* Brand */}
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-teal-500 flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 </div>
                 <span className="text-lg font-bold text-white">Ecomai</span>
@@ -346,13 +346,13 @@ export default function Landing() {
               <p className="text-sm leading-relaxed mb-4">The all-in-one e-commerce platform built for Bangladesh and beyond.</p>
               <div className="flex gap-3">
                 {/* Social icons */}
-                <a href="#" className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-indigo-600 flex items-center justify-center transition" aria-label="Twitter">
+                <a href="#" className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-primary-600 flex items-center justify-center transition" aria-label="Twitter">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
                 </a>
-                <a href="#" className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-indigo-600 flex items-center justify-center transition" aria-label="Facebook">
+                <a href="#" className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-primary-600 flex items-center justify-center transition" aria-label="Facebook">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>
                 </a>
-                <a href="#" className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-indigo-600 flex items-center justify-center transition" aria-label="LinkedIn">
+                <a href="#" className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-primary-600 flex items-center justify-center transition" aria-label="LinkedIn">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
                 </a>
               </div>

@@ -41,4 +41,4 @@ async function countPending(shopId) {
   return catReqRepo.countPending(shopId);
 }
 
-module.exports = { listRequests, submitRequest, approveRequest, rejectRequest, countPending };
+module.exports = { listRequests, submitRequest, createRequest: submitRequest, approveRequest, rejectRequest, countPending };

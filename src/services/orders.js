@@ -33,7 +33,7 @@ async function updateOrderStatus(shopId, orderId, status) {
   return orderRepo.updateOrder(orderId, shopId, { status });
 }
 
-async function createOrder({ shopId, customer_email, customer_id, items, shipping_address }) {
+async function createOrder({ shopId, customer_email, customer_id, items, shipping_address, notes }) {
   if (!customer_email || !Array.isArray(items) || items.length === 0) {
     throw new DomainError('VALIDATION_ERROR', 'customer_email and non-empty items are required', 400);
   }
@@ -80,6 +80,7 @@ async function createOrder({ shopId, customer_email, customer_id, items, shippin
       status: 'pending',
       ...totals,
       shipping_address: shipping_address || null,
+      notes: notes || null,
     }, client);
 
     const savedItems = [];

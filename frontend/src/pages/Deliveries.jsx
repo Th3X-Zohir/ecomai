@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { deliveries } from '../api';
-import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination, StatCard, Card, PageSkeleton, useToast } from '../components/UI';
+import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination, StatCard, Card, SearchInput, PageSkeleton, useToast } from '../components/UI';
 
 const STATUSES = ['requested', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
 
@@ -14,11 +14,12 @@ export default function Deliveries() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
   const toast = useToast();
 
-  const load = (p = page) => {
+  const load = (p = page, q = search) => {
     setLoading(true);
-    deliveries.list({ page: p, limit: 20 })
+    deliveries.list({ page: p, limit: 20, search: q || undefined })
       .then((data) => { setItems(data.items); setTotalPages(data.totalPages); setTotal(data.total); setPage(data.page); })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -70,7 +71,7 @@ export default function Deliveries() {
       <div className="flex items-center gap-3">
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
           r.status === 'delivered' ? 'bg-emerald-100 text-emerald-600' :
-          r.status === 'in_transit' ? 'bg-indigo-100 text-indigo-600' :
+          r.status === 'in_transit' ? 'bg-primary-100 text-primary-600' :
           r.status === 'cancelled' ? 'bg-red-100 text-red-600' :
           'bg-amber-100 text-amber-600'
         }`}>
@@ -89,7 +90,7 @@ export default function Deliveries() {
     { key: 'pickup_address', label: 'Route', render: (r) => (
       <div className="text-xs max-w-[200px]">
         <div className="flex items-start gap-1.5 mb-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0" />
+          <span className="w-1.5 h-1.5 rounded-full bg-primary-400 mt-1.5 shrink-0" />
           <span className="text-gray-600 truncate">{formatAddress(r.pickup_address)}</span>
         </div>
         <div className="flex items-start gap-1.5">
@@ -143,7 +144,7 @@ export default function Deliveries() {
                 return (
                   <div key={s} className="flex-1 text-center">
                     <div className={`h-1.5 rounded-full mb-1.5 ${count > 0 ? {
-                      requested: 'bg-amber-400', assigned: 'bg-blue-400', picked_up: 'bg-indigo-400', in_transit: 'bg-purple-400', delivered: 'bg-emerald-400'
+                      requested: 'bg-amber-400', assigned: 'bg-blue-400', picked_up: 'bg-primary-400', in_transit: 'bg-purple-400', delivered: 'bg-emerald-400'
                     }[s] : 'bg-gray-200'}`} />
                     <p className="text-[10px] text-gray-500 capitalize">{s.replace('_', ' ')}</p>
                     <p className={`text-xs font-semibold ${count > 0 ? 'text-gray-900' : 'text-gray-300'}`}>{count}</p>
@@ -154,6 +155,12 @@ export default function Deliveries() {
           </div>
         </Card>
       )}
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="sm:w-80">
+          <SearchInput value={search} onChange={(v) => { setSearch(v); load(1, v); }} placeholder="Search by ID, order..." />
+        </div>
+      </div>
 
       <Table columns={columns} data={items} loading={loading} emptyMessage="No delivery requests yet. Create one from an order detail page." emptyIcon="🚚" />
       <Pagination page={page} totalPages={totalPages} total={total} onPageChange={(p) => load(p)} />
@@ -166,7 +173,7 @@ export default function Deliveries() {
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <div className={`w-6 h-6 rounded flex items-center justify-center ${
-                  updating.status === 'in_transit' ? 'bg-indigo-100 text-indigo-600' : 'bg-amber-100 text-amber-600'
+                  updating.status === 'in_transit' ? 'bg-primary-100 text-primary-600' : 'bg-amber-100 text-amber-600'
                 }`}>
                   {statusIcon(updating.status)}
                 </div>
@@ -187,7 +194,7 @@ export default function Deliveries() {
                 const targetIdx = STATUSES.indexOf(newStatus);
                 const isActive = i <= targetIdx && newStatus !== 'cancelled';
                 return (
-                  <div key={s} className={`flex-1 h-1 rounded-full transition-colors ${isActive ? 'bg-indigo-500' : 'bg-gray-200'}`} />
+                  <div key={s} className={`flex-1 h-1 rounded-full transition-colors ${isActive ? 'bg-primary-500' : 'bg-gray-200'}`} />
                 );
               })}
             </div>

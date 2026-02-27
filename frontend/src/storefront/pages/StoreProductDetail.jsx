@@ -10,11 +10,11 @@ export default function StoreProductDetail() {
   const { shopSlug, theme, tokens, formatPrice } = useStore();
   const { addItem } = useCart();
   const [product, setProduct] = useState(null);
+  const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-
   const [selectedImage, setSelectedImage] = useState(null);
 
   const t = resolveTokens(theme, tokens);
@@ -27,6 +27,10 @@ export default function StoreProductDetail() {
         if (data.variants?.length > 0) setSelectedVariant(data.variants[0]);
         const primary = data.images?.find(i => i.is_primary) || data.images?.[0] || null;
         setSelectedImage(primary);
+        // Load related products from same category
+        storeApi.getProducts(shopSlug).then((res) => {
+          setRelated(res.items.filter(p => p.id !== data.id && p.category_id === data.category_id).slice(0, 4));
+        }).catch(() => {});
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -251,6 +255,62 @@ export default function StoreProductDetail() {
               <span>💬</span> 24/7 Support
             </div>
           </div>
+
+          {/* Share buttons */}
+          <div className="mt-6 pt-6 border-t flex items-center gap-3" style={{ borderColor: t.border }}>
+            <span className="text-xs font-medium" style={{ color: t.textMuted }}>Share:</span>
+            <button onClick={() => navigator.clipboard.writeText(window.location.href)} className="w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:scale-110" style={{ backgroundColor: t.border + '60', color: t.textMuted }} title="Copy link">🔗</button>
+            <a href={`https://wa.me/?text=${encodeURIComponent(product.name + ' ' + window.location.href)}`} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:scale-110" style={{ backgroundColor: '#25d36615', color: '#25d366' }} title="WhatsApp">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            </a>
+            <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:scale-110" style={{ backgroundColor: '#1877f215', color: '#1877f2' }} title="Facebook">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Related Products */}
+      {related.length > 0 && (
+        <section className="mt-16 pt-12 border-t" style={{ borderColor: t.border }}>
+          <h2 className="text-2xl font-bold mb-6" style={{ color: t.text }}>You May Also Like</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+            {related.map((rp) => (
+              <Link key={rp.id} to={`/store/${shopSlug}/products/${rp.id}`} className="group block">
+                <div className="overflow-hidden transition-shadow hover:shadow-lg" style={{ backgroundColor: t.surface, borderRadius: t.radius, border: `1px solid ${t.border}` }}>
+                  <div className="aspect-square overflow-hidden" style={{ backgroundColor: t.border + '40' }}>
+                    {rp.images?.length > 0 ? (
+                      <img src={rp.images.find(i => i.is_primary)?.url || rp.images[0].url} alt={rp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-5xl">📦</div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <h3 className="text-sm font-semibold line-clamp-1" style={{ color: t.text }}>{rp.name}</h3>
+                    <p className="text-sm font-bold mt-1" style={{ color: t.primary }}>{formatPrice(rp.base_price)}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Sticky mobile add-to-cart bar */}
+      <div className="fixed bottom-0 inset-x-0 p-3 border-t backdrop-blur-lg lg:hidden z-40" style={{ backgroundColor: t.bg + 'ee', borderColor: t.border }}>
+        <div className="flex items-center gap-3 max-w-lg mx-auto">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate" style={{ color: t.text }}>{product.name}</p>
+            <p className="text-sm font-bold" style={{ color: t.primary }}>{formatPrice(price)}</p>
+          </div>
+          <button
+            onClick={handleAdd}
+            disabled={isOutOfStock}
+            className="px-5 py-2.5 text-sm font-semibold transition disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+            style={{ backgroundColor: isOutOfStock ? '#9ca3af' : added ? '#16a34a' : t.primary, color: t.bg, borderRadius: t.buttonRadius }}
+          >
+            {isOutOfStock ? 'Sold Out' : added ? '✓ Added' : 'Add to Cart'}
+          </button>
         </div>
       </div>
     </div>

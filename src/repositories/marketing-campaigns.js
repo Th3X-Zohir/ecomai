@@ -44,12 +44,13 @@ async function updateCampaign(campaignId, patch) {
   return res.rows[0] || null;
 }
 
-async function listByShop(shopId, { page = 1, limit = 50, status, type } = {}) {
+async function listByShop(shopId, { page = 1, limit = 50, status, type, search } = {}) {
   const conditions = ['shop_id = $1'];
   const params = [shopId];
   let idx = 2;
   if (status) { conditions.push(`status = $${idx}`); params.push(status); idx++; }
   if (type) { conditions.push(`type = $${idx}`); params.push(type); idx++; }
+  if (search) { conditions.push(`(name ILIKE $${idx} OR subject ILIKE $${idx} OR type ILIKE $${idx})`); params.push(`%${search}%`); idx++; }
   const where = 'WHERE ' + conditions.join(' AND ');
   const countRes = await db.query(`SELECT COUNT(*) FROM marketing_campaigns ${where}`, params);
   const total = parseInt(countRes.rows[0].count, 10);

@@ -1,6 +1,6 @@
 const db = require('../db');
 
-async function listByShop(shopId, { status, parentId, search } = {}) {
+async function listByShop(shopId, { status, parentId, search, page = 1, limit = 50 } = {}) {
   const conditions = ['shop_id = $1'];
   const params = [shopId];
   let idx = 2;
@@ -9,8 +9,14 @@ async function listByShop(shopId, { status, parentId, search } = {}) {
   else if (parentId) { conditions.push(`parent_id = $${idx}`); params.push(parentId); idx++; }
   if (search) { conditions.push(`name ILIKE $${idx}`); params.push(`%${search}%`); idx++; }
   const where = 'WHERE ' + conditions.join(' AND ');
-  const res = await db.query(`SELECT * FROM categories ${where} ORDER BY sort_order ASC, name ASC`, params);
-  return res.rows;
+  const countRes = await db.query(`SELECT COUNT(*) FROM categories ${where}`, params);
+  const total = parseInt(countRes.rows[0].count, 10);
+  const offset = (page - 1) * limit;
+  const res = await db.query(
+    `SELECT * FROM categories ${where} ORDER BY sort_order ASC, name ASC LIMIT $${idx} OFFSET $${idx + 1}`,
+    [...params, limit, offset]
+  );
+  return { items: res.rows, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
 async function findById(id, shopId) {

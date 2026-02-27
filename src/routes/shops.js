@@ -18,6 +18,7 @@ router.get('/', requireRoles(['super_admin']), asyncHandler(async (req, res) => 
     page: Number(req.query.page) || 1,
     limit: Number(req.query.limit) || 50,
     search: req.query.search,
+    status: req.query.status,
   });
   res.json(result);
 }));
@@ -30,6 +31,23 @@ router.post('/', requireRoles(['super_admin']), asyncHandler(async (req, res) =>
 router.patch('/me', requireTenantContext, requireRoles(['super_admin', 'shop_admin']), asyncHandler(async (req, res) => {
   const shop = await shopService.updateShop(req.tenantShopId, req.body);
   res.json(shop);
+}));
+
+// ── Super-admin: per-shop CRUD by ID ──
+
+router.get('/:shopId', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
+  const shop = await shopService.getShop(req.params.shopId);
+  res.json(shop);
+}));
+
+router.patch('/:shopId', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
+  const shop = await shopService.updateShop(req.params.shopId, req.body);
+  res.json(shop);
+}));
+
+router.delete('/:shopId', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
+  await shopService.deleteShop(req.params.shopId);
+  res.json({ deleted: true });
 }));
 
 module.exports = router;

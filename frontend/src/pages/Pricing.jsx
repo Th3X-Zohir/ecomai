@@ -100,16 +100,16 @@ export default function Pricing() {
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/90 backdrop-blur-xl shadow-sm border-b border-gray-100' : 'bg-white border-b border-gray-100'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-teal-500 flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Ecomai</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-teal-500 bg-clip-text text-transparent">Ecomai</span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <Link to="/" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition">Home</Link>
-            <Link to="/pricing" className="text-sm font-medium text-indigo-600">Pricing</Link>
+            <Link to="/pricing" className="text-sm font-medium text-primary-600">Pricing</Link>
             <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition">Sign In</Link>
-            <Link to="/signup" className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-full text-sm font-semibold hover:shadow-lg hover:shadow-indigo-200 transition-all hover:-translate-y-0.5">
+            <Link to="/signup" className="bg-gradient-to-r from-primary-600 to-teal-500 text-white px-5 py-2 rounded-full text-sm font-semibold hover:shadow-lg hover:shadow-primary-200 transition-all hover:-translate-y-0.5">
               Get Started Free
             </Link>
           </div>
@@ -124,9 +124,9 @@ export default function Pricing() {
         <div className={`md:hidden overflow-hidden transition-all duration-300 bg-white/95 backdrop-blur-xl ${mobileOpen ? 'max-h-64 border-b border-gray-100' : 'max-h-0'}`}>
           <div className="px-4 py-4 space-y-3">
             <Link to="/" className="block text-sm font-medium text-gray-700 py-2">Home</Link>
-            <Link to="/pricing" className="block text-sm font-medium text-indigo-600 py-2">Pricing</Link>
+            <Link to="/pricing" className="block text-sm font-medium text-primary-600 py-2">Pricing</Link>
             <Link to="/login" className="block text-sm font-medium text-gray-700 py-2">Sign In</Link>
-            <Link to="/signup" className="block text-center bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold">Get Started Free</Link>
+            <Link to="/signup" className="block text-center bg-gradient-to-r from-primary-600 to-teal-500 text-white px-5 py-2.5 rounded-full text-sm font-semibold">Get Started Free</Link>
           </div>
         </div>
       </nav>
@@ -134,7 +134,7 @@ export default function Pricing() {
       {/* ─── Hero ─── */}
       <section className="pt-28 pb-4 sm:pt-36 sm:pb-8 text-center relative">
         <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #818cf8 0%, transparent 70%)' }} />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #4a9aed 0%, transparent 70%)' }} />
         </div>
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-full px-4 py-1.5 mb-6">
@@ -143,7 +143,7 @@ export default function Pricing() {
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 leading-[1.1]">
             Simple, Transparent<br />
-            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">Pricing</span>
+            <span className="bg-gradient-to-r from-primary-600 via-teal-500 to-emerald-400 bg-clip-text text-transparent">Pricing</span>
           </h1>
           <p className="mt-5 text-lg sm:text-xl text-gray-500 max-w-xl mx-auto">
             Start free and scale as you grow. No hidden fees, no surprises.
@@ -165,7 +165,7 @@ export default function Pricing() {
       {/* ─── Plan Cards ─── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         {loading ? (
-          <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
+          <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {plans.map((plan) => {
@@ -173,9 +173,9 @@ export default function Pricing() {
               const isPopular = plan.popular;
               const isEnterprise = plan.slug === 'enterprise';
               return (
-                <div key={plan.slug} className={`relative rounded-2xl border-2 p-8 flex flex-col transition-all duration-300 hover:shadow-xl ${isPopular ? 'border-indigo-500 shadow-lg shadow-indigo-100 bg-white scale-[1.02]' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                <div key={plan.slug} className={`relative rounded-2xl border-2 p-8 flex flex-col transition-all duration-300 hover:shadow-xl ${isPopular ? 'border-primary-500 shadow-lg shadow-primary-100 bg-white scale-[1.02]' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
                   {isPopular && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg shadow-indigo-200">
+                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary-600 to-teal-500 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg shadow-primary-200">
                       MOST POPULAR
                     </div>
                   )}
@@ -212,7 +212,7 @@ export default function Pricing() {
                     to={isEnterprise ? '#' : `/signup?plan=${plan.slug}${yearly ? '&billing=yearly' : ''}`}
                     className={`w-full text-center py-3 rounded-xl font-semibold transition-all duration-200 ${
                       isPopular
-                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg hover:shadow-indigo-200 hover:-translate-y-0.5'
+                        ? 'bg-gradient-to-r from-primary-600 to-teal-500 text-white hover:shadow-lg hover:shadow-primary-200 hover:-translate-y-0.5'
                         : isEnterprise
                           ? 'bg-gray-900 text-white hover:bg-gray-800'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -262,8 +262,8 @@ export default function Pricing() {
             <details key={plan.slug} className="group rounded-xl border border-gray-200 overflow-hidden">
               <summary className="flex items-center justify-between p-4 cursor-pointer bg-white hover:bg-gray-50 transition">
                 <div className="flex items-center gap-3">
-                  <span className={`font-semibold text-gray-900 ${plan.popular ? 'text-indigo-600' : ''}`}>{plan.name}</span>
-                  {plan.popular && <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">POPULAR</span>}
+                  <span className={`font-semibold text-gray-900 ${plan.popular ? 'text-primary-600' : ''}`}>{plan.name}</span>
+                  {plan.popular && <span className="text-[10px] font-bold bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">POPULAR</span>}
                 </div>
                 <svg className="w-5 h-5 text-gray-400 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </summary>
@@ -284,8 +284,8 @@ export default function Pricing() {
       <section className="py-16 sm:py-24 bg-gray-50">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-indigo-50 rounded-full px-4 py-1.5 mb-4">
-              <span className="text-xs font-semibold text-indigo-700">FAQ</span>
+            <div className="inline-flex items-center gap-2 bg-primary-50 rounded-full px-4 py-1.5 mb-4">
+              <span className="text-xs font-semibold text-primary-700">FAQ</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Frequently Asked Questions</h2>
           </div>
@@ -312,12 +312,12 @@ export default function Pricing() {
       {/* ─── CTA ─── */}
       <section className="py-16 sm:py-24">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 p-10 sm:p-16 text-center">
+          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-primary-600 via-teal-500 to-emerald-400 p-10 sm:p-16 text-center">
             <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-30" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
             <h2 className="relative text-2xl sm:text-4xl font-bold text-white mb-4">Still Have Questions?</h2>
             <p className="relative text-lg text-white/80 max-w-xl mx-auto mb-8">Our team is here to help. Start a free trial or chat with us anytime.</p>
             <div className="relative flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/signup" className="w-full sm:w-auto bg-white text-indigo-700 px-8 py-3.5 rounded-full text-base font-semibold hover:bg-gray-50 hover:shadow-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2">
+              <Link to="/signup" className="w-full sm:w-auto bg-white text-primary-700 px-8 py-3.5 rounded-full text-base font-semibold hover:bg-gray-50 hover:shadow-xl transition-all hover:-translate-y-0.5 flex items-center justify-center gap-2">
                 Start Free Trial
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
               </Link>
@@ -335,7 +335,7 @@ export default function Pricing() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 pb-12 border-b border-gray-800">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-teal-500 flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 </div>
                 <span className="text-lg font-bold text-white">Ecomai</span>

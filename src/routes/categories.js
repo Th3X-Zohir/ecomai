@@ -16,6 +16,8 @@ router.get('/', asyncHandler(async (req, res) => {
     status: req.query.status,
     parentId: req.query.parent_id === 'null' ? null : req.query.parent_id,
     search: req.query.search,
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 50,
   });
   res.json(cats);
 }));
@@ -30,23 +32,36 @@ router.get('/:id', asyncHandler(async (req, res) => {
   res.json(cat);
 }));
 
-router.post('/', asyncHandler(async (req, res) => {
+// Only super_admin can create/update/delete categories
+router.post('/', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
   const cat = await categoryService.createCategory({ shopId: req.tenantShopId, ...req.body });
   res.status(201).json(cat);
 }));
 
-router.patch('/:id', asyncHandler(async (req, res) => {
+router.patch('/:id', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
   const cat = await categoryService.updateCategory(req.tenantShopId, req.params.id, req.body);
   res.json(cat);
 }));
 
-router.delete('/:id', asyncHandler(async (req, res) => {
+router.delete('/:id', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
   const result = await categoryService.deleteCategory(req.tenantShopId, req.params.id);
   res.json(result);
 }));
 
-// ── Category Requests (admin view) ──
+// ── Category Requests ──
 
+// Shop admins can submit requests
+router.post('/requests', requireRoles(['shop_admin', 'shop_user']), asyncHandler(async (req, res) => {
+  const result = await catReqService.createRequest({
+    shopId: req.tenantShopId,
+    name: req.body.name,
+    reason: req.body.reason,
+    requestedBy: req.auth.sub,
+  });
+  res.status(201).json(result);
+}));
+
+// Admin view of requests
 router.get('/requests/list', asyncHandler(async (req, res) => {
   const result = await catReqService.listRequests(req.tenantShopId, {
     status: req.query.status,
@@ -61,12 +76,13 @@ router.get('/requests/pending-count', asyncHandler(async (req, res) => {
   res.json({ count });
 }));
 
-router.post('/requests/:id/approve', asyncHandler(async (req, res) => {
+// Only super_admin can approve/reject
+router.post('/requests/:id/approve', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
   const result = await catReqService.approveRequest(req.tenantShopId, req.params.id, req.body);
   res.json(result);
 }));
 
-router.post('/requests/:id/reject', asyncHandler(async (req, res) => {
+router.post('/requests/:id/reject', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
   const result = await catReqService.rejectRequest(req.tenantShopId, req.params.id, req.body);
   res.json(result);
 }));

@@ -1,18 +1,33 @@
 const db = require('../db');
 
-async function listShops({ page = 1, limit = 50, search } = {}) {
+async function listShops({ page = 1, limit = 50, search, status } = {}) {
   const offset = (page - 1) * limit;
-  let where = '';
+  const conditions = [];
   const params = [];
+  let idx = 1;
   if (search) {
+    conditions.push(`(s.name ILIKE $${idx} OR s.slug ILIKE $${idx})`);
     params.push(`%${search}%`);
-    where = `WHERE name ILIKE $1 OR slug ILIKE $1`;
+    idx++;
   }
-  const countRes = await db.query(`SELECT COUNT(*) FROM shops ${where}`, params);
+  if (status) {
+    conditions.push(`s.status = $${idx}`);
+    params.push(status);
+    idx++;
+  }
+  const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+  const countRes = await db.query(`SELECT COUNT(*) FROM shops s ${where}`, params);
   const total = parseInt(countRes.rows[0].count, 10);
   const dataParams = [...params, limit, offset];
   const res = await db.query(
-    `SELECT * FROM shops ${where} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    `SELECT s.*,
+       (SELECT count(*) FROM products p WHERE p.shop_id = s.id) AS product_count,
+       (SELECT count(*) FROM orders o WHERE o.shop_id = s.id) AS order_count,
+       (SELECT count(*) FROM customers c WHERE c.shop_id = s.id) AS customer_count,
+       (SELECT count(*) FROM users u WHERE u.shop_id = s.id) AS user_count,
+       (SELECT COALESCE(SUM(o2.total_amount), 0) FROM orders o2 WHERE o2.shop_id = s.id AND o2.status NOT IN ('cancelled')) AS total_revenue
+     FROM shops s ${where}
+     ORDER BY s.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
     dataParams
   );
   return { items: res.rows, total, page, limit, totalPages: Math.ceil(total / limit) };
@@ -59,5 +74,10 @@ async function updateShop(shopId, patch) {
   return res.rows[0] || null;
 }
 
-module.exports = { listShops, findById, findBySlug, createShop, updateShop };
+async function deleteShop(shopId) {
+  const res = await db.query('DELETE FROM shops WHERE id = $1 RETURNING *', [shopId]);
+  return res.rows[0] || null;
+}
+
+module.exports = { listShops, findById, findBySlug, createShop, updateShop, deleteShop };
 

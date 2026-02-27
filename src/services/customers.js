@@ -78,7 +78,7 @@ async function createCustomer({ shopId, email, full_name, phone }) {
  * Used during checkout so every order is linked to a customer.
  * Returns { customer, token, isNew }.
  */
-async function findOrCreateByEmail({ shopId, email, full_name, phone }) {
+async function findOrCreateByEmail({ shopId, email, full_name, phone, password }) {
   if (!email) throw new DomainError('VALIDATION_ERROR', 'email is required', 400);
   const existing = await customerRepo.findByEmail(shopId, email);
   if (existing) {
@@ -86,14 +86,22 @@ async function findOrCreateByEmail({ shopId, email, full_name, phone }) {
     const patch = {};
     if (!existing.full_name && full_name) patch.full_name = full_name;
     if (!existing.phone && phone) patch.phone = phone;
+    // Set password if provided and customer doesn't have one yet
+    if (password && !existing.password_hash) {
+      patch.password_hash = await bcrypt.hash(password, 10);
+      patch.is_registered = true;
+    }
     const updated = Object.keys(patch).length > 0
       ? await customerRepo.updateCustomer(existing.id, patch)
       : existing;
     const token = signCustomerToken(updated);
     return { customer: sanitize(updated), token, isNew: false };
   }
+  const hashPw = password ? await bcrypt.hash(password, 10) : undefined;
   const customer = await customerRepo.createCustomer({
-    shop_id: shopId, email, full_name: full_name || null, phone: phone || null, is_registered: false,
+    shop_id: shopId, email, full_name: full_name || null, phone: phone || null,
+    is_registered: !!password,
+    ...(hashPw ? { password_hash: hashPw } : {}),
   });
   const token = signCustomerToken(customer);
   return { customer: sanitize(customer), token, isNew: true };
@@ -129,6 +137,33 @@ async function listCustomers(shopId, opts) {
   return customerRepo.listByShop(shopId, opts);
 }
 
+async function getCustomerAdmin(shopId, customerId) {
+  const customer = await customerRepo.findByIdAndShop(customerId, shopId);
+  if (!customer) throw new DomainError('CUSTOMER_NOT_FOUND', 'Customer not found', 404);
+  return sanitize(customer);
+}
+
+async function updateCustomerAdmin(shopId, customerId, { full_name, phone, email }) {
+  const customer = await customerRepo.findByIdAndShop(customerId, shopId);
+  if (!customer) throw new DomainError('CUSTOMER_NOT_FOUND', 'Customer not found', 404);
+  if (email && email !== customer.email) {
+    const dup = await customerRepo.findByEmail(shopId, email);
+    if (dup && dup.id !== customerId) throw new DomainError('CUSTOMER_EXISTS', 'Email already used by another customer', 409);
+  }
+  const patch = {};
+  if (full_name !== undefined) patch.full_name = full_name;
+  if (phone !== undefined) patch.phone = phone;
+  if (email && email !== customer.email) patch.email = email;
+  return sanitize(await customerRepo.updateCustomer(customerId, patch));
+}
+
+async function deleteCustomer(shopId, customerId) {
+  const customer = await customerRepo.findByIdAndShop(customerId, shopId);
+  if (!customer) throw new DomainError('CUSTOMER_NOT_FOUND', 'Customer not found', 404);
+  await customerRepo.deleteCustomer(customerId, shopId);
+  return { deleted: true };
+}
+
 function sanitize(c) {
   if (!c) return c;
   const { password_hash, ...rest } = c;
@@ -138,4 +173,5 @@ function sanitize(c) {
 module.exports = {
   registerCustomer, loginCustomer, getCustomerProfile, updateCustomerProfile,
   createCustomer, listCustomers, findOrCreateByEmail, changePassword, signCustomerToken,
+  getCustomerAdmin, updateCustomerAdmin, deleteCustomer,
 };

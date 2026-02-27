@@ -52,11 +52,12 @@ async function updateDeliveryRequest(requestId, patch) {
   return res.rows[0] || null;
 }
 
-async function listByShop(shopId, { page = 1, limit = 50, status } = {}) {
+async function listByShop(shopId, { page = 1, limit = 50, status, search } = {}) {
   const conditions = ['shop_id = $1'];
   const params = [shopId];
   let idx = 2;
   if (status) { conditions.push(`status = $${idx}`); params.push(status); idx++; }
+  if (search) { conditions.push(`(id::text ILIKE $${idx} OR order_id::text ILIKE $${idx} OR status ILIKE $${idx})`); params.push(`%${search}%`); idx++; }
   const where = 'WHERE ' + conditions.join(' AND ');
   const countRes = await db.query(`SELECT COUNT(*) FROM delivery_requests ${where}`, params);
   const total = parseInt(countRes.rows[0].count, 10);

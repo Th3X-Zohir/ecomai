@@ -35,7 +35,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex relative overflow-hidden">
       {/* Left side - brand panel (hidden on mobile) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 relative items-center justify-center p-12">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary-600 via-teal-500 to-emerald-400 relative items-center justify-center p-12">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23fff\' fill-opacity=\'1\'%3E%3Cpath d=\'M0 0h1v1H0zm20 0h1v1h-1zm0 20h1v1h-1zM0 20h1v1H0z\'/%3E%3C/g%3E%3C/svg%3E")' }} />
         <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
         <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
@@ -64,17 +64,17 @@ export default function Login() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <Link to="/" className="lg:hidden flex items-center gap-2 mb-10">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-500 to-teal-500 flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Ecomai</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-teal-500 bg-clip-text text-transparent">Ecomai</span>
           </Link>
 
           <div className="mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Sign in to your account</h1>
             <p className="text-gray-500 mt-2">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-indigo-600 font-medium hover:text-indigo-700 transition">Create one free</Link>
+              <Link to="/signup" className="text-primary-600 font-medium hover:text-primary-700 transition">Create one free</Link>
             </p>
           </div>
 
@@ -92,7 +92,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-gray-50 focus:bg-white"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 focus:bg-white"
                 placeholder="you@example.com"
                 required
               />
@@ -103,7 +103,7 @@ export default function Login() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-gray-50 focus:bg-white"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 focus:bg-white"
                 placeholder="••••••••"
                 required
               />
@@ -111,7 +111,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-indigo-200 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              className="w-full py-3 bg-gradient-to-r from-primary-600 to-teal-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-primary-200 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -132,14 +132,14 @@ export default function Login() {
                 <button
                   key={demo.email}
                   onClick={() => { setEmail(demo.email); setPassword(demo.password); }}
-                  className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-indigo-50 hover:border-indigo-200 border border-gray-100 rounded-xl transition-all text-sm flex items-center gap-3 group"
+                  className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-primary-50 hover:border-primary-200 border border-gray-100 rounded-xl transition-all text-sm flex items-center gap-3 group"
                 >
                   <span className="text-lg">{demo.icon}</span>
                   <span className="flex-1">
-                    <span className="font-semibold text-gray-800 group-hover:text-indigo-700 transition">{demo.label}</span>
+                    <span className="font-semibold text-gray-800 group-hover:text-primary-700 transition">{demo.label}</span>
                     <span className="text-gray-400 ml-1.5">— {demo.desc}</span>
                   </span>
-                  <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  <svg className="w-4 h-4 text-gray-300 group-hover:text-primary-400 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </button>
               ))}
             </div>

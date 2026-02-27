@@ -3,8 +3,16 @@ const API_BASE = '/v1';
 let accessToken = localStorage.getItem('accessToken');
 let refreshToken = localStorage.getItem('refreshToken');
 let onAuthFail = null;
+let _selectedShopId = localStorage.getItem('selectedShopId') || null;
 
 export function setAuthFailHandler(handler) { onAuthFail = handler; }
+
+export function setSelectedShopId(id) {
+  _selectedShopId = id;
+  if (id) localStorage.setItem('selectedShopId', id);
+  else localStorage.removeItem('selectedShopId');
+}
+export function getSelectedShopId() { return _selectedShopId; }
 
 export function setTokens(access, refresh) {
   accessToken = access; refreshToken = refresh;
@@ -22,6 +30,7 @@ export function clearTokens() {
 async function request(method, path, body, extraHeaders = {}) {
   const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  if (_selectedShopId) headers['x-shop-id'] = _selectedShopId;
   const res = await fetch(`${API_BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
 
   if (res.status === 401 && refreshToken) {
@@ -63,9 +72,12 @@ export const users = {
 
 export const shops = {
   list: (params) => request('GET', `/shops${qs(params)}`),
+  get: (id) => request('GET', `/shops/${id}`),
   me: () => request('GET', '/shops/me'),
   updateMe: (data) => request('PATCH', '/shops/me', data),
   create: (data) => request('POST', '/shops', data),
+  update: (id, data) => request('PATCH', `/shops/${id}`, data),
+  delete: (id) => request('DELETE', `/shops/${id}`),
 };
 
 export const products = {
@@ -84,6 +96,7 @@ export const productImages = {
     if (isPrimary) fd.append('is_primary', 'true');
     const headers = {};
     if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    if (_selectedShopId) headers['x-shop-id'] = _selectedShopId;
     const res = await fetch(`${API_BASE}/products/${productId}/images`, { method: 'POST', headers, body: fd });
     if (!res.ok) { const err = await res.json().catch(() => ({ message: 'Upload failed' })); throw new Error(err.message || `${res.status}`); }
     return res.json();
@@ -111,7 +124,10 @@ export const orders = {
 
 export const customers = {
   list: (params) => request('GET', `/customers${qs(params)}`),
+  get: (id) => request('GET', `/customers/${id}`),
   create: (data) => request('POST', '/customers', data),
+  update: (id, data) => request('PATCH', `/customers/${id}`, data),
+  delete: (id) => request('DELETE', `/customers/${id}`),
 };
 
 export const payments = {
@@ -147,6 +163,7 @@ export const websiteSettings = {
     fd.append('image', file);
     const headers = {};
     if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    if (_selectedShopId) headers['x-shop-id'] = _selectedShopId;
     const res = await fetch(`${API_BASE}/website-settings/upload`, { method: 'POST', headers, body: fd });
     if (!res.ok) { const err = await res.json().catch(() => ({ message: 'Upload failed' })); throw new Error(err.message || `${res.status}`); }
     return res.json();
@@ -160,7 +177,8 @@ export const categories = {
   create: (data) => request('POST', '/categories', data),
   update: (id, data) => request('PATCH', `/categories/${id}`, data),
   delete: (id) => request('DELETE', `/categories/${id}`),
-  // Category requests (admin)
+  // Category requests
+  submitRequest: (data) => request('POST', '/categories/requests', data),
   requests: (params) => request('GET', `/categories/requests/list${qs(params)}`),
   pendingCount: () => request('GET', '/categories/requests/pending-count'),
   approveRequest: (id, data) => request('POST', `/categories/requests/${id}/approve`, data),

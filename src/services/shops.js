@@ -43,4 +43,9 @@ async function updateShop(shopId, patch) {
   return shopRepo.updateShop(shopId, patch);
 }
 
-module.exports = { listShops, getShop, getShopBySlug, createShop, updateShop };
+async function deleteShop(shopId) {
+  const shop = await getShop(shopId);
+  return shopRepo.deleteShop(shopId);
+}
+
+module.exports = { listShops, getShop, getShopBySlug, createShop, updateShop, deleteShop };

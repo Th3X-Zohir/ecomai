@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdmin } from '../contexts/AdminContext';
 import { Avatar, Dropdown, DropdownItem } from './UI';
 
 /* ── SVG Icon Components ── */
@@ -57,6 +58,7 @@ const navSections = [
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { isSuperAdmin, shopList, selectedShop, selectShop, currentShop } = useAdmin();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
@@ -72,7 +74,7 @@ export default function Layout() {
     <>
       {/* Logo */}
       <div className={`flex items-center gap-3 px-5 py-5 border-b border-gray-800/50 ${collapsed ? 'justify-center px-3' : ''}`}>
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
           <span className="text-white font-bold text-sm">E</span>
         </div>
         {!collapsed && (
@@ -82,6 +84,29 @@ export default function Layout() {
           </div>
         )}
       </div>
+
+      {/* Shop selector for super_admin */}
+      {isSuperAdmin && !collapsed && shopList.length > 0 && (
+        <div className="px-3 py-3 border-b border-gray-800/50">
+          <label className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 px-2 mb-1.5 block">Viewing Shop</label>
+          <select
+            value={selectedShop || ''}
+            onChange={(e) => { selectShop(e.target.value); window.location.reload(); }}
+            className="w-full bg-gray-900 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+          >
+            {shopList.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      {isSuperAdmin && collapsed && shopList.length > 0 && (
+        <div className="px-2 py-3 border-b border-gray-800/50 flex justify-center">
+          <div className="w-8 h-8 bg-primary-600/20 rounded-lg flex items-center justify-center text-primary-400 text-xs font-bold" title={currentShop?.name || 'Shop'}>
+            {(currentShop?.name || 'S')[0].toUpperCase()}
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
@@ -104,7 +129,7 @@ export default function Layout() {
                       collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2'
                     } ${
                       isActive
-                        ? 'bg-indigo-600/15 text-indigo-400 font-semibold shadow-sm shadow-indigo-500/5'
+                        ? 'bg-primary-600/15 text-primary-400 font-semibold shadow-sm shadow-primary-500/5'
                         : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                     }`
                   }
@@ -134,7 +159,7 @@ export default function Layout() {
           <Dropdown
             align="left"
             trigger={
-              <button className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-semibold hover:bg-indigo-500 transition">
+              <button className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-semibold hover:bg-primary-500 transition">
                 {user?.email?.[0]?.toUpperCase()}
               </button>
             }
@@ -190,7 +215,7 @@ export default function Layout() {
             {icons.menu}
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
+            <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xs">E</span>
             </div>
             <span className="font-bold text-gray-900">Ecomai</span>

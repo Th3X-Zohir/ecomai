@@ -46,7 +46,7 @@ function Toggle({ checked, onChange, label }) {
     <label className="flex items-center gap-3 cursor-pointer">
       <div className="relative">
         <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="sr-only peer" />
-        <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600" />
+        <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600" />
       </div>
       {label && <span className="text-sm text-gray-700">{label}</span>}
     </label>
@@ -68,7 +68,7 @@ function NavItemEditor({ items, onChange }) {
         </div>
       ))}
       {items.length < 8 && (
-        <button onClick={add} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">+ Add Link</button>
+        <button onClick={add} className="text-sm text-primary-600 hover:text-primary-700 font-medium">+ Add Link</button>
       )}
     </div>
   );
@@ -401,7 +401,8 @@ export default function WebsiteSettings() {
       <div className="space-y-6 animate-pulse">
         <div className="h-8 w-48 bg-gray-200 rounded-lg" />
         <div className="h-4 w-64 bg-gray-100 rounded" />
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
+          <div className="xl:col-span-1"><div className="bg-white rounded-xl border border-gray-200 p-2 space-y-2">{[1,2,3,4,5].map(i => <div key={i} className="h-9 bg-gray-100 rounded-lg" />)}</div></div>
           <div className="xl:col-span-3 space-y-4">
             {[1, 2, 3].map(i => <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 h-40" />)}
           </div>
@@ -496,31 +497,49 @@ export default function WebsiteSettings() {
       )}
 
       {storeUrl && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl flex items-center gap-3">
+        <div className="mb-6 p-4 bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-xl flex items-center gap-3">
           <span className="text-xl">🌐</span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-indigo-800">Public Storefront</p>
-            <p className="text-xs text-indigo-600 font-mono truncate">{window.location.origin}{storeUrl}</p>
+            <p className="text-sm font-medium text-primary-800">Public Storefront</p>
+            <p className="text-xs text-primary-600 font-mono truncate">{window.location.origin}{storeUrl}</p>
           </div>
           <button onClick={() => navigator.clipboard.writeText(window.location.origin + storeUrl)}
-            className="text-indigo-600 hover:text-indigo-700 text-xs font-medium px-3 py-1.5 bg-white border border-indigo-200 rounded-lg transition hover:shadow-sm">Copy URL</button>
+            className="text-primary-600 hover:text-primary-700 text-xs font-medium px-3 py-1.5 bg-white border border-primary-200 rounded-lg transition hover:shadow-sm">Copy URL</button>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-gray-200 overflow-x-auto scrollbar-hide">
-        {tabs.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-all whitespace-nowrap ${
-              activeTab === tab.id ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}>
-            <span>{tab.icon}</span>{tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Tabs - Sidebar + Content layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
+        {/* Tab sidebar */}
+        <div className="xl:col-span-1">
+          <div className="xl:sticky xl:top-4">
+            {/* Mobile: horizontal scroll */}
+            <div className="flex xl:hidden gap-1 mb-4 overflow-x-auto scrollbar-hide pb-2 border-b border-gray-200">
+              {tabs.map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-all whitespace-nowrap ${
+                    activeTab === tab.id ? 'bg-primary-50 text-primary-600 ring-1 ring-primary-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}>
+                  <span>{tab.icon}</span>{tab.label}
+                </button>
+              ))}
+            </div>
+            {/* Desktop: vertical sidebar */}
+            <nav className="hidden xl:flex flex-col gap-0.5 bg-white rounded-xl border border-gray-200 p-2 shadow-sm">
+              {tabs.map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium rounded-lg transition-all text-left ${
+                    activeTab === tab.id ? 'bg-primary-50 text-primary-700 shadow-sm ring-1 ring-primary-100' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}>
+                  <span className="text-base">{tab.icon}</span>
+                  <span className="truncate">{tab.label}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        <div className="xl:col-span-3 space-y-6">
+      <div className="xl:col-span-3 space-y-6">
 
           {/* ════════════ BRANDING ════════════ */}
           {activeTab === 'branding' && (
@@ -585,7 +604,7 @@ export default function WebsiteSettings() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {TEMPLATE_LIST.map(tmpl => (
                     <button key={tmpl.id} onClick={() => { setSelectedTemplate(tmpl.id); setTokenOverrides({}); }}
-                      className={`text-left p-4 rounded-xl border-2 transition-all hover:shadow-md ${selectedTemplate === tmpl.id ? 'border-indigo-500 bg-indigo-50/60 shadow-sm ring-1 ring-indigo-200' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+                      className={`text-left p-4 rounded-xl border-2 transition-all hover:shadow-md ${selectedTemplate === tmpl.id ? 'border-primary-500 bg-primary-50/60 shadow-sm ring-1 ring-primary-200' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
                       <div className="flex gap-1.5 mb-3">
                         {[tmpl.defaults.primary, tmpl.defaults.secondary, tmpl.defaults.accent, tmpl.defaults.bg, tmpl.defaults.surface].map((c, i) => (
                           <div key={i} className="w-7 h-7 rounded-lg border border-gray-200 shadow-sm" style={{ backgroundColor: c }} />
@@ -594,7 +613,7 @@ export default function WebsiteSettings() {
                       <h4 className="font-semibold text-sm text-gray-900">{tmpl.name}</h4>
                       <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tmpl.description}</p>
                       {selectedTemplate === tmpl.id && (
-                        <span className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">✓ Active</span>
+                        <span className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-primary-600 bg-primary-100 px-2 py-0.5 rounded-full">✓ Active</span>
                       )}
                     </button>
                   ))}
@@ -692,14 +711,14 @@ export default function WebsiteSettings() {
                         <label key={p.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-gray-50 cursor-pointer">
                           <input type="checkbox" checked={featuredProductIds.includes(p.id)}
                             onChange={e => { if (e.target.checked) setFeaturedProductIds([...featuredProductIds, p.id]); else setFeaturedProductIds(featuredProductIds.filter(x => x !== p.id)); }}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                           <span className="text-sm text-gray-700">{p.name}</span>
                           <span className="text-xs text-gray-400 ml-auto">{currencySymbol}{Number(p.base_price).toFixed(2)}</span>
                         </label>
                       ))}
                       {allProducts.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No products found</p>}
                     </div>
-                    {featuredProductIds.length > 0 && <p className="text-xs text-indigo-600 mt-1">{featuredProductIds.length} product(s) selected</p>}
+                    {featuredProductIds.length > 0 && <p className="text-xs text-primary-600 mt-1">{featuredProductIds.length} product(s) selected</p>}
                   </div>
                 </div>
               </Card>
@@ -882,7 +901,7 @@ export default function WebsiteSettings() {
                       <FormField label="Decimals"><Input type="number" min="0" max="4" value={currencyDecimals} onChange={e => setCurrencyDecimals(e.target.value)} /></FormField>
                     </div>
                     <div className="p-3 bg-gray-50 border rounded-lg text-sm">
-                      Preview: <span className="font-bold text-indigo-600">{currencyPosition === 'after' ? `1,234.${(currencyDecimals > 0 ? '56' : '').slice(0, currencyDecimals)}${currencySymbol}` : `${currencySymbol}1,234.${(currencyDecimals > 0 ? '56' : '').slice(0, currencyDecimals)}`}</span>
+                      Preview: <span className="font-bold text-primary-600">{currencyPosition === 'after' ? `1,234.${(currencyDecimals > 0 ? '56' : '').slice(0, currencyDecimals)}${currencySymbol}` : `${currencySymbol}1,234.${(currencyDecimals > 0 ? '56' : '').slice(0, currencyDecimals)}`}</span>
                     </div>
                   </div>
                 </div>
@@ -969,7 +988,7 @@ export default function WebsiteSettings() {
                   ))}
                   {trustBadges.length < 6 && (
                     <button onClick={() => setTrustBadges([...trustBadges, { icon: '⭐', title: 'New Badge', text: 'Description' }])}
-                      className="w-full p-3 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition">+ Add Trust Badge</button>
+                      className="w-full p-3 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-500 hover:border-primary-300 hover:text-primary-600 transition">+ Add Trust Badge</button>
                   )}
                 </div>
               </div>
@@ -1090,7 +1109,7 @@ export default function WebsiteSettings() {
                   <div className="flex gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-400" /><div className="w-2.5 h-2.5 rounded-full bg-yellow-400" /><div className="w-2.5 h-2.5 rounded-full bg-green-400" /></div>
                   <span className="text-xs text-gray-400 font-mono ml-2">{shop ? `${shop.slug}.ecomai.dev` : 'store preview'}</span>
                 </div>
-                {storeUrl && <a href={storeUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">Open ↗</a>}
+                {storeUrl && <a href={storeUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:text-primary-700 font-medium">Open ↗</a>}
               </div>
               <div className="relative bg-gray-100" style={{ height: '600px' }}>
                 {storeUrl ? (

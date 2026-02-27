@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orders, products } from '../api';
-import { PageHeader, Table, Button, Modal, FormField, Input, Select, Badge, Pagination, Alert, PageSkeleton, useToast } from '../components/UI';
+import { PageHeader, Table, Button, Modal, FormField, Input, Select, Badge, Pagination, Alert, SearchInput, PageSkeleton, useToast } from '../components/UI';
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -16,10 +16,11 @@ export default function Orders() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState('');
 
-  const load = (p = page) => {
+  const load = (p = page, q = search) => {
     setLoading(true);
-    Promise.all([orders.list({ page: p, limit: 20 }), products.list({ limit: 100 })])
+    Promise.all([orders.list({ page: p, limit: 20, search: q || undefined }), products.list({ limit: 100 })])
       .then(([o, pr]) => { setItems(o.items); setTotalPages(o.totalPages); setTotal(o.total); setPage(o.page); setProductList(pr.items); })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -91,6 +92,12 @@ export default function Orders() {
         </div>
       )}
 
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="sm:w-80">
+          <SearchInput value={search} onChange={(v) => { setSearch(v); load(1, v); }} placeholder="Search by email, order ID..." />
+        </div>
+      </div>
+
       <Table columns={columns} data={items} onRowClick={(row) => navigate(`/admin/orders/${row.id}`)} emptyMessage="No orders yet" emptyIcon="🛒" loading={loading} />
       <Pagination page={page} totalPages={totalPages} total={total} onPageChange={(p) => load(p)} />
 
@@ -123,7 +130,7 @@ export default function Orders() {
                 </div>
               ))}
             </div>
-            <button type="button" onClick={addItem} className="mt-2 inline-flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+            <button type="button" onClick={addItem} className="mt-2 inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 font-medium">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Add another item
             </button>

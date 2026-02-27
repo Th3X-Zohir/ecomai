@@ -168,7 +168,7 @@ export default function ProductDetail() {
         <Card>
           <div className="p-5 text-center">
             <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Variants</p>
-            <p className="text-2xl font-bold text-indigo-600">{productVariants.length}</p>
+            <p className="text-2xl font-bold text-primary-600">{productVariants.length}</p>
           </div>
         </Card>
         <Card>
@@ -211,7 +211,7 @@ export default function ProductDetail() {
               <p className="text-xs text-gray-400 mt-0.5">{images.length}/10 images uploaded</p>
             </div>
             {images.length < 10 && (
-              <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition">
+              <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-primary-50 text-primary-600 hover:bg-primary-100 transition">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 {uploading ? 'Uploading...' : 'Upload'}
                 <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
@@ -222,7 +222,7 @@ export default function ProductDetail() {
             <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center">
               <div className="text-4xl mb-2 opacity-30">🖼️</div>
               <p className="text-sm text-gray-500">No images yet. Upload product photos to display in your storefront.</p>
-              <label className="cursor-pointer mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition">
+              <label className="cursor-pointer mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                 Upload Images
                 <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
@@ -231,14 +231,14 @@ export default function ProductDetail() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {images.map((img) => (
-                <div key={img.id} className={`relative group rounded-lg overflow-hidden border-2 ${img.is_primary ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-200'}`}>
+                <div key={img.id} className={`relative group rounded-lg overflow-hidden border-2 ${img.is_primary ? 'border-primary-500 ring-2 ring-primary-200' : 'border-gray-200'}`}>
                   <img src={img.url} alt={img.alt_text || 'Product'} className="aspect-square object-cover w-full" />
                   {img.is_primary && (
-                    <span className="absolute top-1 left-1 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">PRIMARY</span>
+                    <span className="absolute top-1 left-1 bg-primary-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">PRIMARY</span>
                   )}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
                     {!img.is_primary && (
-                      <button onClick={() => handleSetPrimary(img.id)} className="p-1.5 bg-white rounded-full text-indigo-600 hover:bg-indigo-50" title="Set as primary">
+                      <button onClick={() => handleSetPrimary(img.id)} className="p-1.5 bg-white rounded-full text-primary-600 hover:bg-primary-50" title="Set as primary">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
                       </button>
                     )}

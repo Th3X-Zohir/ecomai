@@ -103,7 +103,7 @@ export function Card({ children, className = '', hover = false, onClick }) {
    ═══════════════════════════════════════════════════════ */
 export function StatCard({ label, value, icon, color = 'primary', trend, trendLabel }) {
   const colors = {
-    primary: 'bg-indigo-50 text-indigo-600',
+    primary: 'bg-primary-50 text-primary-600',
     success: 'bg-emerald-50 text-emerald-600',
     warning: 'bg-amber-50 text-amber-600',
     danger: 'bg-red-50 text-red-600',
@@ -163,12 +163,12 @@ export function Badge({ children, variant = 'default', dot = false, size = 'md' 
 export function Button({ children, variant = 'primary', size = 'md', className = '', loading: isLoading = false, icon, ...props }) {
   const base = 'inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]';
   const variants = {
-    primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 shadow-sm',
+    primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-sm',
     secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-gray-400 shadow-sm',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm',
     success: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 shadow-sm',
     ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-400',
-    soft: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 focus:ring-indigo-400',
+    soft: 'bg-primary-50 text-primary-700 hover:bg-primary-100 focus:ring-primary-400',
   };
   const sizes = {
     xs: 'px-2.5 py-1 text-xs',
@@ -234,7 +234,7 @@ export function Table({ columns, data, onRowClick, emptyMessage = 'No data found
           </thead>
           <tbody className="divide-y divide-gray-100">
             {data.map((row, i) => (
-              <tr key={row.id || i} className={`${onRowClick ? 'cursor-pointer' : ''} hover:bg-indigo-50/40 transition-colors`} onClick={() => onRowClick?.(row)}>
+              <tr key={row.id || i} className={`${onRowClick ? 'cursor-pointer' : ''} hover:bg-primary-50/40 transition-colors`} onClick={() => onRowClick?.(row)}>
                 {columns.map((col) => (
                   <td key={col.key} className="px-5 py-3.5 text-sm text-gray-700">{col.render ? col.render(row) : row[col.key]}</td>
                 ))}
@@ -314,7 +314,7 @@ export function FormField({ label, children, error, hint }) {
 export function Input({ className = '', ...props }) {
   return (
     <input
-      className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition text-sm bg-white placeholder:text-gray-400 ${className}`}
+      className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition text-sm bg-white placeholder:text-gray-400 ${className}`}
       {...props}
     />
   );
@@ -323,7 +323,7 @@ export function Input({ className = '', ...props }) {
 export function Select({ className = '', children, ...props }) {
   return (
     <select
-      className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition text-sm bg-white ${className}`}
+      className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition text-sm bg-white ${className}`}
       {...props}
     >
       {children}
@@ -334,7 +334,7 @@ export function Select({ className = '', children, ...props }) {
 export function Textarea({ className = '', ...props }) {
   return (
     <textarea
-      className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition text-sm bg-white placeholder:text-gray-400 ${className}`}
+      className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition text-sm bg-white placeholder:text-gray-400 ${className}`}
       rows={3}
       {...props}
     />
@@ -353,14 +353,14 @@ export function Tabs({ tabs, active, onChange }) {
           onClick={() => onChange(tab.id)}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
             active === tab.id
-              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              ? 'border-primary-600 text-primary-600 bg-primary-50/50'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
           {tab.icon && <span className="text-base">{tab.icon}</span>}
           {tab.label}
           {tab.count !== undefined && (
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${active === tab.id ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500'}`}>{tab.count}</span>
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${active === tab.id ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-500'}`}>{tab.count}</span>
           )}
         </button>
       ))}
@@ -389,7 +389,7 @@ export function Pagination({ page, totalPages, total, onPageChange }) {
         {start > 1 && <span className="px-2 text-gray-400 text-sm">...</span>}
         {pages.map((p) => (
           <button key={p} onClick={() => onPageChange(p)}
-            className={`px-3 py-1.5 text-sm rounded-lg border transition font-medium ${p === page ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}>
+            className={`px-3 py-1.5 text-sm rounded-lg border transition font-medium ${p === page ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-300 hover:bg-gray-50 text-gray-700'}`}>
             {p}
           </button>
         ))}
@@ -414,7 +414,7 @@ export function SearchInput({ value, onChange, placeholder = 'Search...' }) {
       </svg>
       <input
         type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition text-sm bg-white placeholder:text-gray-400"
+        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition text-sm bg-white placeholder:text-gray-400"
       />
     </div>
   );
@@ -461,7 +461,7 @@ export function PageSkeleton() {
    ═══════════════════════════════════════════════════════ */
 export function Avatar({ name, size = 'md', className = '' }) {
   const sizes = { sm: 'w-6 h-6 text-xs', md: 'w-8 h-8 text-sm', lg: 'w-10 h-10 text-base', xl: 'w-12 h-12 text-lg' };
-  const colors = ['bg-indigo-600', 'bg-emerald-600', 'bg-amber-600', 'bg-red-600', 'bg-purple-600', 'bg-pink-600', 'bg-teal-600'];
+  const colors = ['bg-primary-600', 'bg-emerald-600', 'bg-amber-600', 'bg-red-600', 'bg-purple-600', 'bg-pink-600', 'bg-teal-600'];
   const idx = (name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % colors.length;
 
   return (
@@ -476,7 +476,7 @@ export function Avatar({ name, size = 'md', className = '' }) {
    ═══════════════════════════════════════════════════════ */
 export function ProgressBar({ value = 0, max = 100, color = 'indigo', className = '' }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
-  const colorMap = { indigo: 'bg-indigo-600', emerald: 'bg-emerald-600', amber: 'bg-amber-600', red: 'bg-red-600' };
+  const colorMap = { indigo: 'bg-primary-600', emerald: 'bg-emerald-600', amber: 'bg-amber-600', red: 'bg-red-600' };
   return (
     <div className={`w-full bg-gray-200 rounded-full h-2 overflow-hidden ${className}`}>
       <div className={`h-full rounded-full transition-all duration-500 ${colorMap[color] || colorMap.indigo}`} style={{ width: `${pct}%` }} />
@@ -491,7 +491,7 @@ export function Switch({ checked, onChange, label }) {
   return (
     <label className="inline-flex items-center gap-3 cursor-pointer">
       <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-indigo-600' : 'bg-gray-300'}`}>
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-primary-600' : 'bg-gray-300'}`}>
         <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
       </button>
       {label && <span className="text-sm text-gray-700">{label}</span>}

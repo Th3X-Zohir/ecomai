@@ -135,8 +135,8 @@ export default function OrderDetail() {
                 const isCurrent = i === currentIdx;
                 return (
                   <div key={s} className="flex-1 flex flex-col items-center">
-                    <div className={`w-full h-1.5 rounded-full ${isDone ? 'bg-indigo-500' : 'bg-gray-200'}`} />
-                    <span className={`text-[10px] mt-1.5 font-medium capitalize ${isCurrent ? 'text-indigo-600' : isDone ? 'text-gray-600' : 'text-gray-400'}`}>{s}</span>
+                    <div className={`w-full h-1.5 rounded-full ${isDone ? 'bg-primary-500' : 'bg-gray-200'}`} />
+                    <span className={`text-[10px] mt-1.5 font-medium capitalize ${isCurrent ? 'text-primary-600' : isDone ? 'text-gray-600' : 'text-gray-400'}`}>{s}</span>
                   </div>
                 );
               })}
