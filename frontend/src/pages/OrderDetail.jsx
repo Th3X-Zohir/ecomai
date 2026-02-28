@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { orders, payments, deliveries } from '../api';
-import { PageHeader, Card, Button, Badge, Modal, FormField, Input, Select, Table, ProgressBar, PageSkeleton, useToast } from '../components/UI';
+import { PageHeader, Card, Button, Badge, Modal, FormField, Input, Select, Textarea, Table, ProgressBar, PageSkeleton, ConfirmDialog, useToast } from '../components/UI';
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -13,7 +13,10 @@ export default function OrderDetail() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [status, setStatus] = useState('');
+  const [editForm, setEditForm] = useState({ notes: '', shipping_address: '' });
   const [paymentForm, setPaymentForm] = useState({ amount: '', provider: 'manual' });
   const [deliveryForm, setDeliveryForm] = useState({
     provider: 'internal',
@@ -71,6 +74,29 @@ export default function OrderDetail() {
     } catch (err) { setError(err.message); } finally { setSaving(false); }
   };
 
+  const handleEditOrder = async (e) => {
+    e.preventDefault();
+    setError(''); setSaving(true);
+    try {
+      const data = {};
+      if (editForm.notes !== (order.notes || '')) data.notes = editForm.notes;
+      if (editForm.shipping_address !== (order.shipping_address || '')) data.shipping_address = editForm.shipping_address;
+      if (Object.keys(data).length === 0) { setShowEditModal(false); return; }
+      const updated = await orders.update(id, data);
+      setOrder({ ...order, ...updated });
+      setShowEditModal(false);
+      toast('Order updated!', 'success');
+    } catch (err) { setError(err.message); } finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await orders.delete(id);
+      toast('Order deleted', 'success');
+      navigate('/admin/orders');
+    } catch (err) { toast(err.message, 'error'); setConfirmDelete(false); }
+  };
+
   if (loading) return <PageSkeleton />;
   if (!order) return null;
 
@@ -107,6 +133,10 @@ export default function OrderDetail() {
         title={`Order #${(id || '').slice(-8)}`}
         breadcrumbs={[{ label: 'Orders', href: '/admin/orders' }, { label: `#${(id || '').slice(-8)}` }]}
       >
+        <Button variant="secondary" size="sm" onClick={() => { setEditForm({ notes: order.notes || '', shipping_address: order.shipping_address || '' }); setShowEditModal(true); setError(''); }}
+          icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>}>
+          Edit
+        </Button>
         <Button variant="secondary" size="sm" onClick={() => setShowStatusModal(true)}
           icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}>
           Update Status
@@ -119,6 +149,12 @@ export default function OrderDetail() {
           icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>}>
           Request Delivery
         </Button>
+        {['pending', 'cancelled'].includes(order.status) && (
+          <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}>
+            Delete
+          </Button>
+        )}
       </PageHeader>
 
       {/* Status pipeline */}
@@ -299,6 +335,34 @@ export default function OrderDetail() {
           </div>
         </form>
       </Modal>
+
+      {/* Edit Order Modal */}
+      <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Order Details" size="sm">
+        {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">{error}</div>}
+        <form onSubmit={handleEditOrder}>
+          <FormField label="Notes" hint="Internal notes for this order">
+            <Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} placeholder="Add order notes..." rows={3} />
+          </FormField>
+          <FormField label="Shipping Address" hint="Customer shipping address">
+            <Textarea value={editForm.shipping_address} onChange={(e) => setEditForm({ ...editForm, shipping_address: e.target.value })} placeholder="Enter shipping address..." rows={3} />
+          </FormField>
+          <div className="flex gap-2 justify-end mt-4 pt-4 border-t border-gray-100">
+            <Button variant="secondary" type="button" onClick={() => setShowEditModal(false)}>Cancel</Button>
+            <Button type="submit" loading={saving}>Save Changes</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirm */}
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={handleDelete}
+        title="Delete Order"
+        message={`Are you sure you want to delete order #${(id || '').slice(-8)}? This will also remove all associated items. This action cannot be undone.`}
+        confirmLabel="Yes, Delete Order"
+        variant="danger"
+      />
     </div>
   );
 }

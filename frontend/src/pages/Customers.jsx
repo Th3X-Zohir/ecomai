@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { customers } from '../api';
 import { PageHeader, Table, Button, Modal, FormField, Input, Pagination, SearchInput, Card, StatCard, Avatar, Badge, PageSkeleton, ConfirmDialog, useToast } from '../components/UI';
+import { useAdmin } from '../contexts/AdminContext';
 
 export default function Customers() {
+  const { isSuperAdmin, shopList, selectedShop } = useAdmin();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -121,6 +123,10 @@ export default function Customers() {
         </Button>
       </div>
     )},
+    ...(isSuperAdmin && !selectedShop ? [{ key: 'shop_id', label: 'Shop', render: (r) => {
+      const s = shopList.find(sh => sh.id === r.shop_id);
+      return <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{s ? s.name : r.shop_id?.slice(0, 8) || '—'}</span>;
+    }}] : []),
   ];
 
   if (loading && items.length === 0) return <PageSkeleton />;

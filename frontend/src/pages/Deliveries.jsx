@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { deliveries } from '../api';
-import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination, StatCard, Card, SearchInput, PageSkeleton, useToast } from '../components/UI';
+import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination, StatCard, Card, SearchInput, PageSkeleton, ConfirmDialog, useToast } from '../components/UI';
+import { useAdmin } from '../contexts/AdminContext';
 
 const STATUSES = ['requested', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
 
 export default function Deliveries() {
+  const { isSuperAdmin, shopList, selectedShop } = useAdmin();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
   const [newStatus, setNewStatus] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
@@ -16,6 +19,21 @@ export default function Deliveries() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const toast = useToast();
+
+  const shopName = (shopId) => {
+    const s = shopList.find(sh => sh.id === shopId);
+    return s ? s.name : shopId?.slice(0, 8) || '—';
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await deliveries.delete(confirmDelete.id);
+      toast('Delivery request deleted', 'success');
+      setConfirmDelete(null);
+      load();
+    } catch (err) { toast(err.message, 'error'); setConfirmDelete(null); }
+  };
 
   const load = (p = page, q = search) => {
     setLoading(true);
@@ -103,13 +121,24 @@ export default function Deliveries() {
       <span className="text-sm text-gray-500">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
     )},
     { key: 'actions', label: '', render: (r) => (
-      r.status !== 'delivered' && r.status !== 'cancelled' ? (
-        <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); setUpdating(r); setNewStatus(r.status); }}
-          icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}>
-          Update
-        </Button>
-      ) : null
+      <div className="flex items-center gap-1">
+        {r.status !== 'delivered' && r.status !== 'cancelled' && (
+          <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); setUpdating(r); setNewStatus(r.status); }}
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}>
+            Update
+          </Button>
+        )}
+        {['requested', 'cancelled'].includes(r.status) && (
+          <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); setConfirmDelete(r); }}
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}>
+            Delete
+          </Button>
+        )}
+      </div>
     )},
+    ...(isSuperAdmin && !selectedShop ? [{ key: 'shop_id', label: 'Shop', render: (r) => (
+      <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{shopName(r.shop_id)}</span>
+    )}] : []),
   ];
 
   if (loading && items.length === 0) return <PageSkeleton />;
@@ -206,6 +235,17 @@ export default function Deliveries() {
           </form>
         )}
       </Modal>
+
+      {/* Delete Delivery Confirm */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleDelete}
+        title="Delete Delivery Request"
+        message={`Are you sure you want to delete delivery #${(confirmDelete?.id || '').slice(0, 10)}? This action cannot be undone.`}
+        confirmLabel="Yes, Delete"
+        variant="danger"
+      />
     </div>
   );
 }

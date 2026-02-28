@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { campaigns } from '../api';
-import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Card, Pagination, StatCard, SearchInput, Tabs, PageSkeleton, useToast } from '../components/UI';
+import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Card, Pagination, StatCard, SearchInput, Tabs, PageSkeleton, ConfirmDialog, useToast } from '../components/UI';
+import { useAdmin } from '../contexts/AdminContext';
 
 const CHANNELS = ['email', 'facebook', 'instagram', 'tiktok', 'google_ads', 'sms'];
 
@@ -16,10 +17,12 @@ const channelMeta = {
 const bgMap = { indigo: 'bg-primary-100 text-primary-600', blue: 'bg-blue-100 text-blue-600', pink: 'bg-pink-100 text-pink-600', gray: 'bg-gray-100 text-gray-600', red: 'bg-red-100 text-red-600', emerald: 'bg-emerald-100 text-emerald-600' };
 
 export default function Campaigns() {
+  const { isSuperAdmin, shopList, selectedShop } = useAdmin();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [form, setForm] = useState({ campaign_name: '', channel: 'email', objective: '', content: { headline: '', body: '', cta: '' } });
   const [aiForm, setAiForm] = useState({ campaign_name: '', channel: 'email', objective: '', productSummary: '' });
   const [error, setError] = useState('');
@@ -67,6 +70,21 @@ export default function Campaigns() {
     } catch (err) { setError(err.message); } finally { setSaving(false); }
   };
 
+  const shopName = (shopId) => {
+    const s = shopList.find(sh => sh.id === shopId);
+    return s ? s.name : shopId?.slice(0, 8) || '—';
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await campaigns.delete(confirmDelete.id);
+      toast('Campaign deleted', 'success');
+      setConfirmDelete(null);
+      load();
+    } catch (err) { toast(err.message, 'error'); setConfirmDelete(null); }
+  };
+
   // Stats
   const draftCount = items.filter(c => c.status === 'draft').length;
   const activeCount = items.filter(c => c.status === 'active').length;
@@ -102,6 +120,17 @@ export default function Campaigns() {
     { key: 'created_at', label: 'Created', render: (r) => (
       <span className="text-sm text-gray-500">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
     )},
+    { key: 'actions', label: '', render: (r) => (
+      ['draft', 'cancelled'].includes(r.status) ? (
+        <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); setConfirmDelete(r); }}
+          icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}>
+          Delete
+        </Button>
+      ) : null
+    )},
+    ...(isSuperAdmin && !selectedShop ? [{ key: 'shop_id', label: 'Shop', render: (r) => (
+      <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{shopName(r.shop_id)}</span>
+    )}] : []),
   ];
 
   if (loading && items.length === 0) return <PageSkeleton />;
@@ -270,6 +299,17 @@ export default function Campaigns() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Campaign Confirm */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleDelete}
+        title="Delete Campaign"
+        message={`Are you sure you want to delete campaign "${confirmDelete?.campaign_name}"? This action cannot be undone.`}
+        confirmLabel="Yes, Delete Campaign"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { payments } from '../api';
 import { PageHeader, Table, Badge, Button, Modal, FormField, Input, Select, Textarea, Pagination, StatCard, Card, ConfirmDialog, SearchInput, PageSkeleton, useToast } from '../components/UI';
+import { useAdmin } from '../contexts/AdminContext';
 
 export default function Payments() {
+  const { isSuperAdmin, shopList, selectedShop } = useAdmin();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refunding, setRefunding] = useState(null);
@@ -15,8 +17,24 @@ export default function Payments() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [search, setSearch] = useState('');
   const toast = useToast();
+
+  const shopName = (shopId) => {
+    const s = shopList.find(sh => sh.id === shopId);
+    return s ? s.name : shopId?.slice(0, 8) || '—';
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await payments.delete(confirmDelete.id);
+      toast('Payment deleted', 'success');
+      setConfirmDelete(null);
+      load();
+    } catch (err) { toast(err.message, 'error'); setConfirmDelete(null); }
+  };
 
   const load = (p = page, q = search) => {
     setLoading(true);
@@ -102,13 +120,24 @@ export default function Payments() {
       <span className="text-sm text-gray-500">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
     )},
     { key: 'actions', label: '', render: (r) => (
-      r.status === 'captured' ? (
-        <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); setRefunding(r); setRefundForm({ amount: r.amount, reason: '' }); }}
-          icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>}>
-          Refund
-        </Button>
-      ) : null
+      <div className="flex items-center gap-1">
+        {r.status === 'captured' && (
+          <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); setRefunding(r); setRefundForm({ amount: r.amount, reason: '' }); }}
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>}>
+            Refund
+          </Button>
+        )}
+        {['pending', 'failed', 'cancelled'].includes(r.status) && (
+          <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); setConfirmDelete(r); }}
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}>
+            Delete
+          </Button>
+        )}
+      </div>
     )},
+    ...(isSuperAdmin && !selectedShop ? [{ key: 'shop_id', label: 'Shop', render: (r) => (
+      <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{shopName(r.shop_id)}</span>
+    )}] : []),
   ];
 
   if (loading && items.length === 0) return <PageSkeleton />;
@@ -216,6 +245,17 @@ export default function Payments() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Payment Confirm */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleDelete}
+        title="Delete Payment"
+        message={`Are you sure you want to delete this payment record (${confirmDelete?.id?.slice(0, 10)}...)? This action cannot be undone.`}
+        confirmLabel="Yes, Delete Payment"
+        variant="danger"
+      />
     </div>
   );
 }

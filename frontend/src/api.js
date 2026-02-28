@@ -66,6 +66,7 @@ export const register = {
 
 export const users = {
   me: () => request('GET', '/users/me'),
+  get: (id) => request('GET', `/users/${id}`),
   list: (params) => request('GET', `/users${qs(params)}`),
   listAll: (params) => request('GET', `/users/all${qs(params)}`),
   create: (data) => request('POST', '/users', data),
@@ -120,7 +121,9 @@ export const orders = {
   list: (params) => request('GET', `/orders${qs(params)}`),
   get: (id) => request('GET', `/orders/${id}`),
   create: (data) => request('POST', '/orders', data),
+  update: (id, data) => request('PATCH', `/orders/${id}`, data),
   updateStatus: (id, status) => request('PATCH', `/orders/${id}/status`, { status }),
+  delete: (id) => request('DELETE', `/orders/${id}`),
   createDelivery: (orderId, data) => request('POST', `/orders/${orderId}/delivery-requests`, data),
   createPayment: (orderId, data) => request('POST', `/orders/${orderId}/payments`, data),
 };
@@ -137,13 +140,18 @@ export const payments = {
   list: (params) => request('GET', `/payments${qs(params)}`),
   get: (id) => request('GET', `/payments/${id}`),
   manual: (data) => request('POST', '/payments/manual', data),
+  update: (id, data) => request('PATCH', `/payments/${id}`, data),
+  delete: (id) => request('DELETE', `/payments/${id}`),
   refund: (paymentId, data) => request('POST', `/payments/${paymentId}/refunds`, data),
 };
 
 export const deliveries = {
   list: (params) => request('GET', `/delivery-requests${qs(params)}`),
+  get: (id) => request('GET', `/delivery-requests/${id}`),
+  listByDriver: (driverUserId, params) => request('GET', `/delivery-requests/by-driver/${driverUserId}${qs(params)}`),
   updateStatus: (id, status) => request('PATCH', `/delivery-requests/${id}/status`, { status }),
   assign: (id, driverId) => request('PATCH', `/delivery-requests/${id}/assign`, { driver_user_id: driverId }),
+  delete: (id) => request('DELETE', `/delivery-requests/${id}`),
 };
 
 export const campaigns = {
@@ -151,11 +159,13 @@ export const campaigns = {
   get: (id) => request('GET', `/marketing-campaigns/${id}`),
   create: (data) => request('POST', '/marketing-campaigns', data),
   update: (id, data) => request('PATCH', `/marketing-campaigns/${id}`, data),
+  delete: (id) => request('DELETE', `/marketing-campaigns/${id}`),
   generateDraft: (data) => request('POST', '/marketing-campaigns/generate-draft', data),
 };
 
 export const inventory = {
   list: (params) => request('GET', `/inventory-movements${qs(params)}`),
+  get: (id) => request('GET', `/inventory-movements/${id}`),
   create: (data) => request('POST', '/inventory-movements', data),
 };
 

@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { products, categories as categoriesApi } from '../api';
 import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Pagination, SearchInput, Card, PageSkeleton, useToast } from '../components/UI';
+import { useAdmin } from '../contexts/AdminContext';
 
 export default function Products() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { isSuperAdmin, shopList, selectedShop } = useAdmin();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -76,6 +78,10 @@ export default function Products() {
     { key: 'created_at', label: 'Created', render: (r) => (
       <span className="text-gray-500">{new Date(r.created_at).toLocaleDateString()}</span>
     )},
+    ...(isSuperAdmin && !selectedShop ? [{ key: 'shop_id', label: 'Shop', render: (r) => {
+      const s = shopList.find(sh => sh.id === r.shop_id);
+      return <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{s ? s.name : r.shop_id?.slice(0, 8) || '—'}</span>;
+    }}] : []),
   ];
 
   if (loading && items.length === 0) return <PageSkeleton />;

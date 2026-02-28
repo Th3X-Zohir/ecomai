@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { inventory, products } from '../api';
 import { PageHeader, Table, Button, Modal, FormField, Input, Select, Badge, Pagination, StatCard, SearchInput, PageSkeleton, useToast } from '../components/UI';
+import { useAdmin } from '../contexts/AdminContext';
 
 const TYPES = ['in', 'out', 'adjustment', 'return'];
 
@@ -8,6 +9,7 @@ const typeVariant = (t) => ({ in: 'success', out: 'danger', adjustment: 'warning
 const typeIcon = (t) => ({ in: '+', out: '−', adjustment: '~', return: '↩' })[t] || '?';
 
 export default function Inventory() {
+  const { isSuperAdmin, shopList, selectedShop } = useAdmin();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -85,6 +87,10 @@ export default function Inventory() {
     { key: 'created_at', label: 'Date', render: (r) => (
       <span className="text-sm text-gray-500">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
     )},
+    ...(isSuperAdmin && !selectedShop ? [{ key: 'shop_id', label: 'Shop', render: (r) => {
+      const s = shopList.find(sh => sh.id === r.shop_id);
+      return <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded">{s ? s.name : r.shop_id?.slice(0, 8) || '—'}</span>;
+    }}] : []),
   ];
 
   if (loading && items.length === 0) return <PageSkeleton />;
