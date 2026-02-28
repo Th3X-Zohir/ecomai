@@ -1,17 +1,31 @@
 const db = require('../db');
 
 async function findByCode(shopId, code) {
+  if (shopId) {
+    const res = await db.query(
+      'SELECT * FROM coupons WHERE shop_id = $1 AND UPPER(code) = UPPER($2)',
+      [shopId, code]
+    );
+    return res.rows[0] || null;
+  }
   const res = await db.query(
-    'SELECT * FROM coupons WHERE shop_id = $1 AND UPPER(code) = UPPER($2)',
-    [shopId, code]
+    'SELECT * FROM coupons WHERE UPPER(code) = UPPER($1)',
+    [code]
   );
   return res.rows[0] || null;
 }
 
 async function findByIdAndShop(couponId, shopId) {
+  if (shopId) {
+    const res = await db.query(
+      'SELECT * FROM coupons WHERE id = $1 AND shop_id = $2',
+      [couponId, shopId]
+    );
+    return res.rows[0] || null;
+  }
   const res = await db.query(
-    'SELECT * FROM coupons WHERE id = $1 AND shop_id = $2',
-    [couponId, shopId]
+    'SELECT * FROM coupons WHERE id = $1',
+    [couponId]
   );
   return res.rows[0] || null;
 }
@@ -41,9 +55,15 @@ async function updateCoupon(couponId, shopId, patch) {
   }
   if (sets.length === 0) return findByIdAndShop(couponId, shopId);
   sets.push(`updated_at = now()`);
-  params.push(couponId, shopId);
+  params.push(couponId);
+  let where = `id = $${idx}`;
+  if (shopId) {
+    idx++;
+    params.push(shopId);
+    where += ` AND shop_id = $${idx}`;
+  }
   const res = await db.query(
-    `UPDATE coupons SET ${sets.join(', ')} WHERE id = $${idx} AND shop_id = $${idx + 1} RETURNING *`,
+    `UPDATE coupons SET ${sets.join(', ')} WHERE ${where} RETURNING *`,
     params
   );
   return res.rows[0] || null;
@@ -58,12 +78,13 @@ async function incrementUsage(couponId, client) {
 }
 
 async function listByShop(shopId, { page = 1, limit = 50, search, is_active } = {}) {
-  const conditions = ['shop_id = $1'];
-  const params = [shopId];
-  let idx = 2;
+  const conditions = [];
+  const params = [];
+  let idx = 1;
+  if (shopId) { conditions.push(`shop_id = $${idx}`); params.push(shopId); idx++; }
   if (search) { conditions.push(`(code ILIKE $${idx})`); params.push(`%${search}%`); idx++; }
   if (is_active !== undefined) { conditions.push(`is_active = $${idx}`); params.push(is_active); idx++; }
-  const where = 'WHERE ' + conditions.join(' AND ');
+  const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
   const countRes = await db.query(`SELECT COUNT(*) FROM coupons ${where}`, params);
   const total = parseInt(countRes.rows[0].count, 10);
   const offset = (page - 1) * limit;
@@ -75,7 +96,11 @@ async function listByShop(shopId, { page = 1, limit = 50, search, is_active } = 
 }
 
 async function deleteCoupon(couponId, shopId) {
-  await db.query('DELETE FROM coupons WHERE id = $1 AND shop_id = $2', [couponId, shopId]);
+  if (shopId) {
+    await db.query('DELETE FROM coupons WHERE id = $1 AND shop_id = $2', [couponId, shopId]);
+  } else {
+    await db.query('DELETE FROM coupons WHERE id = $1', [couponId]);
+  }
 }
 
 module.exports = { findByCode, findByIdAndShop, createCoupon, updateCoupon, incrementUsage, listByShop, deleteCoupon };

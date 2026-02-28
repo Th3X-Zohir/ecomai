@@ -83,7 +83,11 @@ async function countByShop(shopId) {
 }
 
 async function deleteCustomer(customerId, shopId) {
-  await db.query('DELETE FROM customers WHERE id = $1 AND shop_id = $2', [customerId, shopId]);
+  if (shopId) {
+    await db.query('DELETE FROM customers WHERE id = $1 AND shop_id = $2', [customerId, shopId]);
+  } else {
+    await db.query('DELETE FROM customers WHERE id = $1', [customerId]);
+  }
 }
 
 module.exports = { findByEmail, findById, findByIdAndShop, createCustomer, updateCustomer, deleteCustomer, listByShop, countByShop };

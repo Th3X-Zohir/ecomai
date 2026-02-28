@@ -561,14 +561,16 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { isSuperAdmin, currentShop, selectedShop, shopList, selectShop } = useAdmin();
 
-  if (isSuperAdmin) {
+  // Super admin with no shop selected → platform overview
+  // Super admin with shop selected → shop-level dashboard
+  if (isSuperAdmin && !selectedShop) {
     return <PlatformDashboard user={user} shopList={shopList} selectShop={selectShop} />;
   }
 
   return (
     <ShopDashboard
       user={user}
-      isSuperAdmin={false}
+      isSuperAdmin={isSuperAdmin}
       currentShop={currentShop}
       selectedShop={selectedShop}
     />

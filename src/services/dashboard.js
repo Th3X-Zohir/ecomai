@@ -5,36 +5,41 @@ const db = require('../db');
  */
 
 async function getShopDashboard(shopId) {
+  // If no shopId, return aggregated data across all shops (super admin without shop context)
+  const shopFilter = shopId ? 'WHERE shop_id = $1' : '';
+  const shopFilterAnd = shopId ? 'AND oi.shop_id = $1' : '';
+  const shopParams = shopId ? [shopId] : [];
+
   const [ordersRes, revenueRes, customersRes, productsRes, recentOrdersRes, topProductsRes] = await Promise.all([
     // Order counts by status
     db.query(
-      `SELECT status, COUNT(*)::int AS count FROM orders WHERE shop_id = $1 GROUP BY status`,
-      [shopId]
+      `SELECT status, COUNT(*)::int AS count FROM orders ${shopFilter} GROUP BY status`,
+      shopParams
     ),
     // Revenue (completed payments)
     db.query(
       `SELECT COALESCE(SUM(amount), 0)::numeric AS total_revenue,
               COUNT(*)::int AS payment_count
-       FROM payments WHERE shop_id = $1 AND status = 'completed'`,
-      [shopId]
+       FROM payments ${shopFilter ? shopFilter + " AND status = 'completed'" : "WHERE status = 'completed'"}`,
+      shopParams
     ),
     // Customer count
     db.query(
-      `SELECT COUNT(*)::int AS total FROM customers WHERE shop_id = $1`,
-      [shopId]
+      `SELECT COUNT(*)::int AS total FROM customers ${shopFilter}`,
+      shopParams
     ),
     // Product count
     db.query(
       `SELECT COUNT(*)::int AS total,
               COUNT(*) FILTER (WHERE status = 'active')::int AS active
-       FROM products WHERE shop_id = $1`,
-      [shopId]
+       FROM products ${shopFilter}`,
+      shopParams
     ),
     // Recent orders (last 10)
     db.query(
       `SELECT id, customer_email, status, total_amount, payment_status, created_at
-       FROM orders WHERE shop_id = $1 ORDER BY created_at DESC LIMIT 10`,
-      [shopId]
+       FROM orders ${shopFilter} ORDER BY created_at DESC LIMIT 10`,
+      shopParams
     ),
     // Top selling products
     db.query(
@@ -42,10 +47,10 @@ async function getShopDashboard(shopId) {
               SUM(oi.line_total)::numeric AS revenue
        FROM order_items oi
        JOIN products p ON p.id = oi.product_id
-       WHERE oi.shop_id = $1
+       ${shopId ? 'WHERE oi.shop_id = $1' : ''}
        GROUP BY oi.product_id, p.name
        ORDER BY units_sold DESC LIMIT 5`,
-      [shopId]
+      shopParams
     ),
   ]);
 
@@ -78,12 +83,22 @@ async function getShopDashboard(shopId) {
 }
 
 async function getRevenueTimeline(shopId, { days = 30 } = {}) {
+  if (shopId) {
+    const res = await db.query(
+      `SELECT DATE(created_at) AS date, SUM(amount)::numeric AS revenue, COUNT(*)::int AS count
+       FROM payments
+       WHERE shop_id = $1 AND status = 'completed' AND created_at >= NOW() - INTERVAL '1 day' * $2
+       GROUP BY DATE(created_at) ORDER BY date`,
+      [shopId, days]
+    );
+    return res.rows;
+  }
   const res = await db.query(
     `SELECT DATE(created_at) AS date, SUM(amount)::numeric AS revenue, COUNT(*)::int AS count
      FROM payments
-     WHERE shop_id = $1 AND status = 'completed' AND created_at >= NOW() - INTERVAL '1 day' * $2
+     WHERE status = 'completed' AND created_at >= NOW() - INTERVAL '1 day' * $1
      GROUP BY DATE(created_at) ORDER BY date`,
-    [shopId, days]
+    [days]
   );
   return res.rows;
 }

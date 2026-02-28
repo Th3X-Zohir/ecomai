@@ -8,22 +8,20 @@ export function AdminProvider({ children }) {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
   const [shopList, setShopList] = useState([]);
-  const [selectedShop, setSelectedShop] = useState(getSelectedShopId());
+  // Super admin defaults to ALL shops (null) — not scoped to any single shop
+  const [selectedShop, setSelectedShop] = useState(isSuperAdmin ? null : getSelectedShopId());
   const [loadingShops, setLoadingShops] = useState(false);
 
   // Load all shops for super_admin
   useEffect(() => {
     if (isSuperAdmin) {
       setLoadingShops(true);
+      // Clear any stale shop selection from localStorage for super admin
+      setSelectedShop(null);
+      setSelectedShopId(null);
       shops.list({ limit: 200 })
         .then((data) => {
           setShopList(data.items || []);
-          // Auto-select first shop if none selected
-          if (!selectedShop && data.items?.length > 0) {
-            const firstId = data.items[0].id;
-            setSelectedShop(firstId);
-            setSelectedShopId(firstId);
-          }
         })
         .catch(() => {})
         .finally(() => setLoadingShops(false));

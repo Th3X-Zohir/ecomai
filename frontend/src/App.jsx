@@ -57,6 +57,14 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+function SuperAdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'super_admin') return <Navigate to="/admin" replace />;
+  return children;
+}
+
 function StorefrontWrapper() {
   return (
     <CartProvider>
@@ -120,11 +128,11 @@ export default function App() {
         <Route path="driver-assignments" element={<DriverAssignments />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="earnings" element={<Earnings />} />
-        <Route path="platform-earnings" element={<PlatformEarnings />} />
+        <Route path="platform-earnings" element={<SuperAdminRoute><PlatformEarnings /></SuperAdminRoute>} />
         <Route path="website-settings" element={<WebsiteSettings />} />
         <Route path="shop" element={<ShopSettings />} />
-        <Route path="all-shops" element={<AllShops />} />
-        <Route path="all-users" element={<AllUsers />} />
+        <Route path="all-shops" element={<SuperAdminRoute><AllShops /></SuperAdminRoute>} />
+        <Route path="all-users" element={<SuperAdminRoute><AllUsers /></SuperAdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
