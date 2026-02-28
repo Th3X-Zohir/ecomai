@@ -11,6 +11,7 @@ const customerService = require('../services/customers');
 const orderService = require('../services/orders');
 const paymentService = require('../services/payments');
 const couponService = require('../services/coupons');
+const invoiceService = require('../services/invoices');
 const jwt = require('jsonwebtoken');
 const { jwtSecret } = require('../config');
 const { DomainError } = require('../errors/domain-error');
@@ -172,6 +173,26 @@ router.post('/shops/:slug/account/change-password', customerAuth, asyncHandler(a
     newPassword: req.body.new_password,
   });
   res.json(result);
+}));
+
+// --- Customer invoices ---
+
+router.get('/shops/:slug/account/invoices', customerAuth, asyncHandler(async (req, res) => {
+  const result = await invoiceService.listCustomerInvoices(req.customer.sub, {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 20,
+  });
+  res.json(result);
+}));
+
+router.get('/shops/:slug/account/invoices/:invoiceId', customerAuth, asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const invoice = await invoiceService.getInvoice(shop.id, req.params.invoiceId);
+  if (invoice.customer_id !== req.customer.sub) {
+    throw new DomainError('FORBIDDEN', 'You do not have access to this invoice', 403);
+  }
+  res.json(invoice);
 }));
 
 // --- Storefront coupon validation ---

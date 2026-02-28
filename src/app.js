@@ -26,6 +26,7 @@ const publicRoutes = require('./routes/public');
 const productImageRoutes = require('./routes/product-images');
 const couponRoutes = require('./routes/coupons');
 const dashboardRoutes = require('./routes/dashboard');
+const invoiceRoutes = require('./routes/invoices');
 
 const app = express();
 
@@ -98,6 +99,7 @@ app.use('/v1/categories', categoryRoutes);
 app.use('/v1/products', productImageRoutes);
 app.use('/v1/driver', driverRoutes);
 app.use('/v1/coupons', couponRoutes);
+app.use('/v1/invoices', invoiceRoutes);
 app.use('/v1/dashboard', dashboardRoutes);
 
 // SPA fallback — serve index.html for any non-API route

@@ -46,6 +46,15 @@ export const storeApi = {
   },
   getOrderDetail: (slug, orderId, token) => request('GET', `/shops/${slug}/account/orders/${orderId}`, null, token),
 
+  // Invoices
+  getInvoices: (slug, token, params) => {
+    const p = new URLSearchParams();
+    if (params) Object.entries(params).forEach(([k, v]) => { if (v) p.set(k, v); });
+    const qs = p.toString();
+    return request('GET', `/shops/${slug}/account/invoices${qs ? `?${qs}` : ''}`, null, token);
+  },
+  getInvoiceDetail: (slug, invoiceId, token) => request('GET', `/shops/${slug}/account/invoices/${invoiceId}`, null, token),
+
   // Checkout (creates order + initiates SSLCommerz payment + auto-creates customer)
   checkout: (slug, data) => request('POST', `/shops/${slug}/checkout`, data),
 

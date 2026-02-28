@@ -2,6 +2,7 @@
     "chat.tools.terminal.autoApprove": {
         "docker cp": true,
         "ForEach-Object": true,
-        "Test-Path": true
+        "Test-Path": true,
+        "docker compose": true
     }
 }

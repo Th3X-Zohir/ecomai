@@ -29,6 +29,9 @@ import ShopSettings from './pages/ShopSettings';
 import AllShops from './pages/AllShops';
 import AllUsers from './pages/AllUsers';
 import Coupons from './pages/Coupons';
+import Inventory from './pages/Inventory';
+import DriverAssignments from './pages/DriverAssignments';
+import Invoices from './pages/Invoices';
 
 // Storefront pages
 import StorefrontLayout from './storefront/StorefrontLayout';
@@ -111,6 +114,9 @@ export default function App() {
         <Route path="deliveries" element={<Deliveries />} />
         <Route path="payments" element={<Payments />} />
         <Route path="coupons" element={<Coupons />} />
+        <Route path="inventory" element={<Inventory />} />
+        <Route path="driver-assignments" element={<DriverAssignments />} />
+        <Route path="invoices" element={<Invoices />} />
         <Route path="website-settings" element={<WebsiteSettings />} />
         <Route path="shop" element={<ShopSettings />} />
         <Route path="all-shops" element={<AllShops />} />

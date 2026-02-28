@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { payments } from '../api';
-import { PageHeader, Table, Badge, Button, Modal, FormField, Input, Textarea, Pagination, StatCard, Card, ConfirmDialog, SearchInput, PageSkeleton, useToast } from '../components/UI';
+import { PageHeader, Table, Badge, Button, Modal, FormField, Input, Select, Textarea, Pagination, StatCard, Card, ConfirmDialog, SearchInput, PageSkeleton, useToast } from '../components/UI';
 
 export default function Payments() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refunding, setRefunding] = useState(null);
   const [refundForm, setRefundForm] = useState({ amount: '', reason: '' });
+  const [showManual, setShowManual] = useState(false);
+  const [manualForm, setManualForm] = useState({ orderId: '', amount: '', method: 'cash', currency: 'BDT' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
@@ -40,6 +42,20 @@ export default function Payments() {
   const submitRefund = (e) => {
     e.preventDefault();
     setShowConfirm(true);
+  };
+
+  const handleManualPayment = async (e) => {
+    e.preventDefault();
+    if (!manualForm.orderId.trim()) { setError('Order ID is required'); return; }
+    if (!manualForm.amount || Number(manualForm.amount) <= 0) { setError('Amount must be greater than 0'); return; }
+    setError(''); setSaving(true);
+    try {
+      await payments.manual({ orderId: manualForm.orderId.trim(), amount: Number(manualForm.amount), method: manualForm.method, currency: manualForm.currency });
+      setShowManual(false);
+      setManualForm({ orderId: '', amount: '', method: 'cash', currency: 'BDT' });
+      toast('Manual payment recorded!', 'success');
+      load();
+    } catch (err) { setError(err.message); } finally { setSaving(false); }
   };
 
   // Stats
@@ -99,7 +115,11 @@ export default function Payments() {
 
   return (
     <div>
-      <PageHeader title="Payments" description="Track all payment transactions" />
+      <PageHeader title="Payments" description="Track all payment transactions">
+        <Button onClick={() => { setShowManual(true); setError(''); }} icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>
+          Record Manual Payment
+        </Button>
+      </PageHeader>
 
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
@@ -164,6 +184,38 @@ export default function Payments() {
         confirmLabel="Yes, Process Refund"
         variant="danger"
       />
+
+      {/* Manual Payment Modal */}
+      <Modal open={showManual} onClose={() => setShowManual(false)} title="Record Manual Payment" size="sm">
+        {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">{error}</div>}
+        <form onSubmit={handleManualPayment}>
+          <FormField label="Order ID" required hint="UUID of the order to record payment against">
+            <Input type="text" value={manualForm.orderId} onChange={(e) => setManualForm({ ...manualForm, orderId: e.target.value })} placeholder="Paste order UUID" required />
+          </FormField>
+          <FormField label="Amount" required>
+            <Input type="number" step="0.01" min="0.01" value={manualForm.amount} onChange={(e) => setManualForm({ ...manualForm, amount: e.target.value })} placeholder="e.g. 1500.00" required />
+          </FormField>
+          <FormField label="Payment Method">
+            <Select value={manualForm.method} onChange={(e) => setManualForm({ ...manualForm, method: e.target.value })}>
+              <option value="cash">Cash</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="check">Check</option>
+              <option value="other">Other</option>
+            </Select>
+          </FormField>
+          <FormField label="Currency">
+            <Select value={manualForm.currency} onChange={(e) => setManualForm({ ...manualForm, currency: e.target.value })}>
+              <option value="BDT">BDT</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+            </Select>
+          </FormField>
+          <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-gray-100">
+            <Button variant="secondary" type="button" onClick={() => setShowManual(false)}>Cancel</Button>
+            <Button type="submit" loading={saving}>Record Payment</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -136,6 +136,7 @@ export const customers = {
 export const payments = {
   list: (params) => request('GET', `/payments${qs(params)}`),
   get: (id) => request('GET', `/payments/${id}`),
+  manual: (data) => request('POST', '/payments/manual', data),
   refund: (paymentId, data) => request('POST', `/payments/${paymentId}/refunds`, data),
 };
 
@@ -194,6 +195,18 @@ export const coupons = {
   create: (data) => request('POST', '/coupons', data),
   update: (id, data) => request('PATCH', `/coupons/${id}`, data),
   delete: (id) => request('DELETE', `/coupons/${id}`),
+};
+
+export const invoices = {
+  list: (params) => request('GET', `/invoices${qs(params)}`),
+  listAll: (params) => request('GET', `/invoices${qs({ ...params, all: 'true' })}`),
+  get: (id) => request('GET', `/invoices/${id}`),
+  create: (data) => request('POST', '/invoices', data),
+  generateFromOrder: (orderId, data) => request('POST', `/invoices/from-order/${orderId}`, data || {}),
+  update: (id, data) => request('PATCH', `/invoices/${id}`, data),
+  updateStatus: (id, status) => request('PATCH', `/invoices/${id}/status`, { status }),
+  recordPayment: (id, amount) => request('POST', `/invoices/${id}/record-payment`, { amount }),
+  delete: (id) => request('DELETE', `/invoices/${id}`),
 };
 
 export const dashboard = {

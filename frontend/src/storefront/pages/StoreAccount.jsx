@@ -59,6 +59,9 @@ const Icons = {
   security: (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
   ),
+  invoices: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+  ),
   logout: (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
   ),
@@ -79,6 +82,7 @@ const TABS = [
   { id: 'profile', label: 'Profile', icon: Icons.profile },
   { id: 'addresses', label: 'Addresses', icon: Icons.addresses },
   { id: 'security', label: 'Security', icon: Icons.security },
+  { id: 'invoices', label: 'Invoices', icon: Icons.invoices },
 ];
 
 /* ── Order timeline ── */
@@ -260,6 +264,9 @@ export default function StoreAccount() {
           )}
           {tab === 'security' && (
             <SecurityTab t={t} profile={profile} shopSlug={shopSlug} token={token} />
+          )}
+          {tab === 'invoices' && (
+            <InvoicesTab t={t} shopSlug={shopSlug} token={token} formatPrice={formatPrice} />
           )}
         </main>
       </div>
@@ -760,6 +767,155 @@ function SecurityTab({ t, profile, shopSlug, token }) {
           {saving ? 'Saving...' : isGuest ? 'Set Password' : 'Change Password'}
         </button>
       </Card>
+    </div>
+  );
+}
+
+/* ── Invoices Tab ── */
+function InvoicesTab({ t, shopSlug, token, formatPrice }) {
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  useEffect(() => {
+    storeApi.getInvoices(shopSlug, token)
+      .then(r => setInvoices(r.items || []))
+      .catch(() => setInvoices([]))
+      .finally(() => setLoading(false));
+  }, [shopSlug, token]);
+
+  const viewInvoice = async (id) => {
+    setSelected(id); setDetailLoading(true);
+    try {
+      const inv = await storeApi.getInvoiceDetail(shopSlug, id, token);
+      setDetail(inv);
+    } catch { setDetail(null); }
+    finally { setDetailLoading(false); }
+  };
+
+  const invStatusColor = (s) => {
+    const map = { draft: { bg: '#f3f4f6', text: '#374151' }, sent: { bg: '#dbeafe', text: '#1e40af' },
+      paid: { bg: '#dcfce7', text: '#166534' }, partially_paid: { bg: '#fef3c7', text: '#92400e' },
+      overdue: { bg: '#fee2e2', text: '#991b1b' }, cancelled: { bg: '#f3f4f6', text: '#9ca3af' },
+      refunded: { bg: '#fce7f3', text: '#9d174d' } };
+    return map[s] || { bg: '#f3f4f6', text: '#374151' };
+  };
+
+  if (loading) return (
+    <div className="flex justify-center py-12">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: t.primary }} />
+    </div>
+  );
+
+  // Invoice detail view
+  if (selected && detail) {
+    const lineItems = detail.line_items || [];
+    const sc = invStatusColor(detail.status);
+    return (
+      <div className="space-y-6">
+        <button onClick={() => { setSelected(null); setDetail(null); }}
+          className="flex items-center gap-1 text-sm font-medium hover:opacity-80 transition" style={{ color: t.primary }}>
+          {Icons.back} Back to Invoices
+        </button>
+        <Card t={t}>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold" style={{ color: t.text }}>{detail.invoice_number}</h2>
+              <p className="text-sm" style={{ color: t.textMuted }}>Issued {detail.issue_date ? new Date(detail.issue_date).toLocaleDateString() : '—'}</p>
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-semibold capitalize"
+              style={{ backgroundColor: sc.bg, color: sc.text }}>
+              {detail.status?.replace(/_/g, ' ')}
+            </span>
+          </div>
+
+          {detail.due_date && (
+            <p className="text-sm mb-4" style={{ color: t.textMuted }}>Due: {new Date(detail.due_date).toLocaleDateString()}</p>
+          )}
+
+          <table className="w-full text-sm mb-4">
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${t.border}` }}>
+                <th className="py-2 text-left text-xs uppercase" style={{ color: t.textMuted }}>Item</th>
+                <th className="py-2 text-right text-xs uppercase w-16" style={{ color: t.textMuted }}>Qty</th>
+                <th className="py-2 text-right text-xs uppercase w-24" style={{ color: t.textMuted }}>Price</th>
+                <th className="py-2 text-right text-xs uppercase w-24" style={{ color: t.textMuted }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lineItems.map((it, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${t.border}` }}>
+                  <td className="py-2" style={{ color: t.text }}>{it.description}</td>
+                  <td className="py-2 text-right" style={{ color: t.textMuted }}>{it.quantity}</td>
+                  <td className="py-2 text-right" style={{ color: t.textMuted }}>{formatPrice(it.unit_price)}</td>
+                  <td className="py-2 text-right font-medium" style={{ color: t.text }}>{formatPrice(it.line_total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="space-y-1 text-sm text-right" style={{ borderTop: `1px solid ${t.border}`, paddingTop: '1rem' }}>
+            <div style={{ color: t.textMuted }}>Subtotal: <span className="ml-4 font-medium" style={{ color: t.text }}>{formatPrice(detail.subtotal)}</span></div>
+            {Number(detail.tax_amount) > 0 && <div style={{ color: t.textMuted }}>Tax: <span className="ml-4">{formatPrice(detail.tax_amount)}</span></div>}
+            {Number(detail.shipping_amount) > 0 && <div style={{ color: t.textMuted }}>Shipping: <span className="ml-4">{formatPrice(detail.shipping_amount)}</span></div>}
+            {Number(detail.discount_amount) > 0 && <div style={{ color: t.textMuted }}>Discount: <span className="ml-4 text-red-600">-{formatPrice(detail.discount_amount)}</span></div>}
+            <div className="text-lg font-bold pt-2" style={{ color: t.text }}>Total: {formatPrice(detail.total_amount)}</div>
+            {Number(detail.amount_paid) > 0 && <div className="text-green-600">Paid: {formatPrice(detail.amount_paid)}</div>}
+            {Number(detail.total_amount) - Number(detail.amount_paid) > 0 && (
+              <div className="text-red-600 font-medium">Balance: {formatPrice(Number(detail.total_amount) - Number(detail.amount_paid))}</div>
+            )}
+          </div>
+
+          {detail.notes && (
+            <div className="mt-4 p-3 rounded-lg" style={{ backgroundColor: `${t.primary}08` }}>
+              <p className="text-xs font-semibold uppercase mb-1" style={{ color: t.textMuted }}>Notes</p>
+              <p className="text-sm whitespace-pre-wrap" style={{ color: t.text }}>{detail.notes}</p>
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  }
+
+  // Invoice list
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold" style={{ color: t.text }}>My Invoices</h2>
+      {invoices.length === 0 ? (
+        <Card t={t} className="text-center py-12">
+          <div className="mb-3" style={{ color: t.textMuted }}>{Icons.invoices}</div>
+          <h3 className="font-semibold mb-1" style={{ color: t.text }}>No invoices yet</h3>
+          <p className="text-sm" style={{ color: t.textMuted }}>Invoices for your orders will appear here.</p>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {invoices.map(inv => {
+            const sc = invStatusColor(inv.status);
+            return (
+              <Card t={t} key={inv.id} className="cursor-pointer hover:opacity-90 transition" onClick={() => viewInvoice(inv.id)}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-sm" style={{ color: t.text }}>{inv.invoice_number}</p>
+                    <p className="text-xs" style={{ color: t.textMuted }}>
+                      {inv.issue_date ? new Date(inv.issue_date).toLocaleDateString() : '—'}
+                      {inv.due_date ? ` · Due ${new Date(inv.due_date).toLocaleDateString()}` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold" style={{ color: t.text }}>{formatPrice(inv.total_amount)}</p>
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize"
+                      style={{ backgroundColor: sc.bg, color: sc.text }}>
+                      {inv.status?.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -23,18 +23,39 @@ const orderStatusColor = (s) =>
 function PlatformDashboard({ user, shopList, selectShop }) {
   const navigate = useNavigate();
   const [allShops, setAllShops] = useState([]);
+  const [platformStats, setPlatformStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    shops.list({ limit: 200 }).then((d) => {
-      setAllShops(d.items || []);
+    Promise.allSettled([
+      shops.list({ limit: 200 }),
+      dashboard.platform(),
+    ]).then(([shopsRes, platformRes]) => {
+      if (shopsRes.status === 'fulfilled') setAllShops(shopsRes.value.items || []);
+      if (platformRes.status === 'fulfilled') setPlatformStats(platformRes.value);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    });
   }, []);
 
   const totals = useMemo(() => {
+    // Use platform API data if available, otherwise derive from shops list
+    if (platformStats) {
+      const shopsByStatus = platformStats.shops || {};
+      const totalShops = Object.values(shopsByStatus).reduce((a, c) => a + c, 0);
+      const usersByRole = platformStats.users || {};
+      const totalUsers = Object.values(usersByRole).reduce((a, c) => a + c, 0);
+      return {
+        shops: filter === 'all' ? totalShops : 1,
+        products: allShops.reduce((a, s) => a + Number(s.product_count || 0), 0),
+        orders: platformStats.orders?.total || 0,
+        customers: allShops.reduce((a, s) => a + Number(s.customer_count || 0), 0),
+        users: totalUsers,
+        revenue: platformStats.revenue?.total || 0,
+        pendingOrders: platformStats.orders?.pending || 0,
+      };
+    }
     const src = filter === 'all' ? allShops : allShops.filter((s) => s.id === filter);
     return {
       shops: src.length,
@@ -44,7 +65,7 @@ function PlatformDashboard({ user, shopList, selectShop }) {
       users: src.reduce((a, s) => a + Number(s.user_count || 0), 0),
       revenue: src.reduce((a, s) => a + Number(s.total_revenue || 0), 0),
     };
-  }, [allShops, filter]);
+  }, [allShops, filter, platformStats]);
 
   const visibleShops = useMemo(() => {
     let list = filter === 'all' ? allShops : allShops.filter((s) => s.id === filter);
