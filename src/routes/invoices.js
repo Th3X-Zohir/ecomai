@@ -12,7 +12,7 @@ router.use(authRequired, requireRoles(['super_admin', 'shop_admin', 'shop_user']
 
 // List invoices (super_admin can see all via ?all=true)
 router.get('/', asyncHandler(async (req, res) => {
-  const isSuperAdmin = req.user.role === 'super_admin';
+  const isSuperAdmin = req.auth.role === 'super_admin';
   const opts = {
     page: Number(req.query.page) || 1,
     limit: Number(req.query.limit) || 50,
@@ -29,7 +29,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
 // Get single invoice
 router.get('/:invoiceId', asyncHandler(async (req, res) => {
-  const shopId = req.user.role === 'super_admin' ? null : req.tenantShopId;
+  const shopId = req.auth.role === 'super_admin' ? null : req.tenantShopId;
   const invoice = await invoiceService.getInvoice(shopId, req.params.invoiceId);
   res.json(invoice);
 }));
@@ -56,7 +56,7 @@ router.post('/', validateBody({
     discountAmount: req.body.discount_amount,
     shippingAmount: req.body.shipping_amount,
     taxAmount: req.body.tax_amount,
-    createdBy: req.user.id,
+    createdBy: req.auth.id,
   });
   res.status(201).json(invoice);
 }));
@@ -64,7 +64,7 @@ router.post('/', validateBody({
 // Generate invoice from an order
 router.post('/from-order/:orderId', asyncHandler(async (req, res) => {
   const invoice = await invoiceService.generateFromOrder(req.tenantShopId, req.params.orderId, {
-    createdBy: req.user.id,
+    createdBy: req.auth.id,
     dueDate: req.body.due_date,
     notes: req.body.notes,
     footerText: req.body.footer_text,
@@ -75,7 +75,7 @@ router.post('/from-order/:orderId', asyncHandler(async (req, res) => {
 
 // Update invoice (general)
 router.patch('/:invoiceId', asyncHandler(async (req, res) => {
-  const shopId = req.user.role === 'super_admin' ? null : req.tenantShopId;
+  const shopId = req.auth.role === 'super_admin' ? null : req.tenantShopId;
   const invoice = await invoiceService.updateInvoice(shopId, req.params.invoiceId, req.body);
   res.json(invoice);
 }));
@@ -84,7 +84,7 @@ router.patch('/:invoiceId', asyncHandler(async (req, res) => {
 router.patch('/:invoiceId/status', validateBody({
   status: { required: true, type: 'string', oneOf: ['draft', 'sent', 'paid', 'partially_paid', 'overdue', 'cancelled', 'refunded'] },
 }), asyncHandler(async (req, res) => {
-  const shopId = req.user.role === 'super_admin' ? null : req.tenantShopId;
+  const shopId = req.auth.role === 'super_admin' ? null : req.tenantShopId;
   const invoice = await invoiceService.updateStatus(shopId, req.params.invoiceId, req.body.status);
   res.json(invoice);
 }));
@@ -93,14 +93,14 @@ router.patch('/:invoiceId/status', validateBody({
 router.post('/:invoiceId/record-payment', validateBody({
   amount: { required: true, type: 'number', min: 0.01 },
 }), asyncHandler(async (req, res) => {
-  const shopId = req.user.role === 'super_admin' ? null : req.tenantShopId;
+  const shopId = req.auth.role === 'super_admin' ? null : req.tenantShopId;
   const invoice = await invoiceService.recordPayment(shopId, req.params.invoiceId, req.body.amount);
   res.json(invoice);
 }));
 
 // Delete invoice (draft/cancelled only)
 router.delete('/:invoiceId', asyncHandler(async (req, res) => {
-  const shopId = req.user.role === 'super_admin' ? null : req.tenantShopId;
+  const shopId = req.auth.role === 'super_admin' ? null : req.tenantShopId;
   await invoiceService.deleteInvoice(shopId, req.params.invoiceId);
   res.json({ message: 'Invoice deleted' });
 }));

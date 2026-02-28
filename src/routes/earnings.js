@@ -48,7 +48,7 @@ router.post('/my/withdrawals', requireRoles(['shop_admin']), validateBody({
 }), asyncHandler(async (req, res) => {
   const withdrawal = await earningsService.requestWithdrawal({
     shopId: req.tenantShopId,
-    requestedBy: req.user.id,
+    requestedBy: req.auth.id,
     amount: req.body.amount,
     paymentMethod: req.body.payment_method,
     accountDetails: req.body.account_details,
@@ -100,7 +100,7 @@ router.get('/platform/withdrawals', requireRoles(['super_admin']), asyncHandler(
 // Approve withdrawal
 router.post('/platform/withdrawals/:id/approve', requireRoles(['super_admin']), asyncHandler(async (req, res) => {
   const w = await earningsService.approveWithdrawal(req.params.id, {
-    reviewedBy: req.user.id,
+    reviewedBy: req.auth.id,
     notes: req.body.notes,
   });
   res.json(w);
@@ -111,7 +111,7 @@ router.post('/platform/withdrawals/:id/reject', requireRoles(['super_admin']), v
   notes: { required: true, type: 'string' },
 }), asyncHandler(async (req, res) => {
   const w = await earningsService.rejectWithdrawal(req.params.id, {
-    reviewedBy: req.user.id,
+    reviewedBy: req.auth.id,
     notes: req.body.notes,
   });
   res.json(w);
@@ -145,7 +145,7 @@ router.post('/platform/adjustments', requireRoles(['super_admin']), validateBody
     shopId: req.body.shop_id,
     amount: req.body.amount,
     description: req.body.description,
-    createdBy: req.user.id,
+    createdBy: req.auth.id,
   });
   res.status(201).json(earning);
 }));
@@ -164,7 +164,7 @@ router.put('/platform/commission', requireRoles(['super_admin']), validateBody({
     commission_rate: req.body.commission_rate,
     min_withdrawal: req.body.min_withdrawal,
     payout_cycle: req.body.payout_cycle,
-    created_by: req.user.id,
+    created_by: req.auth.id,
   });
   res.json(settings);
 }));
