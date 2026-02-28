@@ -18,6 +18,7 @@ export const storeApi = {
   // Shop
   getShop: (slug) => request('GET', `/shops/${slug}`),
   getSettings: (slug) => request('GET', `/shops/${slug}/settings`),
+  getStats: (slug) => request('GET', `/shops/${slug}/stats`),
 
   // Products
   getProducts: (slug, params) => {
@@ -61,4 +62,20 @@ export const storeApi = {
   // Coupon validation
   validateCoupon: (slug, code, orderTotal) =>
     request('POST', `/shops/${slug}/validate-coupon`, { code, order_amount: orderTotal }),
+
+  // Newsletter
+  subscribeNewsletter: (slug, email) => request('POST', `/shops/${slug}/newsletter`, { email }),
+
+  // Reviews
+  getProductReviews: (slug, productId) => request('GET', `/shops/${slug}/products/${productId}/reviews`),
+  submitReview: (slug, productId, data, token) => request('POST', `/shops/${slug}/products/${productId}/reviews`, data, token),
+
+  // Wishlist
+  getWishlist: (slug, token) => request('GET', `/shops/${slug}/wishlist`, null, token),
+  addToWishlist: (slug, productId, token) => request('POST', `/shops/${slug}/wishlist`, { product_id: productId }, token),
+  removeFromWishlist: (slug, productId, token) => request('DELETE', `/shops/${slug}/wishlist/${productId}`, null, token),
+
+  // Forgot Password
+  forgotPassword: (slug, email) => request('POST', `/shops/${slug}/auth/forgot-password`, { email }),
+  resetPassword: (slug, token, newPassword) => request('POST', `/shops/${slug}/auth/reset-password`, { token, new_password: newPassword }),
 };

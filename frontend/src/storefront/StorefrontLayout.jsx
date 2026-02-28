@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useStore } from '../contexts/StoreContext';
 import { useCart } from '../contexts/CartContext';
-import { resolveTokens, tokensToCssVars } from './templates';
+import { resolveTokens, tokensToCssVars, getGoogleFontsUrl } from './templates';
+import { SocialLinks, PaymentIcons, WhatsAppIcon } from './icons';
 
 /* ── Countdown Timer Bar ── */
 function CountdownBar({ countdown }) {
@@ -201,6 +202,7 @@ export default function StorefrontLayout() {
 
   const resolved = resolveTokens(theme, tokens);
   const cssVars = tokensToCssVars(resolved);
+  const fontsUrl = getGoogleFontsUrl(resolved);
 
   const navLinks = (nav.nav && nav.nav.length > 0) ? nav.nav.map(l => ({ ...l, to: l.url || l.to })) : [
     { label: 'Home', to: `/store/${shopSlug}` },
@@ -210,8 +212,10 @@ export default function StorefrontLayout() {
 
   return (
     <div className="storefront min-h-screen flex flex-col">
+      {fontsUrl && <link rel="stylesheet" href={fontsUrl} />}
       <style>{`
-        .storefront { ${cssVars} --font-family: ${resolved.fontFamily}; font-family: var(--font-family); background-color: var(--store-bg); color: var(--store-text); }
+        .storefront { ${cssVars} --font-family: ${resolved.fontFamily}; --heading-font: ${resolved.headingFont || resolved.fontFamily}; font-family: var(--font-family); background-color: var(--store-bg); color: var(--store-text); }
+        .storefront h1, .storefront h2, .storefront h3, .storefront h4 { font-family: var(--heading-font); }
         .storefront a { color: inherit; }
         @keyframes slideIn { from { opacity:0; transform: translateY(20px) scale(0.95); } to { opacity:1; transform: translateY(0) scale(1); } }
         ${customCss}
@@ -297,13 +301,7 @@ export default function StorefrontLayout() {
               <h3 className="text-lg font-bold mb-3" style={{ color: resolved.primary }}>{shop?.name}</h3>
               <p className="text-sm opacity-70">{footer.tagline || 'Powered by Ecomai — Multi-tenant Commerce Platform'}</p>
               {Object.values(socialLinks).some(Boolean) && (
-                <div className="flex items-center gap-3 mt-4">
-                  {socialLinks.facebook && <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="Facebook">📘</a>}
-                  {socialLinks.instagram && <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="Instagram">📸</a>}
-                  {socialLinks.twitter && <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="Twitter">🐦</a>}
-                  {socialLinks.tiktok && <a href={socialLinks.tiktok} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="TikTok">🎵</a>}
-                  {socialLinks.youtube && <a href={socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="opacity-60 hover:opacity-100 transition" title="YouTube">📺</a>}
-                </div>
+                <SocialLinks links={socialLinks} size={18} className="mt-4" />
               )}
             </div>
             <div>
@@ -341,8 +339,8 @@ export default function StorefrontLayout() {
             </div>
           </div>
           {footer.show_payment_icons !== false && (
-            <div className="mt-6 flex items-center justify-center gap-3 opacity-40 text-sm">
-              <span>💳 Visa</span><span>💳 Mastercard</span><span>📱 bKash</span><span>📱 Nagad</span>
+            <div className="mt-6">
+              <PaymentIcons className="opacity-60" />
             </div>
           )}
           <div className="mt-6 pt-6 border-t text-sm text-center opacity-50" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
@@ -388,9 +386,9 @@ export default function StorefrontLayout() {
       {/* WhatsApp Floating Button */}
       {(businessInfo.whatsapp || socialLinks.whatsapp) && (
         <a href={`https://wa.me/${(businessInfo.whatsapp || socialLinks.whatsapp).replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-full shadow-lg text-xl md:text-2xl transition-transform hover:scale-110"
+          className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-full shadow-lg transition-transform hover:scale-110"
           style={{ backgroundColor: '#25D366', color: '#fff' }} title="Chat on WhatsApp">
-          💬
+          <WhatsAppIcon size={24} />
         </a>
       )}
 

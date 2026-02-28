@@ -4,11 +4,13 @@ import { useCart } from '../../contexts/CartContext';
 import { resolveTokens } from '../templates';
 
 export default function StoreCart() {
-  const { shopSlug, theme, tokens, formatPrice } = useStore();
+  const { shopSlug, theme, tokens, formatPrice, storeConfig } = useStore();
   const { items, removeItem, updateQuantity, total, count } = useCart();
   const navigate = useNavigate();
 
   const t = resolveTokens(theme, tokens);
+  const minOrder = Number(storeConfig?.min_order_amount) || 0;
+  const belowMinimum = minOrder > 0 && total < minOrder;
 
   if (items.length === 0) {
     return (
@@ -168,7 +170,8 @@ export default function StoreCart() {
 
             <button
               onClick={() => navigate(`/store/${shopSlug}/checkout`)}
-              className="w-full py-3.5 text-base font-semibold transition hover:opacity-90"
+              disabled={belowMinimum}
+              className="w-full py-3.5 text-base font-semibold transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: t.primary,
                 color: t.bg,
@@ -177,6 +180,12 @@ export default function StoreCart() {
             >
               Proceed to Checkout
             </button>
+
+            {belowMinimum && (
+              <p className="text-center text-xs mt-2" style={{ color: '#ef4444' }}>
+                Minimum order amount is {formatPrice(minOrder)}. Add {formatPrice(minOrder - total)} more.
+              </p>
+            )}
 
             <Link
               to={`/store/${shopSlug}/products`}

@@ -605,13 +605,39 @@ export default function WebsiteSettings() {
                   {TEMPLATE_LIST.map(tmpl => (
                     <button key={tmpl.id} onClick={() => { setSelectedTemplate(tmpl.id); setTokenOverrides({}); }}
                       className={`text-left p-4 rounded-xl border-2 transition-all hover:shadow-md ${selectedTemplate === tmpl.id ? 'border-primary-500 bg-primary-50/60 shadow-sm ring-1 ring-primary-200' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
-                      <div className="flex gap-1.5 mb-3">
+                      {/* Mini layout preview */}
+                      <div className="mb-3 rounded-lg overflow-hidden border border-gray-200" style={{ height: '80px', backgroundColor: tmpl.defaults.bg }}>
+                        {/* Header bar */}
+                        <div className="flex items-center px-2 py-1" style={{ backgroundColor: tmpl.defaults.headerBg, borderBottom: `1px solid ${tmpl.defaults.border}` }}>
+                          <div className="w-8 h-2 rounded" style={{ backgroundColor: tmpl.defaults.primary }} />
+                          <div className="ml-auto flex gap-1">
+                            <div className="w-4 h-1.5 rounded" style={{ backgroundColor: tmpl.defaults.headerText, opacity: 0.3 }} />
+                            <div className="w-4 h-1.5 rounded" style={{ backgroundColor: tmpl.defaults.headerText, opacity: 0.3 }} />
+                          </div>
+                        </div>
+                        {/* Hero */}
+                        <div className="mx-1.5 mt-1 px-2 py-1.5 rounded" style={{ background: tmpl.defaults.heroGradient }}>
+                          <div className="w-12 h-1.5 rounded bg-white opacity-80 mb-1" />
+                          <div className="w-8 h-1 rounded bg-white opacity-50" />
+                        </div>
+                        {/* Products grid */}
+                        <div className="flex gap-1 mx-1.5 mt-1">
+                          {[0,1,2,3].map(i => (
+                            <div key={i} className="flex-1 rounded" style={{ height: '14px', backgroundColor: tmpl.defaults.surface, border: `1px solid ${tmpl.defaults.border}` }} />
+                          ))}
+                        </div>
+                        {/* Footer */}
+                        <div className="mt-1 px-1.5 py-0.5" style={{ backgroundColor: tmpl.defaults.footerBg }}>
+                          <div className="w-6 h-1 rounded" style={{ backgroundColor: tmpl.defaults.footerText, opacity: 0.3 }} />
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 mb-2">
                         {[tmpl.defaults.primary, tmpl.defaults.secondary, tmpl.defaults.accent, tmpl.defaults.bg, tmpl.defaults.surface].map((c, i) => (
-                          <div key={i} className="w-7 h-7 rounded-lg border border-gray-200 shadow-sm" style={{ backgroundColor: c }} />
+                          <div key={i} className="w-5 h-5 rounded-md border border-gray-200 shadow-sm" style={{ backgroundColor: c }} />
                         ))}
                       </div>
                       <h4 className="font-semibold text-sm text-gray-900">{tmpl.name}</h4>
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{tmpl.description}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{tmpl.description}</p>
                       {selectedTemplate === tmpl.id && (
                         <span className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-primary-600 bg-primary-100 px-2 py-0.5 rounded-full">✓ Active</span>
                       )}
@@ -1082,8 +1108,10 @@ export default function WebsiteSettings() {
               <Card>
                 <div className="p-5">
                   <h3 className="font-semibold text-gray-900 mb-1">Custom JavaScript</h3>
-                  <p className="text-xs text-gray-500 mb-3">Runs on storefront pages (analytics, chatbots, etc.).</p>
-                  <Textarea value={customJs} onChange={e => setCustomJs(e.target.value)} className="font-mono text-xs !h-28" placeholder="// Google Analytics, etc." />
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                    <p className="text-xs text-amber-700 font-medium">⚠️ Custom JS is stripped for security. Use the Analytics tab to add Google Analytics, Facebook Pixel, or Google Tag Manager instead.</p>
+                  </div>
+                  <Textarea value={customJs} onChange={e => setCustomJs(e.target.value)} className="font-mono text-xs !h-28 opacity-60" placeholder="// Disabled for security — use Analytics tab instead" disabled />
                 </div>
               </Card>
               <Card>

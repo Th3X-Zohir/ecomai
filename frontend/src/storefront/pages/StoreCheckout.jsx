@@ -40,7 +40,7 @@ function StepIndicator({ steps, current, t }) {
 }
 
 export default function StoreCheckout() {
-  const { shopSlug, theme, tokens, formatPrice } = useStore();
+  const { shopSlug, theme, tokens, formatPrice, storeConfig } = useStore();
   const { items, total, count, clearCart } = useCart();
   const t = resolveTokens(theme, tokens);
 
@@ -145,6 +145,22 @@ export default function StoreCheckout() {
       clearCart();
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   };
+
+  // Guest checkout guard
+  const guestCheckoutAllowed = storeConfig?.guest_checkout !== false;
+  if (!guestCheckoutAllowed && !isLoggedIn) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-16 text-center">
+        <div className="text-5xl mb-4">🔒</div>
+        <h2 className="text-xl font-bold mb-3" style={{ color: t.text }}>Account Required</h2>
+        <p className="text-sm mb-6" style={{ color: t.textMuted }}>Please sign in or create an account to proceed with checkout.</p>
+        <Link to={`/store/${shopSlug}/auth/login`} className="inline-block px-6 py-3 font-semibold text-sm transition hover:opacity-80"
+          style={{ backgroundColor: t.primary, color: t.bg, borderRadius: t.buttonRadius }}>
+          Sign In to Continue
+        </Link>
+      </div>
+    );
+  }
 
   const inputStyle = {
     backgroundColor: t.surface,

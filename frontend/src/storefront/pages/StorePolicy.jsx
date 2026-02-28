@@ -9,6 +9,60 @@ const policyMap = {
   terms: { key: 'terms', title: 'Terms of Service' },
 };
 
+/* Simple Markdown renderer — supports headings, bold, italic, lists, links, hr */
+function SimpleMarkdown({ content, textColor, mutedColor }) {
+  if (!content) return null;
+  const lines = content.split('\n');
+  const elements = [];
+  let listItems = [];
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(<ul key={`ul-${elements.length}`} className="list-disc ml-6 space-y-1 mb-4">{listItems}</ul>);
+      listItems = [];
+    }
+  };
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    // --- / hr
+    if (/^[-*_]{3,}\s*$/.test(line)) { flushList(); elements.push(<hr key={i} className="my-6 border-current opacity-20" />); continue; }
+    // Headings
+    const hMatch = line.match(/^(#{1,4})\s+(.+)/);
+    if (hMatch) {
+      flushList();
+      const level = hMatch[1].length;
+      const text = inlineFormat(hMatch[2]);
+      const Tag = level === 1 ? 'h2' : level === 2 ? 'h3' : level === 3 ? 'h4' : 'h5';
+      const sizes = { h2: 'text-2xl', h3: 'text-xl', h4: 'text-lg', h5: 'text-base' };
+      elements.push(<Tag key={i} className={`${sizes[Tag]} font-bold mt-6 mb-3`} style={{ color: textColor }}>{text}</Tag>);
+      continue;
+    }
+    // List items
+    const liMatch = line.match(/^[-*•]\s+(.+)/);
+    if (liMatch) { listItems.push(<li key={i} className="text-sm leading-relaxed">{inlineFormat(liMatch[1])}</li>); continue; }
+    // Numbered list
+    const olMatch = line.match(/^\d+[.)]\s+(.+)/);
+    if (olMatch) { listItems.push(<li key={i} className="text-sm leading-relaxed">{inlineFormat(olMatch[1])}</li>); continue; }
+    // Empty line
+    if (line.trim() === '') { flushList(); continue; }
+    // Paragraph
+    flushList();
+    elements.push(<p key={i} className="text-sm leading-relaxed mb-3" style={{ color: mutedColor || textColor }}>{inlineFormat(line)}</p>);
+  }
+  flushList();
+  return <>{elements}</>;
+}
+
+function inlineFormat(text) {
+  // Bold
+  text = text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  // Italic
+  text = text.replace(/\*(.+?)\*/g, '<i>$1</i>');
+  // Links [text](url)
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer" class="underline">$1</a>');
+  if (text.includes('<')) return <span dangerouslySetInnerHTML={{ __html: text }} />;
+  return text;
+}
+
 export default function StorePolicy() {
   const { type } = useParams();
   const { shop, shopSlug, theme, tokens, storePolicies } = useStore();
@@ -45,11 +99,8 @@ export default function StorePolicy() {
         {policy.title}
       </h1>
 
-      <div
-        className="prose prose-sm max-w-none space-y-4 whitespace-pre-wrap leading-relaxed"
-        style={{ color: t.text }}
-      >
-        {content}
+      <div className="prose prose-sm max-w-none" style={{ color: t.text }}>
+        <SimpleMarkdown content={content} textColor={t.text} mutedColor={t.textMuted} />
       </div>
 
       <div className="mt-12 pt-6 border-t" style={{ borderColor: t.border }}>

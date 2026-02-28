@@ -4,10 +4,24 @@ import { useStore } from '../../contexts/StoreContext';
 import { useCart } from '../../contexts/CartContext';
 import { storeApi } from '../../api-public';
 import { resolveTokens } from '../templates';
+import { ShippingIcon, SecureIcon, ReturnIcon, SupportIcon, StarIcon, HeartIcon } from '../icons';
+
+/* ── Review Stars Input ── */
+function StarRatingInput({ value, onChange }) {
+  return (
+    <div className="flex gap-1">
+      {[1,2,3,4,5].map(n => (
+        <button key={n} type="button" onClick={() => onChange(n)}>
+          <StarIcon size={20} filled={n <= value} style={{ color: n <= value ? '#f59e0b' : '#d1d5db' }} />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function StoreProductDetail() {
   const { productId } = useParams();
-  const { shopSlug, theme, tokens, formatPrice } = useStore();
+  const { shopSlug, theme, tokens, formatPrice, storeConfig } = useStore();
   const { addItem } = useCart();
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
@@ -16,24 +30,32 @@ export default function StoreProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [activeTab, setActiveTab] = useState('description');
+  const [reviews, setReviews] = useState([]);
+  const [reviewSummary, setReviewSummary] = useState({ count: 0, average: 0 });
+  const [reviewForm, setReviewForm] = useState({ name: '', rating: 5, title: '', body: '' });
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewMsg, setReviewMsg] = useState('');
+  const [wishlisted, setWishlisted] = useState(false);
 
   const t = resolveTokens(theme, tokens);
 
   useEffect(() => {
-    storeApi
-      .getProduct(shopSlug, productId)
-      .then((data) => {
-        setProduct(data);
-        if (data.variants?.length > 0) setSelectedVariant(data.variants[0]);
-        const primary = data.images?.find(i => i.is_primary) || data.images?.[0] || null;
-        setSelectedImage(primary);
-        // Load related products from same category
-        storeApi.getProducts(shopSlug).then((res) => {
-          setRelated(res.items.filter(p => p.id !== data.id && p.category_id === data.category_id).slice(0, 4));
-        }).catch(() => {});
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    setLoading(true);
+    storeApi.getProduct(shopSlug, productId).then((data) => {
+      setProduct(data);
+      if (data.variants?.length > 0) setSelectedVariant(data.variants[0]);
+      const primary = data.images?.find(i => i.is_primary) || data.images?.[0] || null;
+      setSelectedImage(primary);
+      storeApi.getProducts(shopSlug).then((res) => {
+        setRelated(res.items.filter(p => p.id !== data.id && p.category_id === data.category_id).slice(0, 4));
+      }).catch(() => {});
+    }).catch(() => {}).finally(() => setLoading(false));
+    // Load reviews
+    storeApi.getProductReviews(shopSlug, productId).then(({ reviews: r, summary }) => {
+      setReviews(r || []);
+      setReviewSummary(summary || { count: 0, average: 0 });
+    }).catch(() => {});
   }, [shopSlug, productId]);
 
   const isOutOfStock = selectedVariant
@@ -45,6 +67,37 @@ export default function StoreProductDetail() {
     addItem(product, selectedVariant, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    setReviewSubmitting(true);
+    try {
+      const token = localStorage.getItem(`customer_token_${shopSlug}`);
+      await storeApi.submitReview(shopSlug, productId, {
+        customer_name: reviewForm.name, rating: reviewForm.rating, title: reviewForm.title, body: reviewForm.body,
+      }, token || undefined);
+      setReviewMsg('Review submitted! It will appear after approval.');
+      setReviewForm({ name: '', rating: 5, title: '', body: '' });
+    } catch (err) {
+      setReviewMsg(err.message || 'Failed to submit review');
+    }
+    setReviewSubmitting(false);
+    setTimeout(() => setReviewMsg(''), 5000);
+  };
+
+  const toggleWishlist = async () => {
+    const token = localStorage.getItem(`customer_token_${shopSlug}`);
+    if (!token) { alert('Please log in to use your wishlist'); return; }
+    try {
+      if (wishlisted) {
+        await storeApi.removeFromWishlist(shopSlug, productId, token);
+        setWishlisted(false);
+      } else {
+        await storeApi.addToWishlist(shopSlug, productId, token);
+        setWishlisted(true);
+      }
+    } catch { /* ignore */ }
   };
 
   if (loading) {
@@ -59,14 +112,18 @@ export default function StoreProductDetail() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center" style={{ color: t.textMuted }}>
         <h2 className="text-2xl font-bold mb-2" style={{ color: t.text }}>Product not found</h2>
-        <Link to={`/store/${shopSlug}/products`} style={{ color: t.primary }}>
-          ← Back to products
-        </Link>
+        <Link to={`/store/${shopSlug}/products`} style={{ color: t.primary }}>← Back to products</Link>
       </div>
     );
   }
 
   const price = selectedVariant ? Number(selectedVariant.price) : Number(product.base_price);
+  const tabs = [
+    { id: 'description', label: 'Description' },
+    { id: 'reviews', label: `Reviews (${reviewSummary.count})` },
+    { id: 'shipping', label: 'Shipping & Returns' },
+  ];
+  if (product.specifications || product.specs) tabs.splice(1, 0, { id: 'specs', label: 'Specifications' });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -243,21 +300,25 @@ export default function StoreProductDetail() {
           {/* Quick info */}
           <div className="mt-8 grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2 text-sm" style={{ color: t.textMuted }}>
-              <span>🚀</span> Fast Shipping
+              <ShippingIcon size={16} /> Fast Shipping
             </div>
             <div className="flex items-center gap-2 text-sm" style={{ color: t.textMuted }}>
-              <span>🔒</span> Secure Checkout
+              <SecureIcon size={16} /> Secure Checkout
             </div>
             <div className="flex items-center gap-2 text-sm" style={{ color: t.textMuted }}>
-              <span>↩️</span> Easy Returns
+              <ReturnIcon size={16} /> Easy Returns
             </div>
             <div className="flex items-center gap-2 text-sm" style={{ color: t.textMuted }}>
-              <span>💬</span> 24/7 Support
+              <SupportIcon size={16} /> 24/7 Support
             </div>
           </div>
 
-          {/* Share buttons */}
+          {/* Wishlist + Share */}
           <div className="mt-6 pt-6 border-t flex items-center gap-3" style={{ borderColor: t.border }}>
+            <button onClick={toggleWishlist} className="flex items-center gap-1.5 text-sm font-medium transition hover:opacity-70" style={{ color: wishlisted ? '#ef4444' : t.textMuted }}>
+              <HeartIcon size={18} filled={wishlisted} /> {wishlisted ? 'Wishlisted' : 'Add to Wishlist'}
+            </button>
+            <span style={{ color: t.border }}>|</span>
             <span className="text-xs font-medium" style={{ color: t.textMuted }}>Share:</span>
             <button onClick={() => navigator.clipboard.writeText(window.location.href)} className="w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:scale-110" style={{ backgroundColor: t.border + '60', color: t.textMuted }} title="Copy link">🔗</button>
             <a href={`https://wa.me/?text=${encodeURIComponent(product.name + ' ' + window.location.href)}`} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full flex items-center justify-center text-sm transition hover:scale-110" style={{ backgroundColor: '#25d36615', color: '#25d366' }} title="WhatsApp">
@@ -267,6 +328,135 @@ export default function StoreProductDetail() {
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
             </a>
           </div>
+        </div>
+      </div>
+
+      {/* Tabbed Content Section */}
+      <div className="mt-12 border-t pt-8" style={{ borderColor: t.border }}>
+        <div className="flex border-b gap-0" style={{ borderColor: t.border }}>
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className="px-5 py-3 text-sm font-medium transition-colors -mb-px"
+              style={{
+                borderBottom: activeTab === tab.id ? `2px solid ${t.primary}` : '2px solid transparent',
+                color: activeTab === tab.id ? t.primary : t.textMuted,
+              }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="py-8">
+          {activeTab === 'description' && (
+            <div className="prose max-w-none text-sm leading-relaxed" style={{ color: t.textMuted }}>
+              {product.description ? (
+                <p style={{ whiteSpace: 'pre-wrap' }}>{product.description}</p>
+              ) : (
+                <p>No description available.</p>
+              )}
+            </div>
+          )}
+          {activeTab === 'specs' && (
+            <div className="text-sm" style={{ color: t.textMuted }}>
+              {(product.specifications || product.specs) ? (
+                typeof (product.specifications || product.specs) === 'object' ? (
+                  <table className="w-full">
+                    <tbody>
+                      {Object.entries(product.specifications || product.specs).map(([k, v]) => (
+                        <tr key={k} className="border-b" style={{ borderColor: t.border }}>
+                          <td className="py-2 pr-4 font-medium" style={{ color: t.text }}>{k}</td>
+                          <td className="py-2">{String(v)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : <p style={{ whiteSpace: 'pre-wrap' }}>{String(product.specifications || product.specs)}</p>
+              ) : <p>No specifications available.</p>}
+            </div>
+          )}
+          {activeTab === 'reviews' && (
+            <div>
+              {/* Review Summary */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="text-center">
+                  <p className="text-4xl font-bold" style={{ color: t.text }}>{reviewSummary.average || '—'}</p>
+                  <div className="flex items-center gap-0.5 mt-1">
+                    {[1,2,3,4,5].map(i => (
+                      <StarIcon key={i} size={14} filled={i <= Math.round(reviewSummary.average)} style={{ color: '#f59e0b' }} />
+                    ))}
+                  </div>
+                  <p className="text-xs mt-1" style={{ color: t.textMuted }}>{reviewSummary.count} review{reviewSummary.count !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+              {/* Review List */}
+              {reviews.length > 0 ? (
+                <div className="space-y-4 mb-8">
+                  {reviews.map(r => (
+                    <div key={r.id} className="p-4" style={{ backgroundColor: t.surface, borderRadius: t.radius, border: `1px solid ${t.border}` }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="flex gap-0.5">{[1,2,3,4,5].map(i => <StarIcon key={i} size={12} filled={i <= r.rating} style={{ color: '#f59e0b' }} />)}</div>
+                        <span className="text-xs font-semibold" style={{ color: t.text }}>{r.customer_name}</span>
+                        <span className="text-xs" style={{ color: t.textMuted }}>{new Date(r.created_at).toLocaleDateString()}</span>
+                      </div>
+                      {r.title && <p className="text-sm font-semibold mb-1" style={{ color: t.text }}>{r.title}</p>}
+                      {r.body && <p className="text-sm" style={{ color: t.textMuted }}>{r.body}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm mb-6" style={{ color: t.textMuted }}>No reviews yet. Be the first!</p>
+              )}
+              {/* Write a Review */}
+              <div className="p-5" style={{ backgroundColor: t.surface, borderRadius: t.radius, border: `1px solid ${t.border}` }}>
+                <h3 className="font-semibold mb-4" style={{ color: t.text }}>Write a Review</h3>
+                {reviewMsg && <p className="text-sm mb-3 p-2 rounded" style={{ backgroundColor: t.primary + '15', color: t.primary }}>{reviewMsg}</p>}
+                <form onSubmit={handleReviewSubmit} className="space-y-3">
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: t.text }}>Rating</label>
+                    <StarRatingInput value={reviewForm.rating} onChange={(v) => setReviewForm(p => ({...p, rating: v}))} />
+                  </div>
+                  <input type="text" required placeholder="Your Name" value={reviewForm.name}
+                    onChange={(e) => setReviewForm(p => ({...p, name: e.target.value}))}
+                    className="w-full px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${t.border}`, borderRadius: t.radius, backgroundColor: t.bg, color: t.text }} />
+                  <input type="text" placeholder="Review Title (optional)" value={reviewForm.title}
+                    onChange={(e) => setReviewForm(p => ({...p, title: e.target.value}))}
+                    className="w-full px-3 py-2 text-sm outline-none" style={{ border: `1px solid ${t.border}`, borderRadius: t.radius, backgroundColor: t.bg, color: t.text }} />
+                  <textarea placeholder="Your review..." value={reviewForm.body} rows={3}
+                    onChange={(e) => setReviewForm(p => ({...p, body: e.target.value}))}
+                    className="w-full px-3 py-2 text-sm outline-none resize-none" style={{ border: `1px solid ${t.border}`, borderRadius: t.radius, backgroundColor: t.bg, color: t.text }} />
+                  <button type="submit" disabled={reviewSubmitting}
+                    className="px-5 py-2 text-sm font-semibold transition hover:opacity-80 disabled:opacity-50"
+                    style={{ backgroundColor: t.primary, color: t.bg, borderRadius: t.buttonRadius }}>
+                    {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+          {activeTab === 'shipping' && (
+            <div className="text-sm leading-relaxed space-y-4" style={{ color: t.textMuted }}>
+              <div className="flex items-start gap-3">
+                <ShippingIcon size={20} />
+                <div>
+                  <p className="font-semibold" style={{ color: t.text }}>Shipping</p>
+                  <p>{storeConfig?.shipping_display?.text || 'Standard delivery within 3-7 business days. Free shipping on qualifying orders.'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <ReturnIcon size={20} />
+                <div>
+                  <p className="font-semibold" style={{ color: t.text }}>Returns</p>
+                  <p>Easy returns within 7 days of delivery. Items must be unused and in original packaging.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <SecureIcon size={20} />
+                <div>
+                  <p className="font-semibold" style={{ color: t.text }}>Secure Payment</p>
+                  <p>All transactions are secured with SSL encryption. We accept bKash, Nagad, and all major cards.</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
