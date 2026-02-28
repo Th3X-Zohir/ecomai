@@ -58,9 +58,18 @@ export function StoreProvider({ shopSlug, children }) {
     return position === 'after' ? `${formatted}${symbol}` : `${symbol}${formatted}`;
   };
 
+  // Secondary currency formatting (multi-currency display)
+  const sec = currencyConfig.secondary;
+  const formatSecondaryPrice = (sec?.enabled && Number(sec?.rate) > 0) ? (amount) => {
+    const num = Number(amount) || 0;
+    const converted = num * Number(sec.rate);
+    const formatted = converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return sec.position === 'after' ? `${formatted}${sec.symbol}` : `${sec.symbol}${formatted}`;
+  } : null;
+
   return (
     <StoreContext.Provider
-      value={{ shop, settings: siteSettings, theme, tokens, nav, footer, homepage, customCss, customJs, seoDefaults, socialLinks, businessInfo, announcement, storePolicies, trustBadges, currencyConfig, storeConfig, analyticsConfig, popupConfig, countdown, formatPrice, loading, error, shopSlug }}
+      value={{ shop, settings: siteSettings, theme, tokens, nav, footer, homepage, customCss, customJs, seoDefaults, socialLinks, businessInfo, announcement, storePolicies, trustBadges, currencyConfig, storeConfig, analyticsConfig, popupConfig, countdown, formatPrice, formatSecondaryPrice, loading, error, shopSlug }}
     >
       {children}
     </StoreContext.Provider>

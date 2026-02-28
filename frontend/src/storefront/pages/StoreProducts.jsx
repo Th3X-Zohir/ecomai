@@ -87,7 +87,7 @@ function ProductSkeleton({ t }) {
 }
 
 export default function StoreProducts() {
-  const { shopSlug, theme, tokens, formatPrice, storeConfig } = useStore();
+  const { shopSlug, theme, tokens, formatPrice, formatSecondaryPrice, storeConfig } = useStore();
   const { addItem } = useCart();
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
@@ -299,12 +299,15 @@ export default function StoreProducts() {
                     </p>
                   )}
                   <div className="mt-auto">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-lg font-bold" style={{ color: t.primary }}>
                         {formatPrice(product.base_price)}
                       </p>
                       {product.compare_at_price && Number(product.compare_at_price) > Number(product.base_price) && (
                         <p className="text-xs line-through" style={{ color: t.textMuted }}>{formatPrice(product.compare_at_price)}</p>
+                      )}
+                      {formatSecondaryPrice && (
+                        <p className="text-xs" style={{ color: t.textMuted }}>≈ {formatSecondaryPrice(product.base_price)}</p>
                       )}
                     </div>
                   </div>

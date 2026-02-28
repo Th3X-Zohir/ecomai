@@ -56,7 +56,7 @@ router.post('/', validateBody({
     discountAmount: req.body.discount_amount,
     shippingAmount: req.body.shipping_amount,
     taxAmount: req.body.tax_amount,
-    createdBy: req.auth.id,
+    createdBy: req.auth.sub,
   });
   res.status(201).json(invoice);
 }));
@@ -64,7 +64,7 @@ router.post('/', validateBody({
 // Generate invoice from an order
 router.post('/from-order/:orderId', asyncHandler(async (req, res) => {
   const invoice = await invoiceService.generateFromOrder(req.tenantShopId, req.params.orderId, {
-    createdBy: req.auth.id,
+    createdBy: req.auth.sub,
     dueDate: req.body.due_date,
     notes: req.body.notes,
     footerText: req.body.footer_text,

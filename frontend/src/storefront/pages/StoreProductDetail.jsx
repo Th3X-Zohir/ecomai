@@ -21,7 +21,7 @@ function StarRatingInput({ value, onChange }) {
 
 export default function StoreProductDetail() {
   const { productId } = useParams();
-  const { shopSlug, theme, tokens, formatPrice, storeConfig } = useStore();
+  const { shopSlug, theme, tokens, formatPrice, formatSecondaryPrice, storeConfig } = useStore();
   const { addItem } = useCart();
   const [product, setProduct] = useState(null);
   const [related, setRelated] = useState([]);
@@ -219,9 +219,14 @@ export default function StoreProductDetail() {
             {product.name}
           </h1>
 
-          <p className="text-3xl font-bold mb-6" style={{ color: t.primary }}>
-            {formatPrice(price)}
-          </p>
+          <div className="mb-6">
+            <p className="text-3xl font-bold" style={{ color: t.primary }}>
+              {formatPrice(price)}
+            </p>
+            {formatSecondaryPrice && (
+              <p className="text-sm mt-1" style={{ color: t.textMuted }}>≈ {formatSecondaryPrice(price)}</p>
+            )}
+          </div>
 
           {product.description && (
             <p className="text-base mb-6 leading-relaxed" style={{ color: t.textMuted }}>

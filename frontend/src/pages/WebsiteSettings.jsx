@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { websiteSettings, shops, products as productsApi } from '../api';
+import { websiteSettings, shops, products as productsApi, dashboard as dashboardApi } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { templates, resolveTokens, fontPairings, colorPresets, getContrastRatio, getContrastLevel } from '../storefront/templates';
 import { PageHeader, Card, Button, FormField, Input, Textarea } from '../components/UI';
@@ -117,6 +117,9 @@ export default function WebsiteSettings() {
   const [ctaHeadline, setCtaHeadline] = useState('');
   const [ctaSubtitle, setCtaSubtitle] = useState('');
 
+  /* ── A/B Testing ── */
+  const [abTest, setAbTest] = useState({ enabled: false, variants: [{ headline: '', subtitle: '', cta: '' }, { headline: '', subtitle: '', cta: '' }] });
+
   /* ── Navigation ── */
   const [navItems, setNavItems] = useState([]);
 
@@ -138,6 +141,7 @@ export default function WebsiteSettings() {
   const [currencyCode, setCurrencyCode] = useState('BDT');
   const [currencyPosition, setCurrencyPosition] = useState('before');
   const [currencyDecimals, setCurrencyDecimals] = useState(2);
+  const [secondaryCurrency, setSecondaryCurrency] = useState({ enabled: false, code: 'USD', symbol: '$', rate: 0, position: 'before' });
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
   const [productsPerPage, setProductsPerPage] = useState(12);
@@ -167,6 +171,10 @@ export default function WebsiteSettings() {
   const [ga4Id, setGa4Id] = useState('');
   const [fbPixelId, setFbPixelId] = useState('');
   const [gtmId, setGtmId] = useState('');
+  const [dashData, setDashData] = useState(null);
+  const [dashTimeline, setDashTimeline] = useState([]);
+  const [dashLoading, setDashLoading] = useState(false);
+  const [dashDays, setDashDays] = useState(30);
 
   /* ── Popup Config ── */
   const [popupEnabled, setPopupEnabled] = useState(false);
@@ -240,6 +248,7 @@ export default function WebsiteSettings() {
         setFeaturedProductIds(hp?.featured_product_ids || []);
         setCtaHeadline(hp?.cta?.headline || '');
         setCtaSubtitle(hp?.cta?.subtitle || '');
+        if (hp?.ab_test) setAbTest(hp.ab_test);
 
         // Announcement
         const ann = data.announcement || {};
@@ -264,6 +273,7 @@ export default function WebsiteSettings() {
         setCurrencyCode(cc.code || 'BDT');
         setCurrencyPosition(cc.position || 'before');
         setCurrencyDecimals(cc.decimals ?? 2);
+        if (cc.secondary) setSecondaryCurrency(cc.secondary);
 
         // Store config
         const sc = data.store_config || {};
@@ -353,6 +363,7 @@ export default function WebsiteSettings() {
             headline: ctaHeadline || undefined,
             subtitle: ctaSubtitle || undefined,
           },
+          ab_test: abTest.enabled ? abTest : undefined,
         },
         custom_css: customCss || null,
         custom_js: customJs || null,
@@ -362,7 +373,7 @@ export default function WebsiteSettings() {
         announcement,
         store_policies: storePolicies,
         trust_badges: trustBadges,
-        currency_config: { symbol: currencySymbol, code: currencyCode, position: currencyPosition, decimals: Number(currencyDecimals) },
+        currency_config: { symbol: currencySymbol, code: currencyCode, position: currencyPosition, decimals: Number(currencyDecimals), secondary: secondaryCurrency.enabled ? secondaryCurrency : undefined },
         store_config: {
           maintenance_mode: maintenanceMode,
           maintenance_message: maintenanceMessage || undefined,
@@ -420,6 +431,19 @@ export default function WebsiteSettings() {
       iframeRef.current.contentWindow.postMessage({ type: 'ecomai_preview', tokens: resolved, template: selectedTemplate }, '*');
     } catch {}
   }, [resolved, selectedTemplate]);
+
+  /* ── Load Dashboard Data when Analytics tab is active ── */
+  useEffect(() => {
+    if (activeTab !== 'analytics') return;
+    setDashLoading(true);
+    Promise.all([
+      dashboardApi.shop().catch(() => null),
+      dashboardApi.revenueTimeline(dashDays).catch(() => []),
+    ]).then(([shopData, timeline]) => {
+      if (shopData) setDashData(shopData);
+      setDashTimeline(Array.isArray(timeline) ? timeline : []);
+    }).finally(() => setDashLoading(false));
+  }, [activeTab, dashDays]);
 
   /* ── Loading ── */
   if (loading) {
@@ -855,6 +879,57 @@ export default function WebsiteSettings() {
                   </div>
                 </div>
               </Card>
+              {/* ── A/B Testing ── */}
+              <Card>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">A/B Testing</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Split-test different hero headlines to see which converts better. Visitors are randomly assigned a variant.</p>
+                    </div>
+                    <Toggle checked={abTest.enabled} onChange={v => setAbTest(prev => ({ ...prev, enabled: v }))} />
+                  </div>
+                  {abTest.enabled && (
+                    <div className="space-y-4 mt-4">
+                      {abTest.variants.map((variant, idx) => (
+                        <div key={idx} className="p-4 border border-gray-200 rounded-xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Variant {String.fromCharCode(65 + idx)}</span>
+                            {idx > 1 && (
+                              <button onClick={() => setAbTest(prev => ({ ...prev, variants: prev.variants.filter((_, i) => i !== idx) }))}
+                                className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                            )}
+                          </div>
+                          <FormField label="Headline">
+                            <Input value={variant.headline} onChange={e => {
+                              const vs = [...abTest.variants]; vs[idx] = { ...vs[idx], headline: e.target.value }; setAbTest(prev => ({ ...prev, variants: vs }));
+                            }} placeholder={idx === 0 ? heroHeadline || 'Original headline' : 'Alternative headline'} />
+                          </FormField>
+                          <FormField label="Subtitle">
+                            <Input value={variant.subtitle} onChange={e => {
+                              const vs = [...abTest.variants]; vs[idx] = { ...vs[idx], subtitle: e.target.value }; setAbTest(prev => ({ ...prev, variants: vs }));
+                            }} placeholder={idx === 0 ? heroSubtitle || 'Original subtitle' : 'Alternative subtitle'} />
+                          </FormField>
+                          <FormField label="CTA Button">
+                            <Input value={variant.cta} onChange={e => {
+                              const vs = [...abTest.variants]; vs[idx] = { ...vs[idx], cta: e.target.value }; setAbTest(prev => ({ ...prev, variants: vs }));
+                            }} placeholder={idx === 0 ? heroCta || 'Shop Now' : 'Alternative CTA'} />
+                          </FormField>
+                        </div>
+                      ))}
+                      {abTest.variants.length < 4 && (
+                        <button onClick={() => setAbTest(prev => ({ ...prev, variants: [...prev.variants, { headline: '', subtitle: '', cta: '' }] }))}
+                          className="text-sm text-primary-600 font-semibold hover:text-primary-800 transition">
+                          + Add Variant
+                        </button>
+                      )}
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                        💡 Each visitor is randomly assigned one variant. Results are tracked via standard analytics. Use your GA4 or FB Pixel data to compare conversion rates between variants.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Card>
             </>
           )}
 
@@ -1061,6 +1136,52 @@ export default function WebsiteSettings() {
                   </div>
                 </div>
               </Card>
+              {/* ── Secondary Currency (Multi-Currency) ── */}
+              <Card>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Secondary Currency</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Show an approximate converted price alongside the primary currency.</p>
+                    </div>
+                    <Toggle checked={secondaryCurrency.enabled} onChange={v => setSecondaryCurrency(prev => ({ ...prev, enabled: v }))} />
+                  </div>
+                  {secondaryCurrency.enabled && (
+                    <div className="space-y-3 mt-4">
+                      <FormField label="Secondary Currency">
+                        <select className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" value={secondaryCurrency.code}
+                          onChange={e => { const c = CURRENCIES.find(x => x.code === e.target.value); if (c) setSecondaryCurrency(prev => ({ ...prev, code: c.code, symbol: c.symbol })); }}>
+                          {CURRENCIES.filter(c => c.code !== currencyCode).map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>)}
+                        </select>
+                      </FormField>
+                      <FormField label={`Exchange Rate (1 ${currencyCode} = ? ${secondaryCurrency.code})`}>
+                        <Input type="number" min="0" step="0.0001" value={secondaryCurrency.rate}
+                          onChange={e => setSecondaryCurrency(prev => ({ ...prev, rate: e.target.value }))} placeholder="e.g. 0.0084" />
+                        <p className="text-[11px] text-gray-400 mt-1">Enter the exchange rate. For example, if 1 BDT = 0.0084 USD, enter 0.0084.</p>
+                      </FormField>
+                      <FormField label="Symbol Position">
+                        <select className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" value={secondaryCurrency.position}
+                          onChange={e => setSecondaryCurrency(prev => ({ ...prev, position: e.target.value }))}>
+                          <option value="before">Before ({secondaryCurrency.symbol}100)</option>
+                          <option value="after">After (100{secondaryCurrency.symbol})</option>
+                        </select>
+                      </FormField>
+                      {Number(secondaryCurrency.rate) > 0 && (
+                        <div className="p-3 bg-gray-50 border rounded-lg text-sm">
+                          Preview: <span className="font-bold text-primary-600">{currencyPosition === 'after' ? `1,000${currencySymbol}` : `${currencySymbol}1,000`}</span>
+                          {' '}≈{' '}
+                          <span className="font-semibold text-gray-600">
+                            {secondaryCurrency.position === 'after'
+                              ? `${(1000 * Number(secondaryCurrency.rate)).toFixed(2)}${secondaryCurrency.symbol}`
+                              : `${secondaryCurrency.symbol}${(1000 * Number(secondaryCurrency.rate)).toFixed(2)}`
+                            }
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
               <Card>
                 <div className="p-5">
                   <h3 className="font-semibold text-gray-900 mb-1">Product Display</h3>
@@ -1205,31 +1326,185 @@ export default function WebsiteSettings() {
 
           {/* ════════════ ANALYTICS ════════════ */}
           {activeTab === 'analytics' && (
-            <Card>
-              <div className="p-5">
-                <h3 className="font-semibold text-gray-900 mb-1">Analytics & Tracking</h3>
-                <p className="text-xs text-gray-500 mb-4">Add tracking IDs to monitor your store performance. No code required.</p>
-                <div className="space-y-4">
-                  <FormField label="Google Analytics 4 (GA4) Measurement ID">
-                    <Input value={ga4Id} onChange={e => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" />
-                    <p className="text-[11px] text-gray-400 mt-1">Found in GA4 → Admin → Data Streams → Measurement ID</p>
-                  </FormField>
-                  <FormField label="Facebook Pixel ID">
-                    <Input value={fbPixelId} onChange={e => setFbPixelId(e.target.value)} placeholder="1234567890" />
-                    <p className="text-[11px] text-gray-400 mt-1">Found in Meta Events Manager → Pixel settings</p>
-                  </FormField>
-                  <FormField label="Google Tag Manager ID">
-                    <Input value={gtmId} onChange={e => setGtmId(e.target.value)} placeholder="GTM-XXXXXXX" />
-                    <p className="text-[11px] text-gray-400 mt-1">Found in GTM → Workspace → Container ID</p>
-                  </FormField>
-                </div>
-                {(ga4Id || fbPixelId || gtmId) && (
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
-                    ✅ Active tracking: {[ga4Id && 'GA4', fbPixelId && 'Facebook Pixel', gtmId && 'GTM'].filter(Boolean).join(', ')}
+            <div className="space-y-4">
+              {/* ── Store Performance Dashboard ── */}
+              <Card>
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Store Performance</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Real-time overview of your store metrics</p>
+                    </div>
+                    <select value={dashDays} onChange={e => setDashDays(Number(e.target.value))} className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white">
+                      <option value={7}>Last 7 days</option>
+                      <option value={14}>Last 14 days</option>
+                      <option value={30}>Last 30 days</option>
+                      <option value={90}>Last 90 days</option>
+                    </select>
                   </div>
-                )}
-              </div>
-            </Card>
+
+                  {dashLoading ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-pulse">
+                      {[1,2,3,4].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl" />)}
+                    </div>
+                  ) : dashData ? (
+                    <>
+                      {/* KPI Cards */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                        {[
+                          { label: 'Total Revenue', value: `৳${Number(dashData.revenue?.total || 0).toLocaleString()}`, icon: '💰', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+                          { label: 'Total Orders', value: dashData.orders?.total || 0, icon: '📦', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+                          { label: 'Customers', value: dashData.customers?.total || 0, icon: '👥', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+                          { label: 'Active Products', value: dashData.products?.active || 0, icon: '🛍️', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+                        ].map((kpi, i) => (
+                          <div key={i} className={`p-4 rounded-xl border ${kpi.bg} ${kpi.border}`}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-lg">{kpi.icon}</span>
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{kpi.label}</span>
+                            </div>
+                            <p className={`text-xl font-bold ${kpi.text}`}>{typeof kpi.value === 'number' ? kpi.value.toLocaleString() : kpi.value}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Order Status Breakdown */}
+                      {dashData.orders?.byStatus && Object.keys(dashData.orders.byStatus).length > 0 && (
+                        <div className="mb-5">
+                          <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">Order Status</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(dashData.orders.byStatus).map(([status, count]) => {
+                              const colors = { pending: 'bg-yellow-100 text-yellow-800', confirmed: 'bg-blue-100 text-blue-800', processing: 'bg-indigo-100 text-indigo-800', shipped: 'bg-cyan-100 text-cyan-800', delivered: 'bg-green-100 text-green-800', completed: 'bg-emerald-100 text-emerald-800', cancelled: 'bg-red-100 text-red-800', refunded: 'bg-gray-100 text-gray-800' };
+                              return (
+                                <span key={status} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${colors[status] || 'bg-gray-100 text-gray-600'}`}>
+                                  {status.charAt(0).toUpperCase() + status.slice(1)}: {count}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Revenue Timeline (Bar chart) */}
+                      {dashTimeline.length > 0 && (
+                        <div className="mb-5">
+                          <h4 className="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wider">Revenue Timeline</h4>
+                          <div className="h-32 flex items-end gap-1">
+                            {(() => {
+                              const maxRev = Math.max(...dashTimeline.map(d => Number(d.revenue)), 1);
+                              return dashTimeline.slice(-30).map((d, i) => {
+                                const h = Math.max(4, (Number(d.revenue) / maxRev) * 100);
+                                return (
+                                  <div key={i} className="flex-1 flex flex-col items-center group relative" title={`${d.date}: ৳${Number(d.revenue).toLocaleString()}`}>
+                                    <div className="w-full rounded-t transition-all hover:opacity-80" style={{ height: `${h}%`, backgroundColor: '#10b981', minHeight: '2px' }} />
+                                    {/* Tooltip */}
+                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition pointer-events-none z-10">
+                                      ৳{Number(d.revenue).toLocaleString()}
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span className="text-[9px] text-gray-400">{dashTimeline[0]?.date}</span>
+                            <span className="text-[9px] text-gray-400">{dashTimeline[dashTimeline.length - 1]?.date}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Top Products */}
+                      {dashData.topProducts?.length > 0 && (
+                        <div className="mb-5">
+                          <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">Top Selling Products</h4>
+                          <div className="divide-y divide-gray-100">
+                            {dashData.topProducts.slice(0, 5).map((p, i) => (
+                              <div key={i} className="flex items-center justify-between py-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">#{i + 1}</span>
+                                  <span className="text-sm text-gray-800 font-medium truncate max-w-[200px]">{p.name}</span>
+                                </div>
+                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                  <span>{p.units_sold} sold</span>
+                                  <span className="font-semibold text-emerald-600">৳{Number(p.revenue).toLocaleString()}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Recent Orders */}
+                      {dashData.recentOrders?.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">Recent Orders</h4>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="text-left text-gray-500 border-b border-gray-100">
+                                  <th className="py-2 pr-3 font-medium">Email</th>
+                                  <th className="py-2 pr-3 font-medium">Status</th>
+                                  <th className="py-2 pr-3 font-medium text-right">Amount</th>
+                                  <th className="py-2 font-medium text-right">Date</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-50">
+                                {dashData.recentOrders.slice(0, 5).map((o, i) => (
+                                  <tr key={i} className="text-gray-700">
+                                    <td className="py-2 pr-3 truncate max-w-[160px]">{o.customer_email}</td>
+                                    <td className="py-2 pr-3">
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                        o.status === 'completed' || o.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                                        o.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                        o.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                        'bg-gray-100 text-gray-600'
+                                      }`}>{o.status}</span>
+                                    </td>
+                                    <td className="py-2 pr-3 text-right font-medium">৳{Number(o.total_amount).toLocaleString()}</td>
+                                    <td className="py-2 text-right text-gray-400">{new Date(o.created_at).toLocaleDateString()}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-gray-400">
+                      <p className="text-2xl mb-2">📊</p>
+                      <p className="text-sm">No dashboard data available yet. Start selling to see performance metrics!</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* ── Tracking Codes ── */}
+              <Card>
+                <div className="p-5">
+                  <h3 className="font-semibold text-gray-900 mb-1">Tracking Codes</h3>
+                  <p className="text-xs text-gray-500 mb-4">Add tracking IDs to monitor your store with third-party analytics. No code required.</p>
+                  <div className="space-y-4">
+                    <FormField label="Google Analytics 4 (GA4) Measurement ID">
+                      <Input value={ga4Id} onChange={e => setGa4Id(e.target.value)} placeholder="G-XXXXXXXXXX" />
+                      <p className="text-[11px] text-gray-400 mt-1">Found in GA4 → Admin → Data Streams → Measurement ID</p>
+                    </FormField>
+                    <FormField label="Facebook Pixel ID">
+                      <Input value={fbPixelId} onChange={e => setFbPixelId(e.target.value)} placeholder="1234567890" />
+                      <p className="text-[11px] text-gray-400 mt-1">Found in Meta Events Manager → Pixel settings</p>
+                    </FormField>
+                    <FormField label="Google Tag Manager ID">
+                      <Input value={gtmId} onChange={e => setGtmId(e.target.value)} placeholder="GTM-XXXXXXX" />
+                      <p className="text-[11px] text-gray-400 mt-1">Found in GTM → Workspace → Container ID</p>
+                    </FormField>
+                  </div>
+                  {(ga4Id || fbPixelId || gtmId) && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+                      ✅ Active tracking: {[ga4Id && 'GA4', fbPixelId && 'Facebook Pixel', gtmId && 'GTM'].filter(Boolean).join(', ')}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </div>
           )}
 
           {/* ════════════ POPUPS ════════════ */}
