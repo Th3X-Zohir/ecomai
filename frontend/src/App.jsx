@@ -34,6 +34,7 @@ import DriverAssignments from './pages/DriverAssignments';
 import Invoices from './pages/Invoices';
 import Earnings from './pages/Earnings';
 import PlatformEarnings from './pages/PlatformEarnings';
+import Subscriptions from './pages/Subscriptions';
 
 // Storefront pages
 import StorefrontLayout from './storefront/StorefrontLayout';
@@ -129,6 +130,7 @@ export default function App() {
         <Route path="invoices" element={<Invoices />} />
         <Route path="earnings" element={<Earnings />} />
         <Route path="platform-earnings" element={<SuperAdminRoute><PlatformEarnings /></SuperAdminRoute>} />
+        <Route path="subscriptions" element={<SuperAdminRoute><Subscriptions /></SuperAdminRoute>} />
         <Route path="website-settings" element={<WebsiteSettings />} />
         <Route path="shop" element={<ShopSettings />} />
         <Route path="all-shops" element={<SuperAdminRoute><AllShops /></SuperAdminRoute>} />
