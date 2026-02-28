@@ -3,10 +3,10 @@ import { deliveries, users } from '../api';
 import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination, StatCard, SearchInput, PageSkeleton, useToast } from '../components/UI';
 import { useAdmin } from '../contexts/AdminContext';
 
-const STATUSES = ['requested', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
+const STATUSES = ['pending', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
 
 const statusVariant = (s) => {
-  const map = { requested: 'warning', assigned: 'info', picked_up: 'info', in_transit: 'purple', delivered: 'success', cancelled: 'danger' };
+  const map = { pending: 'warning', assigned: 'info', picked_up: 'info', in_transit: 'purple', delivered: 'success', cancelled: 'danger' };
   return map[s] || 'default';
 };
 
@@ -66,7 +66,7 @@ export default function DriverAssignments() {
   };
 
   // Stats
-  const unassigned = items.filter(d => d.status === 'requested').length;
+  const unassigned = items.filter(d => d.status === 'pending').length;
   const assigned = items.filter(d => d.status === 'assigned').length;
   const inTransit = items.filter(d => d.status === 'in_transit' || d.status === 'picked_up').length;
 
@@ -84,10 +84,10 @@ export default function DriverAssignments() {
       </div>
     )},
     { key: 'status', label: 'Status', render: (r) => <Badge variant={statusVariant(r.status)} dot>{r.status.replace(/_/g, ' ')}</Badge> },
-    { key: 'driver', label: 'Driver', render: (r) => r.driver_user_id ? (
+    { key: 'driver', label: 'Driver', render: (r) => r.assigned_driver_user_id ? (
       <div>
-        <span className="text-sm text-gray-700 font-medium">{driverName(r.driver_user_id) || r.driver_user_id.slice(0, 10) + '...'}</span>
-        {driverName(r.driver_user_id) && <p className="text-[10px] text-gray-400 font-mono">{r.driver_user_id.slice(0, 10)}</p>}
+        <span className="text-sm text-gray-700 font-medium">{driverName(r.assigned_driver_user_id) || r.assigned_driver_user_id.slice(0, 10) + '...'}</span>
+        {driverName(r.assigned_driver_user_id) && <p className="text-[10px] text-gray-400 font-mono">{r.assigned_driver_user_id.slice(0, 10)}</p>}
       </div>
     ) : (
       <span className="text-xs text-gray-400 italic">Unassigned</span>
@@ -108,9 +108,9 @@ export default function DriverAssignments() {
       <span className="text-sm text-gray-500">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
     )},
     { key: 'actions', label: '', render: (r) => (
-      (r.status === 'requested' || r.status === 'assigned') ? (
-        <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); setAssigning(r); setDriverId(r.driver_user_id || ''); setError(''); loadDrivers(); }}>
-          {r.driver_user_id ? 'Reassign' : 'Assign Driver'}
+      (r.status === 'pending' || r.status === 'assigned') ? (
+        <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); setAssigning(r); setDriverId(r.assigned_driver_user_id || ''); setError(''); loadDrivers(); }}>
+          {r.assigned_driver_user_id ? 'Reassign' : 'Assign Driver'}
         </Button>
       ) : null
     )},

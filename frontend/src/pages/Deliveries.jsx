@@ -3,7 +3,7 @@ import { deliveries } from '../api';
 import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination, StatCard, Card, SearchInput, PageSkeleton, ConfirmDialog, useToast } from '../components/UI';
 import { useAdmin } from '../contexts/AdminContext';
 
-const STATUSES = ['requested', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
+const STATUSES = ['pending', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
 
 export default function Deliveries() {
   const { isSuperAdmin, shopList, selectedShop } = useAdmin();
@@ -57,20 +57,20 @@ export default function Deliveries() {
   };
 
   const statusVariant = (s) => {
-    const map = { requested: 'warning', assigned: 'info', picked_up: 'info', in_transit: 'purple', delivered: 'success', cancelled: 'danger' };
+    const map = { pending: 'warning', assigned: 'info', picked_up: 'info', in_transit: 'purple', delivered: 'success', cancelled: 'danger' };
     return map[s] || 'default';
   };
 
   const statusIcon = (s) => {
     const icons = {
-      requested: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+      pending: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
       assigned: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
       picked_up: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>,
       in_transit: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>,
       delivered: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
       cancelled: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     };
-    return icons[s] || icons.requested;
+    return icons[s] || icons.pending;
   };
 
   const formatAddress = (addr) => {
@@ -82,7 +82,7 @@ export default function Deliveries() {
   // Stats
   const inTransit = items.filter(d => d.status === 'in_transit').length;
   const delivered = items.filter(d => d.status === 'delivered').length;
-  const pending = items.filter(d => ['requested', 'assigned'].includes(d.status)).length;
+  const pending = items.filter(d => ['pending', 'assigned'].includes(d.status)).length;
 
   const columns = [
     { key: 'id', label: 'Delivery', render: (r) => (
@@ -128,7 +128,7 @@ export default function Deliveries() {
             Update
           </Button>
         )}
-        {['requested', 'cancelled'].includes(r.status) && (
+        {['pending', 'cancelled'].includes(r.status) && (
           <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); setConfirmDelete(r); }}
             icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}>
             Delete
@@ -173,7 +173,7 @@ export default function Deliveries() {
                 return (
                   <div key={s} className="flex-1 text-center">
                     <div className={`h-1.5 rounded-full mb-1.5 ${count > 0 ? {
-                      requested: 'bg-amber-400', assigned: 'bg-blue-400', picked_up: 'bg-primary-400', in_transit: 'bg-purple-400', delivered: 'bg-emerald-400'
+                      pending: 'bg-amber-400', assigned: 'bg-blue-400', picked_up: 'bg-primary-400', in_transit: 'bg-purple-400', delivered: 'bg-emerald-400'
                     }[s] : 'bg-gray-200'}`} />
                     <p className="text-[10px] text-gray-500 capitalize">{s.replace('_', ' ')}</p>
                     <p className={`text-xs font-semibold ${count > 0 ? 'text-gray-900' : 'text-gray-300'}`}>{count}</p>
@@ -221,7 +221,7 @@ export default function Deliveries() {
             <div className="mt-3 flex items-center gap-1">
               {STATUSES.filter(s => s !== 'cancelled').map((s, i) => {
                 const targetIdx = STATUSES.indexOf(newStatus);
-                const isActive = i <= targetIdx && newStatus !== 'cancelled';
+                    const isActive = i <= targetIdx && newStatus !== 'cancelled';
                 return (
                   <div key={s} className={`flex-1 h-1 rounded-full transition-colors ${isActive ? 'bg-primary-500' : 'bg-gray-200'}`} />
                 );
