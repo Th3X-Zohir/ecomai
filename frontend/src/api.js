@@ -209,6 +209,26 @@ export const invoices = {
   delete: (id) => request('DELETE', `/invoices/${id}`),
 };
 
+export const earnings = {
+  // Shop admin
+  summary: () => request('GET', '/earnings/my/summary'),
+  transactions: (params) => request('GET', `/earnings/my/transactions${qs(params)}`),
+  withdrawals: (params) => request('GET', `/earnings/my/withdrawals${qs(params)}`),
+  requestWithdrawal: (data) => request('POST', '/earnings/my/withdrawals', data),
+  // Super admin
+  platformSummary: () => request('GET', '/earnings/platform/summary'),
+  shopBalances: (params) => request('GET', `/earnings/platform/balances${qs(params)}`),
+  allTransactions: (params) => request('GET', `/earnings/platform/transactions${qs(params)}`),
+  allWithdrawals: (params) => request('GET', `/earnings/platform/withdrawals${qs(params)}`),
+  approveWithdrawal: (id, data) => request('POST', `/earnings/platform/withdrawals/${id}/approve`, data || {}),
+  rejectWithdrawal: (id, data) => request('POST', `/earnings/platform/withdrawals/${id}/reject`, data),
+  processWithdrawal: (id, data) => request('POST', `/earnings/platform/withdrawals/${id}/process`, data || {}),
+  completeWithdrawal: (id, data) => request('POST', `/earnings/platform/withdrawals/${id}/complete`, data || {}),
+  adjustment: (data) => request('POST', '/earnings/platform/adjustments', data),
+  getCommission: (params) => request('GET', `/earnings/platform/commission${qs(params)}`),
+  updateCommission: (data) => request('PUT', '/earnings/platform/commission', data),
+};
+
 export const dashboard = {
   shop: () => request('GET', '/dashboard/shop'),
   revenueTimeline: (days) => request('GET', `/dashboard/shop/revenue-timeline${qs({ days })}`),

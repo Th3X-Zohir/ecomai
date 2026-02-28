@@ -3,6 +3,7 @@
         "docker cp": true,
         "ForEach-Object": true,
         "Test-Path": true,
-        "docker compose": true
+        "docker compose": true,
+        "docker exec": true
     }
 }

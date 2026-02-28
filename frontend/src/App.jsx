@@ -32,6 +32,8 @@ import Coupons from './pages/Coupons';
 import Inventory from './pages/Inventory';
 import DriverAssignments from './pages/DriverAssignments';
 import Invoices from './pages/Invoices';
+import Earnings from './pages/Earnings';
+import PlatformEarnings from './pages/PlatformEarnings';
 
 // Storefront pages
 import StorefrontLayout from './storefront/StorefrontLayout';
@@ -117,6 +119,8 @@ export default function App() {
         <Route path="inventory" element={<Inventory />} />
         <Route path="driver-assignments" element={<DriverAssignments />} />
         <Route path="invoices" element={<Invoices />} />
+        <Route path="earnings" element={<Earnings />} />
+        <Route path="platform-earnings" element={<PlatformEarnings />} />
         <Route path="website-settings" element={<WebsiteSettings />} />
         <Route path="shop" element={<ShopSettings />} />
         <Route path="all-shops" element={<AllShops />} />

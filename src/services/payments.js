@@ -2,6 +2,7 @@
 const config = require('../config');
 const orderRepo = require('../repositories/orders');
 const paymentRepo = require('../repositories/payments');
+const earningsService = require('../services/earnings');
 const db = require('../db');
 const { DomainError } = require('../errors/domain-error');
 
@@ -123,6 +124,16 @@ async function handleSSLCommerzCallback(body) {
 
     await paymentRepo.updatePayment(payment.id, { status: 'completed', gateway_response: body });
     await orderRepo.updateOrder(payment.order_id, payment.shop_id, { status: 'confirmed', payment_status: 'paid' });
+    // Record shop earnings (online payment only — not COD)
+    try {
+      await earningsService.recordSaleEarning({
+        shopId: payment.shop_id,
+        paymentId: payment.id,
+        orderId: payment.order_id,
+        grossAmount: payment.amount,
+        currency: payment.currency,
+      });
+    } catch (_e) { /* non-critical — don't block payment flow */ }
     return { valid: true, payment: { ...payment, status: 'completed' } };
   }
 
