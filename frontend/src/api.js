@@ -244,3 +244,21 @@ export const dashboard = {
   revenueTimeline: (days) => request('GET', `/dashboard/shop/revenue-timeline${qs({ days })}`),
   platform: () => request('GET', '/dashboard/platform'),
 };
+
+export const subscriptions = {
+  // Plans
+  listPlans: (params) => request('GET', `/subscriptions/plans${qs(params)}`),
+  createPlan: (data) => request('POST', '/subscriptions/plans', data),
+  updatePlan: (id, data) => request('PATCH', `/subscriptions/plans/${id}`, data),
+  deletePlan: (id) => request('DELETE', `/subscriptions/plans/${id}`),
+  // Shop subscriptions
+  listShops: (params) => request('GET', `/subscriptions/shops${qs(params)}`),
+  updateShop: (shopId, plan) => request('PATCH', `/subscriptions/shops/${shopId}`, { plan }),
+  // Payments
+  listPayments: (params) => request('GET', `/subscriptions/payments${qs(params)}`),
+  getPayment: (id) => request('GET', `/subscriptions/payments/${id}`),
+  updatePayment: (id, data) => request('PATCH', `/subscriptions/payments/${id}`, data),
+  deletePayment: (id) => request('DELETE', `/subscriptions/payments/${id}`),
+  // Stats
+  stats: () => request('GET', '/subscriptions/stats'),
+};
