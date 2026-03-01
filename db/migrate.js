@@ -15,7 +15,8 @@ const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://ecomai:ecomai_sec
 
 async function run() {
   const pool = new Pool({ connectionString: DATABASE_URL });
-  const shouldSeed = process.argv.includes('--seed');
+  const forceSeed = process.argv.includes('--seed');
+  const skipSeed = process.argv.includes('--no-seed');
 
   try {
     console.log('Connecting to PostgreSQL...');
@@ -65,7 +66,17 @@ async function run() {
     }
     console.log('All standalone migrations applied.\n');
 
-    // Run seed if requested
+    let shouldSeed = false;
+    if (!skipSeed) {
+      const { rows } = await pool.query(`SELECT EXISTS (SELECT 1 FROM shops)`);
+      shouldSeed = !rows[0].exists;
+    }
+
+    // Allow manual forcing regardless of auto-detection
+    if (forceSeed) {
+      shouldSeed = true;
+    }
+
     if (shouldSeed) {
       // Bootstrap demo shop + users with proper bcrypt hashes
       console.log('Bootstrapping demo shop & users...');
@@ -74,7 +85,7 @@ async function run() {
       await pool.query(`
         INSERT INTO shops (id, name, slug, status, industry, subscription_plan)
         VALUES ('00000000-0000-0000-0000-000000000001', 'Demo Coffee', 'demo-coffee', 'active', 'food_beverage', 'free')
-        ON CONFLICT (slug) DO NOTHING
+        ON CONFLICT (id) DO NOTHING
       `);
 
       await pool.query(`
@@ -84,7 +95,7 @@ async function run() {
           ('00000000-0000-0000-0002-000000000002', 'Starter',      'starter',      990,   9900,  500,  1000, '["basic_analytics","custom_domain"]'),
           ('00000000-0000-0000-0002-000000000003', 'Professional', 'professional', 2990,  29900, 5000, 10000,'["basic_analytics","custom_domain","priority_support"]'),
           ('00000000-0000-0000-0002-000000000004', 'Enterprise',   'enterprise',   9990,  99900, -1,   -1,   '["basic_analytics","custom_domain","priority_support","dedicated_account_manager"]')
-        ON CONFLICT (slug) DO NOTHING
+        ON CONFLICT (id) DO NOTHING
       `);
 
       const demoUsers = [

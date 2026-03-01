@@ -27,6 +27,9 @@ ALTER TABLE usage_tracking
 DROP CONSTRAINT IF EXISTS usage_tracking_shop_id_metric_period_key;
 
 ALTER TABLE usage_tracking
+DROP CONSTRAINT IF EXISTS usage_tracking_shop_metric_period_start_key;
+
+ALTER TABLE usage_tracking
 ADD CONSTRAINT usage_tracking_shop_metric_period_start_key
 UNIQUE (shop_id, metric, period, period_start);
 
