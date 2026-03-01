@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { orders, products } from '../api';
+import { orders, products, downloadFile } from '../api';
 import { PageHeader, Table, Button, Modal, FormField, Input, Select, Badge, Pagination, Alert, SearchInput, PageSkeleton, ConfirmDialog, useToast } from '../components/UI';
 import { useAdmin } from '../contexts/AdminContext';
+
+const STATUS_OPTIONS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -20,6 +22,12 @@ export default function Orders() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [stats, setStats] = useState(null);
+  const [selected, setSelected] = useState(new Set());
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulking, setBulking] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const shopName = (shopId) => {
     const s = shopList.find(sh => sh.id === shopId);
@@ -36,15 +44,54 @@ export default function Orders() {
     } catch (err) { toast(err.message, 'error'); setConfirmDelete(null); }
   };
 
-  const load = (p = page, q = search) => {
+  const loadStats = () => { orders.stats().then(setStats).catch(() => {}); };
+
+  const load = (p = page, q = search, status = statusFilter) => {
     setLoading(true);
-    Promise.all([orders.list({ page: p, limit: 20, search: q || undefined }), products.list({ limit: 100 })])
+    setSelected(new Set());
+    Promise.all([orders.list({ page: p, limit: 20, search: q || undefined, status: status || undefined }), products.list({ limit: 100 })])
       .then(([o, pr]) => { setItems(o.items); setTotalPages(o.totalPages); setTotal(o.total); setPage(o.page); setProductList(pr.items); })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(1); }, []);
+  useEffect(() => { load(1); loadStats(); }, []);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const params = statusFilter ? `?status=${statusFilter}` : '';
+      await downloadFile(`/orders/export/csv${params}`, `orders-${new Date().toISOString().slice(0,10)}.csv`);
+      toast('Orders exported', 'success');
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setExporting(false); }
+  };
+
+  const handleBulkStatus = async () => {
+    if (!bulkStatus || selected.size === 0) return;
+    setBulking(true);
+    try {
+      const result = await orders.bulkStatus([...selected], bulkStatus);
+      toast(`Updated ${result.success.length} orders${result.failed.length ? `, ${result.failed.length} failed` : ''}`, result.failed.length ? 'warning' : 'success');
+      setSelected(new Set());
+      setBulkStatus('');
+      load(); loadStats();
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setBulking(false); }
+  };
+
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === items.length) setSelected(new Set());
+    else setSelected(new Set(items.map(i => i.id)));
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -75,6 +122,14 @@ export default function Orders() {
   };
 
   const columns = [
+    { key: 'select', label: () => (
+      <input type="checkbox" checked={items.length > 0 && selected.size === items.length}
+        onChange={toggleSelectAll} className="rounded border-gray-300" />
+    ), render: (r) => (
+      <input type="checkbox" checked={selected.has(r.id)}
+        onChange={(e) => { e.stopPropagation(); toggleSelect(r.id); }}
+        className="rounded border-gray-300" />
+    )},
     { key: 'id', label: 'Order', render: (r) => (
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center text-xs font-mono text-gray-600 font-semibold">
@@ -109,11 +164,36 @@ export default function Orders() {
   return (
     <div>
       <PageHeader title="Orders" description={`${total} order${total !== 1 ? 's' : ''}`}>
-        <Button onClick={() => setShowCreate(true)} disabled={productList.length === 0}
-          icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>
-          New Order
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleExportCsv} disabled={exporting}
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}>
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </Button>
+          <Button onClick={() => setShowCreate(true)} disabled={productList.length === 0}
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>
+            New Order
+          </Button>
+        </div>
       </PageHeader>
+
+      {/* Stats Cards */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+          {[
+            { label: 'Total', value: stats.total_orders, color: 'gray' },
+            { label: 'Pending', value: stats.pending, color: 'yellow' },
+            { label: 'Processing', value: stats.processing, color: 'blue' },
+            { label: 'Shipped', value: stats.shipped, color: 'purple' },
+            { label: 'Delivered', value: stats.delivered, color: 'green' },
+            { label: 'Revenue', value: `৳${Number(stats.total_revenue).toLocaleString()}`, color: 'emerald' },
+          ].map(s => (
+            <div key={s.label} className={`bg-${s.color}-50 border border-${s.color}-200 rounded-xl p-3`}>
+              <p className={`text-xs font-medium text-${s.color}-600 uppercase tracking-wide`}>{s.label}</p>
+              <p className={`text-lg font-bold text-${s.color}-900 mt-1`}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {productList.length === 0 && (
         <div className="mb-6">
@@ -121,10 +201,29 @@ export default function Orders() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="sm:w-80">
-          <SearchInput value={search} onChange={(v) => { setSearch(v); load(1, v); }} placeholder="Search by email, order ID..." />
+      {/* Toolbar: Search + Status Filter + Bulk Actions */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6 items-start sm:items-center">
+        <div className="sm:w-64">
+          <SearchInput value={search} onChange={(v) => { setSearch(v); load(1, v, statusFilter); }} placeholder="Search by email, order ID..." />
         </div>
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); load(1, search, e.target.value); }}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+          <option value="">All statuses</option>
+          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+        </select>
+        {selected.size > 0 && (
+          <div className="flex items-center gap-2 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5">
+            <span className="text-sm font-medium text-primary-700">{selected.size} selected</span>
+            <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value)}
+              className="text-sm border border-primary-200 rounded px-2 py-1 bg-white">
+              <option value="">Change to...</option>
+              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+            </select>
+            <Button size="xs" onClick={handleBulkStatus} disabled={!bulkStatus || bulking} loading={bulking}>
+              Apply
+            </Button>
+          </div>
+        )}
       </div>
 
       <Table columns={columns} data={items} onRowClick={(row) => navigate(`/admin/orders/${row.id}`)} emptyMessage="No orders yet" emptyIcon="🛒" loading={loading} />

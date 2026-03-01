@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { register, setTokens } from '../api';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,14 @@ export default function Signup() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [planOptions, setPlanOptions] = useState([]);
+
+  useEffect(() => {
+    register.plans().then(data => {
+      const items = (data.items || []).map(p => ({ ...p, price_monthly: Number(p.price_monthly) || 0, price_yearly: Number(p.price_yearly) || 0 }));
+      if (items.length) setPlanOptions(items);
+    }).catch(() => {});
+  }, []);
 
   const handleSlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -49,7 +57,8 @@ export default function Signup() {
     }
   };
 
-  const isPaidPlan = ['starter', 'growth', 'enterprise'].includes(form.plan);
+  const selectedPlan = planOptions.find(p => p.slug === form.plan);
+  const isPaidPlan = selectedPlan ? (selectedPlan.price_monthly > 0) : false;
 
   const inputCls = "w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-gray-50 focus:bg-white text-sm";
   const labelCls = "block text-sm font-medium text-gray-700 mb-1.5";
@@ -168,10 +177,13 @@ export default function Signup() {
               <div>
                 <label className={labelCls}>Plan</label>
                 <select name="plan" value={form.plan} onChange={handleChange} className={inputCls}>
-                  <option value="free">Free</option>
-                  <option value="starter">Starter — ৳999/mo</option>
-                  <option value="growth">Growth — ৳2,499/mo</option>
-                  <option value="enterprise">Enterprise</option>
+                  {planOptions.length > 0 ? planOptions.map(p => (
+                    <option key={p.slug} value={p.slug}>
+                      {p.name}{p.price_monthly > 0 ? ` — ৳${Number(p.price_monthly).toLocaleString()}/mo` : ''}
+                    </option>
+                  )) : (
+                    <option value="free">Free</option>
+                  )}
                 </select>
               </div>
             </div>

@@ -62,7 +62,13 @@ async function getCustomerProfile(customerId) {
 }
 
 async function updateCustomerProfile(customerId, patch) {
-  const allowed = { full_name: patch.full_name, phone: patch.phone, addresses: patch.addresses };
+  const allowed = {};
+  if (patch.full_name !== undefined) allowed.full_name = patch.full_name;
+  if (patch.phone !== undefined) allowed.phone = patch.phone;
+  if (patch.addresses !== undefined) allowed.addresses = patch.addresses;
+  if (Object.keys(allowed).length === 0) {
+    return sanitize(await customerRepo.findById(customerId));
+  }
   return sanitize(await customerRepo.updateCustomer(customerId, null, allowed));
 }
 

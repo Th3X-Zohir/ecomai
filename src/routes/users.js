@@ -3,6 +3,7 @@ const { authRequired, requireRoles, resolveTenant } = require('../middleware/aut
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const { validateBody } = require('../middleware/validate');
+const { checkPlanLimit } = require('../middleware/plan-enforcement');
 const usersService = require('../services/users');
 
 const router = express.Router();
@@ -22,7 +23,7 @@ router.get('/', requireTenantContext, asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-router.post('/', validateBody({
+router.post('/', checkPlanLimit('staff'), validateBody({
   email: { required: true, type: 'email' },
   password: { required: true, type: 'string', minLength: 6 },
   role: { required: true, type: 'string', oneOf: ['super_admin', 'shop_admin', 'shop_user', 'delivery_agent'] },

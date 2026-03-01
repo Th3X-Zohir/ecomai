@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { products, categories as categoriesApi } from '../api';
+import { products, categories as categoriesApi, downloadFile } from '../api';
 import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Pagination, SearchInput, Card, PageSkeleton, useToast } from '../components/UI';
 import { useAdmin } from '../contexts/AdminContext';
 
@@ -19,7 +19,8 @@ export default function Products() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [categoryList, setCategoryList] = useState([]);
-  // Category filtering is handled client-side via Products list page search
+  const [stats, setStats] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const loadCategories = () => {
     categoriesApi.list({ status: 'active' }).then(data => setCategoryList(data.items || data)).catch(() => {});
@@ -33,7 +34,16 @@ export default function Products() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(1); loadCategories(); }, []);
+  useEffect(() => { load(1); loadCategories(); products.stats().then(setStats).catch(() => {}); }, []);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      await downloadFile('/products/export/csv', `products-${new Date().toISOString().slice(0,10)}.csv`);
+      toast('Products exported', 'success');
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setExporting(false); }
+  };
 
   const handleSearch = (val) => { setSearch(val); load(1, val); };
 
@@ -89,11 +99,34 @@ export default function Products() {
   return (
     <div>
       <PageHeader title="Products" description={`${total} product${total !== 1 ? 's' : ''} in your catalog`}>
-        <Button onClick={() => setShowCreate(true)}
-          icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>
-          New Product
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleExportCsv} disabled={exporting}
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}>
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </Button>
+          <Button onClick={() => setShowCreate(true)}
+            icon={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}>
+            New Product
+          </Button>
+        </div>
       </PageHeader>
+
+      {/* Stats Cards */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          {[
+            { label: 'Active', value: stats.active, color: 'green' },
+            { label: 'Draft', value: stats.draft, color: 'yellow' },
+            { label: 'Out of Stock', value: stats.out_of_stock, color: 'red' },
+            { label: 'Low Stock', value: stats.low_stock, color: 'orange' },
+          ].map(s => (
+            <div key={s.label} className={`bg-${s.color}-50 border border-${s.color}-200 rounded-xl p-3`}>
+              <p className={`text-xs font-medium text-${s.color}-600 uppercase tracking-wide`}>{s.label}</p>
+              <p className={`text-lg font-bold text-${s.color}-900 mt-1`}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">

@@ -38,6 +38,7 @@ export default function Subscriptions() {
   const [plans, setPlans] = useState([]);
   const [shops, setShops] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -53,10 +54,11 @@ export default function Subscriptions() {
   const toast = useToast();
 
   // Plan form
-  const [planForm, setPlanForm] = useState({ name: '', slug: '', price_monthly: 0, price_yearly: 0, product_limit: 10, order_limit: 50, features: '', is_active: true });
+  const [planForm, setPlanForm] = useState({ name: '', slug: '', price_monthly: 0, price_yearly: 0, product_limit: 10, order_limit: 50, staff_limit: 1, image_limit_per_product: 10, features: '', is_active: true, tagline: '', description: '', sort_order: 0, is_popular: false, trial_days: 0 });
 
   // Shop plan change
   const [shopPlan, setShopPlan] = useState('');
+  const [shopBillingCycle, setShopBillingCycle] = useState('monthly');
 
   const loadStats = () => {
     subscriptions.stats().then(setStats).catch(() => {});
@@ -86,6 +88,14 @@ export default function Subscriptions() {
       .finally(() => setLoading(false));
   };
 
+  const loadAuditLogs = (p = page) => {
+    setLoading(true);
+    subscriptions.auditLog({ page: p, limit: 20 })
+      .then((data) => { setAuditLogs(data.items || []); setTotalPages(data.totalPages || 1); setTotal(data.total || 0); setPage(data.page || 1); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
   useEffect(() => {
     loadStats();
     loadPlans();
@@ -95,19 +105,23 @@ export default function Subscriptions() {
     if (tab === 'plans') loadPlans();
     else if (tab === 'shops') { setPage(1); setSearch(''); loadShops(1, ''); }
     else if (tab === 'payments') { setPage(1); setSearch(''); loadPayments(1, ''); }
+    else if (tab === 'audit') { setPage(1); loadAuditLogs(1); }
     else { loadStats(); loadPlans(); }
   }, [tab]);
 
   // ── Plan CRUD handlers ─────────────────────────────────
   const openPlanModal = (plan) => {
     if (plan === 'new') {
-      setPlanForm({ name: '', slug: '', price_monthly: 0, price_yearly: 0, product_limit: 10, order_limit: 50, features: '', is_active: true });
+      setPlanForm({ name: '', slug: '', price_monthly: 0, price_yearly: 0, product_limit: 10, order_limit: 50, staff_limit: 1, image_limit_per_product: 10, features: '', is_active: true, tagline: '', description: '', sort_order: 0, is_popular: false, trial_days: 0 });
     } else {
       setPlanForm({
         name: plan.name, slug: plan.slug,
         price_monthly: plan.price_monthly, price_yearly: plan.price_yearly,
         product_limit: plan.product_limit, order_limit: plan.order_limit,
+        staff_limit: plan.staff_limit ?? 1, image_limit_per_product: plan.image_limit_per_product ?? 10,
         features: (plan.features || []).join('\n'), is_active: plan.is_active,
+        tagline: plan.tagline || '', description: plan.description || '',
+        sort_order: plan.sort_order ?? 0, is_popular: !!plan.is_popular, trial_days: plan.trial_days ?? 0,
       });
     }
     setPlanModal(plan);
@@ -122,8 +136,13 @@ export default function Subscriptions() {
         ...planForm,
         price_monthly: Number(planForm.price_monthly) || 0,
         price_yearly: Number(planForm.price_yearly) || 0,
-        product_limit: Number(planForm.product_limit) || 10,
-        order_limit: Number(planForm.order_limit) || 50,
+        product_limit: Number(planForm.product_limit) || 0,
+        order_limit: Number(planForm.order_limit) || 0,
+        staff_limit: Number(planForm.staff_limit) || 0,
+        image_limit_per_product: Number(planForm.image_limit_per_product) || 0,
+        sort_order: Number(planForm.sort_order) || 0,
+        is_popular: !!planForm.is_popular,
+        trial_days: Number(planForm.trial_days) || 0,
         features: planForm.features ? planForm.features.split('\n').map(f => f.trim()).filter(Boolean) : [],
       };
       if (planModal === 'new') {
@@ -155,8 +174,8 @@ export default function Subscriptions() {
     e.preventDefault();
     setError(''); setSaving(true);
     try {
-      await subscriptions.updateShop(shopModal.id, shopPlan);
-      toast(`${shopModal.name} updated to ${shopPlan}`, 'success');
+      await subscriptions.updateShop(shopModal.id, shopPlan, shopBillingCycle);
+      toast(`${shopModal.name} updated to ${shopPlan} (${shopBillingCycle})`, 'success');
       setShopModal(null);
       loadShops();
       loadStats();
@@ -192,6 +211,7 @@ export default function Subscriptions() {
     { key: 'plans', label: 'Plans' },
     { key: 'shops', label: 'Shop Subscriptions' },
     { key: 'payments', label: 'Payments' },
+    { key: 'audit', label: 'Audit Log' },
   ];
 
   // ── Plans columns ──────────────────────────────────────
@@ -208,12 +228,15 @@ export default function Subscriptions() {
         <p className="text-xs text-gray-500">${Number(r.price_yearly).toFixed(2)}<span className="text-gray-400">/yr</span></p>
       </div>
     )},
-    { key: 'limits', label: 'Limits', render: (r) => (
-      <div className="text-xs text-gray-600">
-        <p>{r.product_limit} products</p>
-        <p>{r.order_limit} orders/mo</p>
-      </div>
-    )},
+    { key: 'limits', label: 'Limits', render: (r) => {
+      const fmt = v => v === -1 ? '∞' : v;
+      return (
+        <div className="text-xs text-gray-600">
+          <p>{fmt(r.product_limit)} products · {fmt(r.order_limit)} orders/mo</p>
+          <p>{fmt(r.staff_limit)} staff · {fmt(r.image_limit_per_product)} img/product</p>
+        </div>
+      );
+    }},
     { key: 'features', label: 'Features', render: (r) => (
       <div className="text-xs text-gray-600 max-w-[200px]">
         {(r.features || []).slice(0, 3).map((f, i) => (
@@ -499,6 +522,48 @@ export default function Subscriptions() {
         </>
       )}
 
+      {/* ── Audit Log Tab ─────────────────────────────── */}
+      {tab === 'audit' && (
+        <>
+          <p className="text-sm text-gray-500 mb-4">{total} audit log entr{total === 1 ? 'y' : 'ies'}</p>
+          <Table columns={[
+            { key: 'time', label: 'Time', render: (r) => (
+              <span className="text-xs text-gray-500">{new Date(r.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+            )},
+            { key: 'shop', label: 'Shop', render: (r) => (
+              <span className="text-sm font-medium text-gray-900">{r.shop_name || '—'}</span>
+            )},
+            { key: 'action', label: 'Action', render: (r) => {
+              const actionColors = { activate: 'success', upgrade: 'info', cancel: 'danger', expire: 'warning', downgrade: 'warning' };
+              return <Badge variant={actionColors[r.action] || 'default'}>{r.action}</Badge>;
+            }},
+            { key: 'plan_change', label: 'Plan Change', render: (r) => (
+              <div className="flex items-center gap-1 text-xs">
+                {r.old_plan_slug && <Badge variant={planVariant(r.old_plan_slug)}>{r.old_plan_slug}</Badge>}
+                {r.old_plan_slug && r.new_plan_slug && <span className="text-gray-400">→</span>}
+                {r.new_plan_slug && <Badge variant={planVariant(r.new_plan_slug)}>{r.new_plan_slug}</Badge>}
+              </div>
+            )},
+            { key: 'actor', label: 'By', render: (r) => (
+              <span className="text-xs text-gray-500">{r.actor_email || 'System'}</span>
+            )},
+            { key: 'details', label: 'Details', render: (r) => {
+              try {
+                const d = typeof r.details === 'string' ? JSON.parse(r.details) : r.details;
+                return (
+                  <span className="text-xs text-gray-400">
+                    {d?.billing_cycle && `${d.billing_cycle}`}
+                    {d?.reason && ` · ${d.reason}`}
+                    {d?.immediate && ' · immediate'}
+                  </span>
+                );
+              } catch { return null; }
+            }},
+          ]} data={auditLogs} loading={loading} emptyMessage="No audit log entries yet." emptyIcon="📋" />
+          <Pagination page={page} totalPages={totalPages} total={total} onPageChange={(p) => loadAuditLogs(p)} />
+        </>
+      )}
+
       {/* ── Plan Create/Edit Modal ────────────────────── */}
       <Modal open={!!planModal} onClose={() => setPlanModal(null)} title={planModal === 'new' ? 'Create Plan' : 'Edit Plan'} size="md">
         {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">{error}</div>}
@@ -516,23 +581,52 @@ export default function Subscriptions() {
             <FormField label="Price (Yearly)">
               <Input type="number" step="0.01" min="0" value={planForm.price_yearly} onChange={(e) => setPlanForm({ ...planForm, price_yearly: e.target.value })} />
             </FormField>
-            <FormField label="Product Limit">
-              <Input type="number" min="0" value={planForm.product_limit} onChange={(e) => setPlanForm({ ...planForm, product_limit: e.target.value })} />
+            <FormField label="Product Limit" hint="-1 = unlimited">
+              <Input type="number" min="-1" value={planForm.product_limit} onChange={(e) => setPlanForm({ ...planForm, product_limit: e.target.value })} />
             </FormField>
-            <FormField label="Order Limit (monthly)">
-              <Input type="number" min="0" value={planForm.order_limit} onChange={(e) => setPlanForm({ ...planForm, order_limit: e.target.value })} />
+            <FormField label="Order Limit (monthly)" hint="-1 = unlimited">
+              <Input type="number" min="-1" value={planForm.order_limit} onChange={(e) => setPlanForm({ ...planForm, order_limit: e.target.value })} />
+            </FormField>
+            <FormField label="Staff Limit" hint="-1 = unlimited">
+              <Input type="number" min="-1" value={planForm.staff_limit} onChange={(e) => setPlanForm({ ...planForm, staff_limit: e.target.value })} />
+            </FormField>
+            <FormField label="Images per Product" hint="-1 = unlimited">
+              <Input type="number" min="-1" value={planForm.image_limit_per_product} onChange={(e) => setPlanForm({ ...planForm, image_limit_per_product: e.target.value })} />
+            </FormField>
+            <FormField label="Sort Order">
+              <Input type="number" min="0" value={planForm.sort_order} onChange={(e) => setPlanForm({ ...planForm, sort_order: e.target.value })} />
+            </FormField>
+            <FormField label="Trial Days">
+              <Input type="number" min="0" value={planForm.trial_days} onChange={(e) => setPlanForm({ ...planForm, trial_days: e.target.value })} />
             </FormField>
           </div>
-          <FormField label="Features (one per line)" className="mt-4">
-            <Textarea rows={4} value={planForm.features} onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })} placeholder="Email marketing&#10;Priority support&#10;Custom domain" />
+          <FormField label="Tagline" className="mt-4">
+            <Input value={planForm.tagline} onChange={(e) => setPlanForm({ ...planForm, tagline: e.target.value })} placeholder="e.g. For growing businesses" />
           </FormField>
-          <FormField label="Active" className="mt-3">
+          <FoFormField label="Billing Cycle" className="mt-4">
+              <Select value={shopBillingCycle} onChange={(e) => setShopBillingCycle(e.target.value)}>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </Select>
+            </FormField>
+            <rmField label="Description" className="mt-4">
+            <Textarea rows={2} value={planForm.description} onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })} placeholder="Plan description" />
+          </FormField>
+          <FormField label="Features (one per line)" className="mt-4">
+            <Textarea rows={4} value={planForm.features} onChange={(e) => setPlanForm({ ...planForm, features: e.target.value })} placeholder="basic_analytics&#10;priority_support&#10;custom_domain" />
+          </FormField>
+          <div className="flex items-center gap-6 mt-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={planForm.is_popular} onChange={(e) => setPlanForm({ ...planForm, is_popular: e.target.checked })}
+                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500" />
+              <span className="text-sm text-gray-700">Mark as popular</span>
+            </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={planForm.is_active} onChange={(e) => setPlanForm({ ...planForm, is_active: e.target.checked })}
                 className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500" />
               <span className="text-sm text-gray-700">Plan is active and visible</span>
             </label>
-          </FormField>
+          </div>
           <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-gray-100">
             <Button variant="secondary" type="button" onClick={() => setPlanModal(null)}>Cancel</Button>
             <Button type="submit" loading={saving}>{planModal === 'new' ? 'Create Plan' : 'Save Changes'}</Button>

@@ -5,9 +5,9 @@ services:
     container_name: ecomai_pg
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ecomai
-      POSTGRES_USER: ecomai
-      POSTGRES_PASSWORD: ecomai_secret
+      POSTGRES_DB: ${POSTGRES_DB:-ecomai}
+      POSTGRES_USER: ${POSTGRES_USER:-ecomai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecomai_secret}
     ports:
       - '5432:5432'
     volumes:
@@ -17,6 +17,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ── DB Migration (runs once then exits) ────────────────
   migrate:
@@ -26,7 +30,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://ecomai:ecomai_secret@postgres:5432/ecomai
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ecomai}:${POSTGRES_PASSWORD:-ecomai_secret}@postgres:5432/${POSTGRES_DB:-ecomai}
     command: ['bun', 'run', 'db/migrate.js', '--seed']
     restart: 'no'
 
@@ -38,24 +42,34 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
+      # migrate:
+      #   condition: service_completed_successfully
     ports:
       - '3000:3000'
     environment:
-      DATABASE_URL: postgresql://ecomai:ecomai_secret@postgres:5432/ecomai
-      JWT_SECRET: ecomai-dev-secret-k3y-ch4ng3-1n-pr0duct10n-2026
-      JWT_ACCESS_EXPIRES: 15m
-      JWT_REFRESH_EXPIRES: 7d
-      SSLCOMMERZ_STORE_ID: neege6997413bb22cd
-      SSLCOMMERZ_STORE_PASSWD: neege6997413bb22cd@ssl
-      SSLCOMMERZ_IS_LIVE: 'false'
-      APP_URL: http://localhost:5173
-      API_URL: http://localhost:3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ecomai}:${POSTGRES_PASSWORD:-ecomai_secret}@postgres:5432/${POSTGRES_DB:-ecomai}
+      JWT_SECRET: ${JWT_SECRET:-ecomai-dev-secret-k3y-ch4ng3-1n-pr0duct10n-2026}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
+      SSLCOMMERZ_STORE_ID: ${SSLCOMMERZ_STORE_ID:-neege6997413bb22cd}
+      SSLCOMMERZ_STORE_PASSWD: ${SSLCOMMERZ_STORE_PASSWD:-neege6997413bb22cd@ssl}
+      SSLCOMMERZ_IS_LIVE: ${SSLCOMMERZ_IS_LIVE:-false}
+      APP_URL: ${APP_URL:-http://localhost:5173}
+      API_URL: ${API_URL:-http://localhost:3000}
       PORT: '3000'
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
     volumes:
       - uploads:/app/uploads
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ── Frontend (Vite Dev Server) ─────────────────────────
   frontend:
@@ -67,7 +81,11 @@ services:
     ports:
       - '5173:5173'
     environment:
-      VITE_API_URL: http://backend:3000
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
 volumes:
   pgdata:

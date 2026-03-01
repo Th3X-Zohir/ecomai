@@ -1,6 +1,7 @@
 const productRepo = require('../repositories/products');
 const imageRepo = require('../repositories/product-images');
 const { DomainError } = require('../errors/domain-error');
+const engine = require('./subscription-engine');
 
 async function listProducts(shopId, opts) {
   const result = await productRepo.listByShop(shopId, opts);
@@ -39,7 +40,7 @@ async function createProduct({ shopId, name, slug, base_price, description, cate
   if (existing) {
     throw new DomainError('DUPLICATE_SLUG', 'slug must be unique per shop', 409);
   }
-  return productRepo.createProduct({
+  const product = await productRepo.createProduct({
     shop_id: shopId, name, slug,
     base_price: Number(base_price),
     description: description || null,
@@ -48,6 +49,9 @@ async function createProduct({ shopId, name, slug, base_price, description, cate
     image_url: image_url || null,
     stock_quantity: stock_quantity != null ? Number(stock_quantity) : 0,
   });
+  // Update usage counter
+  await engine.incrementUsage(shopId, 'products', 1);
+  return product;
 }
 
 async function updateProduct(shopId, productId, patch) {
@@ -67,6 +71,8 @@ async function updateProduct(shopId, productId, patch) {
 async function deleteProduct(shopId, productId) {
   await getProduct(shopId, productId);
   await productRepo.deleteProduct(productId, shopId);
+  // Decrement usage counter
+  if (shopId) await engine.incrementUsage(shopId, 'products', -1);
   return { success: true };
 }
 

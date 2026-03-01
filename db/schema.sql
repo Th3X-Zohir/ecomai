@@ -1,21 +1,33 @@
 -- ============================================================
 -- Ecomai SaaS E-Commerce Platform — Full PostgreSQL Schema
+-- This is the canonical schema. All tables needed for a fresh
+-- deployment are defined here. Migration files handle incremental
+-- upgrades for existing databases.
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ── Subscription Plans ──────────────────────────────────────
 CREATE TABLE IF NOT EXISTS subscription_plans (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name          TEXT NOT NULL,
-  slug          TEXT NOT NULL UNIQUE,
-  price_monthly NUMERIC(10,2) NOT NULL DEFAULT 0,
-  price_yearly  NUMERIC(10,2) NOT NULL DEFAULT 0,
-  product_limit INT NOT NULL DEFAULT 10,
-  order_limit   INT NOT NULL DEFAULT 50,
-  features      JSONB NOT NULL DEFAULT '[]',
-  is_active     BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                  TEXT NOT NULL,
+  slug                  TEXT NOT NULL UNIQUE,
+  price_monthly         NUMERIC(10,2) NOT NULL DEFAULT 0,
+  price_yearly          NUMERIC(10,2) NOT NULL DEFAULT 0,
+  product_limit         INT NOT NULL DEFAULT 10,
+  order_limit           INT NOT NULL DEFAULT 50,
+  staff_limit           INT NOT NULL DEFAULT 1,
+  image_limit_per_product INT NOT NULL DEFAULT 10,
+  features              JSONB NOT NULL DEFAULT '[]',
+  limits_json           JSONB NOT NULL DEFAULT '{}',
+  description           TEXT,
+  tagline               TEXT,
+  sort_order            INT NOT NULL DEFAULT 0,
+  is_popular            BOOLEAN NOT NULL DEFAULT FALSE,
+  trial_days            INT NOT NULL DEFAULT 0,
+  is_active             BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ── Shops ──────────────────────────────────────────────────
@@ -86,19 +98,20 @@ CREATE TABLE IF NOT EXISTS categories (
 
 -- ── Products ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS products (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  shop_id         UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
-  name            TEXT NOT NULL,
-  slug            TEXT NOT NULL,
-  base_price      NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (base_price >= 0),
-  description     TEXT,
-  category        TEXT,
-  category_id     UUID REFERENCES categories(id) ON DELETE SET NULL,
-  status          TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','archived')),
-  image_url       TEXT,
-  stock_quantity  INT NOT NULL DEFAULT 0,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id          UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  name             TEXT NOT NULL,
+  slug             TEXT NOT NULL,
+  base_price       NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (base_price >= 0),
+  compare_at_price NUMERIC(10,2),
+  description      TEXT,
+  category         TEXT,
+  category_id      UUID REFERENCES categories(id) ON DELETE SET NULL,
+  status           TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','archived')),
+  image_url        TEXT,
+  stock_quantity   INT NOT NULL DEFAULT 0,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(shop_id, slug)
 );
 
@@ -255,10 +268,10 @@ CREATE TABLE IF NOT EXISTS website_settings (
   template        TEXT NOT NULL DEFAULT 'starter',
   theme           JSONB NOT NULL DEFAULT '{}',
   header          JSONB NOT NULL DEFAULT '{}',
-  footer        JSONB NOT NULL DEFAULT '{}',
-  homepage      JSONB NOT NULL DEFAULT '{}',
-  custom_css    TEXT,
-  custom_js     TEXT,
+  footer          JSONB NOT NULL DEFAULT '{}',
+  homepage        JSONB NOT NULL DEFAULT '{}',
+  custom_css      TEXT,
+  custom_js       TEXT,
   seo_defaults    JSONB NOT NULL DEFAULT '{}',
   social_links    JSONB NOT NULL DEFAULT '{}',
   business_info   JSONB NOT NULL DEFAULT '{}',
@@ -299,6 +312,199 @@ CREATE TABLE IF NOT EXISTS subscription_payments (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ── Shop Subscriptions (lifecycle tracking) ─────────────────
+CREATE TABLE IF NOT EXISTS shop_subscriptions (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id       UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  plan_id       UUID NOT NULL REFERENCES subscription_plans(id) ON DELETE RESTRICT,
+  status        TEXT NOT NULL DEFAULT 'active'
+                CHECK (status IN ('active','trialing','past_due','cancelled','expired','suspended')),
+  billing_cycle TEXT NOT NULL DEFAULT 'monthly' CHECK (billing_cycle IN ('monthly','yearly')),
+  current_period_start TIMESTAMPTZ NOT NULL DEFAULT now(),
+  current_period_end   TIMESTAMPTZ,
+  trial_ends_at        TIMESTAMPTZ,
+  cancelled_at         TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shop_subscriptions_active
+  ON shop_subscriptions (shop_id) WHERE status IN ('active', 'trialing');
+
+-- ── Usage Tracking (atomic counters) ────────────────────────
+CREATE TABLE IF NOT EXISTS usage_tracking (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id      UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  metric       TEXT NOT NULL,
+  count        BIGINT NOT NULL DEFAULT 0,
+  period       TEXT NOT NULL DEFAULT 'lifetime',
+  period_start TIMESTAMPTZ NOT NULL DEFAULT '1970-01-01'::timestamptz,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(shop_id, metric, period, period_start)
+);
+
+-- ── Subscription Audit Log ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS subscription_audit_log (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id       UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  actor_id      UUID REFERENCES users(id) ON DELETE SET NULL,
+  action        TEXT NOT NULL,
+  old_plan_slug TEXT,
+  new_plan_slug TEXT,
+  details       JSONB NOT NULL DEFAULT '{}',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Coupons / Discount Codes ────────────────────────────────
+CREATE TABLE IF NOT EXISTS coupons (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id         UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  code            TEXT NOT NULL,
+  type            TEXT NOT NULL DEFAULT 'percentage' CHECK (type IN ('percentage', 'fixed')),
+  value           NUMERIC(10,2) NOT NULL DEFAULT 0,
+  min_order_amount NUMERIC(10,2) DEFAULT 0,
+  max_discount    NUMERIC(10,2),
+  usage_limit     INT,
+  usage_count     INT NOT NULL DEFAULT 0,
+  starts_at       TIMESTAMPTZ,
+  expires_at      TIMESTAMPTZ,
+  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(shop_id, code)
+);
+
+-- ── Invoices ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS invoices (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id           UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  order_id          UUID REFERENCES orders(id) ON DELETE SET NULL,
+  customer_id       UUID REFERENCES customers(id) ON DELETE SET NULL,
+  invoice_number    TEXT NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','paid','partially_paid','overdue','cancelled','refunded')),
+  issue_date        DATE NOT NULL DEFAULT CURRENT_DATE,
+  due_date          DATE,
+  subtotal          NUMERIC(10,2) NOT NULL DEFAULT 0,
+  tax_amount        NUMERIC(10,2) NOT NULL DEFAULT 0,
+  discount_amount   NUMERIC(10,2) NOT NULL DEFAULT 0,
+  shipping_amount   NUMERIC(10,2) NOT NULL DEFAULT 0,
+  total_amount      NUMERIC(10,2) NOT NULL DEFAULT 0,
+  amount_paid       NUMERIC(10,2) NOT NULL DEFAULT 0,
+  currency          TEXT NOT NULL DEFAULT 'BDT',
+  customer_email    TEXT,
+  customer_name     TEXT,
+  customer_phone    TEXT,
+  billing_address   JSONB,
+  shipping_address  JSONB,
+  items             JSONB NOT NULL DEFAULT '[]',
+  notes             TEXT,
+  footer_text       TEXT,
+  payment_terms     TEXT,
+  created_by        UUID REFERENCES users(id) ON DELETE SET NULL,
+  sent_at           TIMESTAMPTZ,
+  paid_at           TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(shop_id, invoice_number)
+);
+
+CREATE TABLE IF NOT EXISTS invoice_items (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  invoice_id      UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+  shop_id         UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  product_id      UUID REFERENCES products(id) ON DELETE SET NULL,
+  description     TEXT NOT NULL,
+  quantity        INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  unit_price      NUMERIC(10,2) NOT NULL DEFAULT 0,
+  tax_rate        NUMERIC(5,2) NOT NULL DEFAULT 0,
+  line_total      NUMERIC(10,2) NOT NULL DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Shop Earnings ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS shop_earnings (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id         UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  payment_id      UUID REFERENCES payments(id) ON DELETE SET NULL,
+  order_id        UUID REFERENCES orders(id) ON DELETE SET NULL,
+  type            TEXT NOT NULL CHECK (type IN ('sale', 'refund', 'adjustment', 'withdrawal', 'commission')),
+  gross_amount    NUMERIC(12,2) NOT NULL DEFAULT 0,
+  commission_rate NUMERIC(5,4) NOT NULL DEFAULT 0,
+  commission_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  net_amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
+  currency        TEXT NOT NULL DEFAULT 'BDT',
+  description     TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Withdrawal Requests ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS withdrawal_requests (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id         UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  requested_by    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount          NUMERIC(12,2) NOT NULL,
+  currency        TEXT NOT NULL DEFAULT 'BDT',
+  status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','processing','completed','rejected','cancelled')),
+  payment_method  TEXT NOT NULL DEFAULT 'bank_transfer' CHECK (payment_method IN ('bank_transfer','bkash','nagad','rocket')),
+  account_details JSONB,
+  admin_notes     TEXT,
+  reviewed_by     UUID REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at     TIMESTAMPTZ,
+  processed_at    TIMESTAMPTZ,
+  completed_at    TIMESTAMPTZ,
+  reference_id    TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Commission Settings ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS commission_settings (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id         UUID REFERENCES shops(id) ON DELETE CASCADE,
+  commission_rate NUMERIC(5,4) NOT NULL DEFAULT 0.05,
+  min_withdrawal  NUMERIC(12,2) NOT NULL DEFAULT 500,
+  payout_cycle    TEXT NOT NULL DEFAULT 'on_request' CHECK (payout_cycle IN ('on_request','weekly','biweekly','monthly')),
+  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(shop_id)
+);
+
+-- ── Newsletter Subscribers ─────────────────────────────────
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id     UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  email       TEXT NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','unsubscribed')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(shop_id, email)
+);
+
+-- ── Product Reviews ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS product_reviews (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id       UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  product_id    UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  customer_id   UUID REFERENCES customers(id) ON DELETE SET NULL,
+  customer_name TEXT,
+  rating        INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  title         TEXT,
+  body          TEXT,
+  is_approved   BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Wishlist Items ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS wishlist_items (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id     UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  product_id  UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(customer_id, product_id)
+);
+
 -- ── Audit Log ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS audit_log (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -308,23 +514,32 @@ CREATE TABLE IF NOT EXISTS audit_log (
   entity_type TEXT,
   entity_id   UUID,
   details     JSONB,
+  ip_address  TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ── Indexes ────────────────────────────────────────────────
+-- ════════════════════════════════════════════════════════════
+-- INDEXES
+-- ════════════════════════════════════════════════════════════
+
 CREATE INDEX IF NOT EXISTS idx_users_shop          ON users(shop_id);
 CREATE INDEX IF NOT EXISTS idx_users_email         ON users(email);
 CREATE INDEX IF NOT EXISTS idx_customers_shop      ON customers(shop_id);
 CREATE INDEX IF NOT EXISTS idx_customers_email     ON customers(shop_id, email);
+CREATE INDEX IF NOT EXISTS idx_customers_created   ON customers(shop_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_products_shop       ON products(shop_id);
 CREATE INDEX IF NOT EXISTS idx_products_status     ON products(shop_id, status);
+CREATE INDEX IF NOT EXISTS idx_products_category   ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_created    ON products(shop_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_variants_product    ON product_variants(product_id);
 CREATE INDEX IF NOT EXISTS idx_orders_shop         ON orders(shop_id);
 CREATE INDEX IF NOT EXISTS idx_orders_customer     ON orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status       ON orders(shop_id, status);
+CREATE INDEX IF NOT EXISTS idx_orders_created      ON orders(shop_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_order_items_order   ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_payments_order      ON payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_payments_tran_id    ON payments(gateway_tran_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status     ON payments(shop_id, status);
 CREATE INDEX IF NOT EXISTS idx_refunds_payment     ON refunds(payment_id);
 CREATE INDEX IF NOT EXISTS idx_delivery_shop       ON delivery_requests(shop_id);
 CREATE INDEX IF NOT EXISTS idx_delivery_driver     ON delivery_requests(assigned_driver_user_id);
@@ -334,13 +549,34 @@ CREATE INDEX IF NOT EXISTS idx_inventory_variant   ON inventory_movements(varian
 CREATE INDEX IF NOT EXISTS idx_categories_shop     ON categories(shop_id);
 CREATE INDEX IF NOT EXISTS idx_categories_parent   ON categories(parent_id);
 CREATE INDEX IF NOT EXISTS idx_cat_requests_shop   ON category_requests(shop_id);
-CREATE INDEX IF NOT EXISTS idx_products_category   ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_product_images_prod ON product_images(product_id);
 CREATE INDEX IF NOT EXISTS idx_product_images_shop ON product_images(shop_id);
 CREATE INDEX IF NOT EXISTS idx_website_shop        ON website_settings(shop_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_user        ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_hash        ON refresh_tokens(token);
-CREATE INDEX IF NOT EXISTS idx_audit_shop          ON audit_log(shop_id);
-CREATE INDEX IF NOT EXISTS idx_audit_entity        ON audit_log(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_sub_payments_shop   ON subscription_payments(shop_id);
 CREATE INDEX IF NOT EXISTS idx_sub_payments_tran   ON subscription_payments(gateway_tran_id);
+CREATE INDEX IF NOT EXISTS idx_usage_tracking_shop ON usage_tracking(shop_id, metric);
+CREATE INDEX IF NOT EXISTS idx_usage_tracking_monthly ON usage_tracking(shop_id, metric, period_start) WHERE period = 'monthly';
+CREATE INDEX IF NOT EXISTS idx_subscription_audit_shop ON subscription_audit_log(shop_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_coupons_shop        ON coupons(shop_id);
+CREATE INDEX IF NOT EXISTS idx_coupons_code        ON coupons(shop_id, code);
+CREATE INDEX IF NOT EXISTS idx_invoices_shop       ON invoices(shop_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_order      ON invoices(order_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_customer   ON invoices(customer_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status     ON invoices(shop_id, status);
+CREATE INDEX IF NOT EXISTS idx_invoices_number     ON invoices(shop_id, invoice_number);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_inv   ON invoice_items(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_shop_earnings_shop     ON shop_earnings(shop_id);
+CREATE INDEX IF NOT EXISTS idx_shop_earnings_payment  ON shop_earnings(payment_id);
+CREATE INDEX IF NOT EXISTS idx_shop_earnings_type     ON shop_earnings(type);
+CREATE INDEX IF NOT EXISTS idx_shop_earnings_created  ON shop_earnings(created_at);
+CREATE INDEX IF NOT EXISTS idx_withdrawal_shop        ON withdrawal_requests(shop_id);
+CREATE INDEX IF NOT EXISTS idx_withdrawal_status      ON withdrawal_requests(status);
+CREATE INDEX IF NOT EXISTS idx_audit_shop          ON audit_log(shop_id);
+CREATE INDEX IF NOT EXISTS idx_audit_entity        ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_newsletter_shop     ON newsletter_subscribers(shop_id, email);
+CREATE INDEX IF NOT EXISTS idx_reviews_product     ON product_reviews(product_id, is_approved);
+CREATE INDEX IF NOT EXISTS idx_reviews_shop        ON product_reviews(shop_id);
+CREATE INDEX IF NOT EXISTS idx_wishlist_customer   ON wishlist_items(customer_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_wishlist_product    ON wishlist_items(product_id);

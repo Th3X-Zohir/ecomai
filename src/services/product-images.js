@@ -1,5 +1,6 @@
 const imageRepo = require('../repositories/product-images');
 const productRepo = require('../repositories/products');
+const engine = require('./subscription-engine');
 const { DomainError } = require('../errors/domain-error');
 
 async function listImages(productId, shopId) {
@@ -13,10 +14,12 @@ async function addImage(productId, shopId, imageData) {
   const product = await productRepo.findByIdAndShop(productId, shopId);
   if (!product) throw new DomainError('NOT_FOUND', 'Product not found', 404);
 
-  // Check limit (max 10 images per product)
+  // Check dynamic image limit from plan
   const existing = await imageRepo.listByProduct(productId, shopId);
-  if (existing.length >= 10) {
-    throw new DomainError('LIMIT_EXCEEDED', 'Maximum 10 images per product', 400);
+  const { plan } = await engine.resolveShopPlan(shopId);
+  const imageLimit = plan.image_limit_per_product === -1 ? Infinity : (plan.image_limit_per_product || 10);
+  if (existing.length >= imageLimit) {
+    throw new DomainError('LIMIT_EXCEEDED', `Maximum ${imageLimit} images per product on your ${plan.name} plan`, 400);
   }
 
   // First image is automatically primary

@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const userRepo = require('../repositories/users');
 const shopRepo = require('../repositories/shops');
+const engine = require('./subscription-engine');
 const { DomainError } = require('../errors/domain-error');
 
 const ALLOWED_ROLES = ['super_admin', 'shop_admin', 'shop_user', 'delivery_agent'];
@@ -59,6 +60,12 @@ async function createUser({ actorRole, email, password, role, shopId, full_name,
     full_name: full_name || null,
     phone: phone || null,
   });
+
+  // Track staff usage for plan enforcement
+  if (shopId && ['shop_admin', 'shop_user'].includes(role)) {
+    try { await engine.incrementUsage(shopId, 'staff', 1); } catch (_e) { /* non-blocking */ }
+  }
+
   return { id: created.id, email: created.email, role: created.role, shop_id: created.shop_id, full_name: created.full_name };
 }
 
@@ -96,6 +103,12 @@ async function deleteUser(userId) {
   if (!user) throw new DomainError('USER_NOT_FOUND', 'User not found', 404);
   if (user.role === 'super_admin') throw new DomainError('FORBIDDEN', 'Cannot delete super admin', 403);
   await userRepo.deleteUser(userId);
+
+  // Decrement staff usage counter
+  if (user.shop_id && ['shop_admin', 'shop_user'].includes(user.role)) {
+    try { await engine.incrementUsage(user.shop_id, 'staff', -1); } catch (_e) { /* non-blocking */ }
+  }
+
   return { deleted: true };
 }
 

@@ -15,10 +15,10 @@ async function findById(customerId) {
 
 async function findByIdAndShop(customerId, shopId) {
   if (shopId) {
-    const res = await db.query('SELECT * FROM customers WHERE id = $1 AND shop_id = $2', [customerId, shopId]);
+    const res = await db.query('SELECT * FROM customers WHERE id = $1 AND shop_id = $2 AND deleted_at IS NULL', [customerId, shopId]);
     return res.rows[0] || null;
   }
-  const res = await db.query('SELECT * FROM customers WHERE id = $1', [customerId]);
+  const res = await db.query('SELECT * FROM customers WHERE id = $1 AND deleted_at IS NULL', [customerId]);
   return res.rows[0] || null;
 }
 
@@ -63,6 +63,7 @@ async function listByShop(shopId, { page = 1, limit = 50, search } = {}) {
   const conditions = [];
   const params = [];
   let idx = 1;
+  conditions.push(`deleted_at IS NULL`);
   if (shopId) { conditions.push(`shop_id = $${idx}`); params.push(shopId); idx++; }
   if (search) { conditions.push(`(email ILIKE $${idx} OR full_name ILIKE $${idx})`); params.push(`%${search}%`); idx++; }
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
@@ -77,16 +78,16 @@ async function listByShop(shopId, { page = 1, limit = 50, search } = {}) {
 }
 
 async function countByShop(shopId) {
-  const q = shopId ? 'SELECT COUNT(*) FROM customers WHERE shop_id = $1' : 'SELECT COUNT(*) FROM customers';
+  const q = shopId ? 'SELECT COUNT(*) FROM customers WHERE shop_id = $1 AND deleted_at IS NULL' : 'SELECT COUNT(*) FROM customers WHERE deleted_at IS NULL';
   const res = await db.query(q, shopId ? [shopId] : []);
   return parseInt(res.rows[0].count, 10);
 }
 
 async function deleteCustomer(customerId, shopId) {
   if (shopId) {
-    await db.query('DELETE FROM customers WHERE id = $1 AND shop_id = $2', [customerId, shopId]);
+    await db.query('UPDATE customers SET deleted_at = NOW() WHERE id = $1 AND shop_id = $2 AND deleted_at IS NULL', [customerId, shopId]);
   } else {
-    await db.query('DELETE FROM customers WHERE id = $1', [customerId]);
+    await db.query('UPDATE customers SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL', [customerId]);
   }
 }
 

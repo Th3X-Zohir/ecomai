@@ -1,5 +1,6 @@
 const express = require('express');
 const { asyncHandler } = require('../middleware/async-handler');
+const { validateBody } = require('../middleware/validate');
 const shopRepo = require('../repositories/shops');
 const productRepo = require('../repositories/products');
 const variantRepo = require('../repositories/product-variants');
@@ -118,7 +119,11 @@ router.post('/shops/:slug/category-requests', asyncHandler(async (req, res) => {
 
 // --- Customer auth ---
 
-router.post('/shops/:slug/auth/register', asyncHandler(async (req, res) => {
+router.post('/shops/:slug/auth/register', validateBody({
+  email: { required: true, type: 'email' },
+  password: { required: true, type: 'string', minLength: 6 },
+  full_name: { type: 'string', minLength: 1 },
+}), asyncHandler(async (req, res) => {
   const shop = await shopRepo.findBySlug(req.params.slug);
   if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
   const result = await customerService.registerCustomer({
@@ -128,7 +133,10 @@ router.post('/shops/:slug/auth/register', asyncHandler(async (req, res) => {
   res.status(201).json(result);
 }));
 
-router.post('/shops/:slug/auth/login', asyncHandler(async (req, res) => {
+router.post('/shops/:slug/auth/login', validateBody({
+  email: { required: true, type: 'email' },
+  password: { required: true, type: 'string', minLength: 1 },
+}), asyncHandler(async (req, res) => {
   const shop = await shopRepo.findBySlug(req.params.slug);
   if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
   const result = await customerService.loginCustomer({
@@ -229,11 +237,17 @@ router.post('/shops/:slug/validate-coupon', asyncHandler(async (req, res) => {
 
 // --- Storefront checkout ---
 
-router.post('/shops/:slug/checkout', asyncHandler(async (req, res) => {
+router.post('/shops/:slug/checkout', validateBody({
+  customer_email: { required: true, type: 'email' },
+  items: { required: true, type: 'array' },
+  shipping_address: { required: true },
+  customer_name: { required: true, type: 'string', minLength: 1 },
+  payment_method: { type: 'string', oneOf: ['online', 'cod'] },
+}), asyncHandler(async (req, res) => {
   const shop = await shopRepo.findBySlug(req.params.slug);
   if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
 
-  const { customer_email, customer_id, items, shipping_address, customer_name, customer_phone, customer_password, order_notes, coupon_code } = req.body;
+  const { customer_email, customer_id, items, shipping_address, customer_name, customer_phone, customer_password, order_notes, coupon_code, payment_method } = req.body;
 
   // Auto-create or find customer by email
   const { customer, token: customerToken } = await customerService.findOrCreateByEmail({
@@ -262,14 +276,27 @@ router.post('/shops/:slug/checkout', asyncHandler(async (req, res) => {
     notes: order_notes || undefined, coupon_code: coupon_code || undefined,
   });
 
-  // Initiate SSLCommerz payment
-  const paymentResult = await paymentService.initiatePayment({
-    shopId: shop.id, orderId: order.id,
-    customerName: customer_name, customerEmail: customer_email,
-    customerPhone: customer_phone, shippingAddress: shipping_address,
-  });
+  // Initiate payment based on method
+  if (payment_method === 'cod') {
+    // Cash on Delivery — mark order as confirmed, payment pending
+    const db = require('../db');
+    await db.query(
+      `UPDATE orders SET status = 'confirmed', payment_status = 'unpaid', notes = COALESCE(notes, '') || ' [COD]' WHERE id = $1`,
+      [order.id]
+    );
+    order.status = 'confirmed';
+    order.payment_status = 'unpaid';
+    res.status(201).json({ order, payment: { method: 'cod', status: 'pending' }, customerToken, customer });
+  } else {
+    // SSLCommerz online payment
+    const paymentResult = await paymentService.initiatePayment({
+      shopId: shop.id, orderId: order.id,
+      customerName: customer_name, customerEmail: customer_email,
+      customerPhone: customer_phone, shippingAddress: shipping_address,
+    });
 
-  res.status(201).json({ order, payment: paymentResult, customerToken, customer });
+    res.status(201).json({ order, payment: paymentResult, customerToken, customer });
+  }
 }));
 
 // --- Newsletter subscription ---
@@ -316,7 +343,7 @@ router.post('/shops/:slug/products/:productId/reviews', asyncHandler(async (req,
   if (authHeader?.startsWith('Bearer ')) {
     try {
       const payload = jwt.verify(authHeader.slice(7), jwtSecret);
-      if (payload.customerId) { customerId = payload.customerId; customerName = customerName || payload.name; }
+      if (payload.sub && payload.type === 'customer') { customerId = payload.sub; customerName = customerName || payload.name; }
     } catch (_) { /* anon review */ }
   }
   const { rating, title, body } = req.body;
@@ -337,14 +364,14 @@ router.get('/shops/:slug/wishlist', asyncHandler(async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) throw new DomainError('AUTH_REQUIRED', 'Login required', 401);
   const payload = jwt.verify(authHeader.slice(7), jwtSecret);
-  if (!payload.customerId) throw new DomainError('AUTH_REQUIRED', 'Login required', 401);
+  if (!payload.sub || payload.type !== 'customer') throw new DomainError('AUTH_REQUIRED', 'Login required', 401);
   const { rows } = await db.query(
-    `SELECT w.product_id, p.name, p.slug, p.base_price, p.compare_at_price, p.status,
+    `SELECT w.product_id, p.name, p.slug, p.base_price, p.status,
             (SELECT url FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary = true LIMIT 1) AS image_url
      FROM wishlist_items w JOIN products p ON p.id = w.product_id
      WHERE w.customer_id = $1 AND w.shop_id = $2
      ORDER BY w.created_at DESC`,
-    [payload.customerId, shop.id]
+    [payload.sub, shop.id]
   );
   res.json(rows);
 }));
@@ -355,13 +382,13 @@ router.post('/shops/:slug/wishlist', asyncHandler(async (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) throw new DomainError('AUTH_REQUIRED', 'Login required', 401);
   const payload = jwt.verify(authHeader.slice(7), jwtSecret);
-  if (!payload.customerId) throw new DomainError('AUTH_REQUIRED', 'Login required', 401);
+  if (!payload.sub || payload.type !== 'customer') throw new DomainError('AUTH_REQUIRED', 'Login required', 401);
   const { product_id } = req.body;
   if (!product_id) throw new DomainError('MISSING_PRODUCT', 'Product ID required', 400);
   await db.query(
     `INSERT INTO wishlist_items (shop_id, customer_id, product_id) VALUES ($1, $2, $3)
      ON CONFLICT (customer_id, product_id) DO NOTHING`,
-    [shop.id, payload.customerId, product_id]
+    [shop.id, payload.sub, product_id]
   );
   res.json({ message: 'Added to wishlist' });
 }));
@@ -372,16 +399,18 @@ router.delete('/shops/:slug/wishlist/:productId', asyncHandler(async (req, res) 
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) throw new DomainError('AUTH_REQUIRED', 'Login required', 401);
   const payload = jwt.verify(authHeader.slice(7), jwtSecret);
-  if (!payload.customerId) throw new DomainError('AUTH_REQUIRED', 'Login required', 401);
+  if (!payload.sub || payload.type !== 'customer') throw new DomainError('AUTH_REQUIRED', 'Login required', 401);
   await db.query(
     `DELETE FROM wishlist_items WHERE customer_id = $1 AND product_id = $2 AND shop_id = $3`,
-    [payload.customerId, req.params.productId, shop.id]
+    [payload.sub, req.params.productId, shop.id]
   );
   res.json({ message: 'Removed from wishlist' });
 }));
 
 // --- Forgot Password (customer) ---
-router.post('/shops/:slug/auth/forgot-password', asyncHandler(async (req, res) => {
+router.post('/shops/:slug/auth/forgot-password', validateBody({
+  email: { required: true, type: 'email' },
+}), asyncHandler(async (req, res) => {
   const shop = await shopRepo.findBySlug(req.params.slug);
   if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
   const { email } = req.body;
@@ -395,11 +424,16 @@ router.post('/shops/:slug/auth/forgot-password', asyncHandler(async (req, res) =
   if (rows.length === 0) return res.json({ message: 'If an account exists, a reset link will be sent.' });
   // Generate short-lived token (15min)
   const resetToken = jwt.sign({ customerId: rows[0].id, purpose: 'password_reset' }, jwtSecret, { expiresIn: '15m' });
-  // In production, send email. For now store and return token in dev mode.
-  res.json({ message: 'If an account exists, a reset link will be sent.', resetToken });
+  // In production, send email. In dev, include token for testing.
+  const response = { message: 'If an account exists, a reset link will be sent.' };
+  if (process.env.NODE_ENV !== 'production') response.resetToken = resetToken;
+  res.json(response);
 }));
 
-router.post('/shops/:slug/auth/reset-password', asyncHandler(async (req, res) => {
+router.post('/shops/:slug/auth/reset-password', validateBody({
+  token: { required: true, type: 'string' },
+  new_password: { required: true, type: 'string', minLength: 6 },
+}), asyncHandler(async (req, res) => {
   const shop = await shopRepo.findBySlug(req.params.slug);
   if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
   const { token, new_password } = req.body;

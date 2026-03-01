@@ -3,13 +3,94 @@ const { authRequired, requireRoles, resolveTenant } = require('../middleware/aut
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const { validateBody } = require('../middleware/validate');
+const { checkPlanLimit } = require('../middleware/plan-enforcement');
 const orderService = require('../services/orders');
 const deliveryService = require('../services/delivery-requests');
 const paymentService = require('../services/payments');
+const db = require('../db');
 
 const router = express.Router();
 
 router.use(authRequired, requireRoles(['super_admin', 'shop_admin', 'shop_user']), resolveTenant, requireTenantContext);
+
+// ── Static paths MUST come before /:orderId param routes ──
+
+// ── CSV Export ──────────────────────────────────────────
+router.get('/export/csv', asyncHandler(async (req, res) => {
+  const shopId = req.auth.role === 'super_admin' && req.query.all === 'true' ? null : req.tenantShopId;
+  const statusFilter = req.query.status;
+  let query = `SELECT o.id, o.customer_email, o.status, o.payment_status, o.subtotal, o.discount_amount,
+    o.total_amount, o.shipping_address, o.notes, o.created_at,
+    (SELECT string_agg(oi.item_name || ' x' || oi.quantity, '; ') FROM order_items oi WHERE oi.order_id = o.id) AS items_summary
+    FROM orders o`;
+  const params = [];
+  const where = [];
+  if (shopId) { params.push(shopId); where.push(`o.shop_id = $${params.length}`); }
+  if (statusFilter) { params.push(statusFilter); where.push(`o.status = $${params.length}`); }
+  if (where.length) query += ' WHERE ' + where.join(' AND ');
+  query += ' ORDER BY o.created_at DESC LIMIT 5000';
+
+  const { rows } = await db.query(query, params);
+
+  const header = 'Order ID,Email,Status,Payment,Subtotal,Discount,Total,Items,Notes,Created\n';
+  const esc = (v) => `"${String(v || '').replace(/"/g, '""')}"`;
+  const csv = header + rows.map(r =>
+    [r.id, r.customer_email, r.status, r.payment_status, r.subtotal, r.discount_amount,
+     r.total_amount, r.items_summary, r.notes, r.created_at?.toISOString?.() || r.created_at].map(esc).join(',')
+  ).join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="orders-${new Date().toISOString().slice(0,10)}.csv"`);
+  res.send(csv);
+}));
+
+// ── Bulk status update ──────────────────────────────────
+router.post('/bulk/status', validateBody({
+  order_ids: { required: true, type: 'array' },
+  status: { required: true, type: 'string', oneOf: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'] },
+}), asyncHandler(async (req, res) => {
+  const { order_ids, status } = req.body;
+  if (order_ids.length > 50) {
+    return res.status(400).json({ code: 'VALIDATION_ERROR', message: 'Maximum 50 orders per batch' });
+  }
+  const results = { success: [], failed: [] };
+  for (const orderId of order_ids) {
+    try {
+      await orderService.updateOrderStatus(req.tenantShopId, orderId, status);
+      results.success.push(orderId);
+    } catch (err) {
+      results.failed.push({ id: orderId, error: err.message });
+    }
+  }
+  res.json(results);
+}));
+
+// ── Order stats ─────────────────────────────────────────
+router.get('/stats/summary', asyncHandler(async (req, res) => {
+  const shopId = req.auth.role === 'super_admin' ? null : req.tenantShopId;
+  const shopFilter = shopId ? 'WHERE shop_id = $1' : '';
+  const params = shopId ? [shopId] : [];
+
+  const { rows } = await db.query(`
+    SELECT
+      COUNT(*)::int AS total_orders,
+      COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+      COUNT(*) FILTER (WHERE status = 'confirmed')::int AS confirmed,
+      COUNT(*) FILTER (WHERE status = 'processing')::int AS processing,
+      COUNT(*) FILTER (WHERE status = 'shipped')::int AS shipped,
+      COUNT(*) FILTER (WHERE status = 'delivered')::int AS delivered,
+      COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
+      COALESCE(SUM(total_amount) FILTER (WHERE status NOT IN ('cancelled', 'refunded')), 0)::float AS total_revenue,
+      COALESCE(AVG(total_amount) FILTER (WHERE status NOT IN ('cancelled', 'refunded')), 0)::float AS avg_order_value,
+      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int AS orders_last_24h,
+      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int AS orders_last_7d
+    FROM orders ${shopFilter}
+  `, params);
+
+  res.json(rows[0]);
+}));
+
+// ── Standard CRUD routes (param routes AFTER static routes) ──
 
 router.get('/', asyncHandler(async (req, res) => {
   const isSuperAdmin = req.auth.role === 'super_admin';
@@ -33,7 +114,7 @@ router.get('/:orderId', asyncHandler(async (req, res) => {
   res.json(order);
 }));
 
-router.post('/', validateBody({
+router.post('/', checkPlanLimit('orders_monthly'), validateBody({
   customer_email: { required: true, type: 'email' },
   items: { required: true, type: 'array' },
 }), asyncHandler(async (req, res) => {
@@ -54,14 +135,12 @@ router.patch('/:orderId/status', validateBody({
   res.json(order);
 }));
 
-// General order update (notes, shipping_address, etc.)
 router.patch('/:orderId', asyncHandler(async (req, res) => {
   const shopId = req.auth.role === 'super_admin' ? null : req.tenantShopId;
   const order = await orderService.updateOrder(shopId, req.params.orderId, req.body);
   res.json(order);
 }));
 
-// Delete order (only pending/cancelled)
 router.delete('/:orderId', asyncHandler(async (req, res) => {
   const shopId = req.auth.role === 'super_admin' ? null : req.tenantShopId;
   await orderService.deleteOrder(shopId, req.params.orderId);

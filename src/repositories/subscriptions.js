@@ -20,17 +20,18 @@ async function findPlanBySlug(slug) {
 
 async function createPlan(data) {
   const res = await db.query(
-    `INSERT INTO subscription_plans (name, slug, price_monthly, price_yearly, product_limit, order_limit, features, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    `INSERT INTO subscription_plans (name, slug, price_monthly, price_yearly, product_limit, order_limit, staff_limit, image_limit_per_product, features, is_active, description, tagline, sort_order, is_popular, trial_days)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
     [data.name, data.slug, data.price_monthly || 0, data.price_yearly || 0,
-     data.product_limit || 10, data.order_limit || 50,
-     JSON.stringify(data.features || []), data.is_active !== false]
+     data.product_limit ?? 10, data.order_limit ?? 50, data.staff_limit ?? 1, data.image_limit_per_product ?? 10,
+     JSON.stringify(data.features || []), data.is_active !== false,
+     data.description || null, data.tagline || null, data.sort_order ?? 0, data.is_popular || false, data.trial_days ?? 0]
   );
   return res.rows[0];
 }
 
 async function updatePlan(id, patch) {
-  const allowed = ['name', 'slug', 'price_monthly', 'price_yearly', 'product_limit', 'order_limit', 'features', 'is_active'];
+  const allowed = ['name', 'slug', 'price_monthly', 'price_yearly', 'product_limit', 'order_limit', 'staff_limit', 'image_limit_per_product', 'features', 'is_active', 'description', 'tagline', 'sort_order', 'is_popular', 'trial_days'];
   const sets = [];
   const params = [];
   let idx = 1;

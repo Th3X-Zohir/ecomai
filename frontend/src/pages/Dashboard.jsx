@@ -529,7 +529,7 @@ function ShopDashboard({ user, isSuperAdmin, currentShop, selectedShop }) {
                 {shop && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Plan</span>
-                    <Badge variant="purple" size="sm">{shop.subscription_plan || 'starter'}</Badge>
+                    <Badge variant="purple" size="sm">{shop.subscription_plan || 'free'}</Badge>
                   </div>
                 )}
               </div>

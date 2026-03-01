@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { shops } from '../api';
+import { shops, subscriptions } from '../api';
 import { useAdmin } from '../contexts/AdminContext';
 import { PageHeader, Table, Button, Modal, FormField, Input, Select, Textarea, Badge, Pagination, SearchInput, Card, PageSkeleton, useToast } from '../components/UI';
 
 const STATUS_OPTIONS = ['active', 'suspended', 'closed'];
-const PLAN_OPTIONS = ['starter', 'growth', 'pro', 'enterprise'];
 
 function StatusBadge({ status }) {
   const map = { active: 'success', suspended: 'warning', closed: 'danger' };
@@ -13,11 +12,11 @@ function StatusBadge({ status }) {
 }
 
 function PlanBadge({ plan }) {
-  const map = { starter: 'default', growth: 'info', pro: 'purple', enterprise: 'success' };
-  return <Badge variant={map[plan] || 'default'}>{plan || 'starter'}</Badge>;
+  const map = { free: 'default', starter: 'info', growth: 'success', enterprise: 'purple' };
+  return <Badge variant={map[plan] || 'default'}>{plan || 'free'}</Badge>;
 }
 
-const emptyForm = { name: '', slug: '', industry: '', description: '', status: 'active', subscription_plan: 'starter' };
+const emptyForm = { name: '', slug: '', industry: '', description: '', status: 'active', subscription_plan: 'free' };
 
 export default function AllShops() {
   const navigate = useNavigate();
@@ -30,6 +29,7 @@ export default function AllShops() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [planOptions, setPlanOptions] = useState([]);
 
   // Modals
   const [showCreate, setShowCreate] = useState(false);
@@ -49,7 +49,13 @@ export default function AllShops() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(1); }, []);
+  useEffect(() => {
+    load(1);
+    // Load plan options dynamically
+    subscriptions.listPlans({ all: 'true' }).then(data => {
+      setPlanOptions((data || []).map(p => p.slug));
+    }).catch(() => setPlanOptions(['free', 'starter', 'growth', 'enterprise']));
+  }, []);
 
   const handleSearch = (val) => { setSearch(val); load(1, val, statusFilter); };
   const handleStatusFilter = (val) => { setStatusFilter(val); load(1, search, val); };
@@ -92,7 +98,7 @@ export default function AllShops() {
     setForm({
       name: shop.name || '', slug: shop.slug || '', industry: shop.industry || '',
       description: shop.description || '', status: shop.status || 'active',
-      subscription_plan: shop.subscription_plan || 'starter',
+      subscription_plan: shop.subscription_plan || 'free',
     });
     setError('');
     setShowEdit(shop);
@@ -220,7 +226,7 @@ export default function AllShops() {
               </FormField>
               <FormField label="Plan">
                 <Select value={form.subscription_plan} onChange={e => setForm({ ...form, subscription_plan: e.target.value })}>
-                  {PLAN_OPTIONS.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                  {planOptions.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
                 </Select>
               </FormField>
             </div>
@@ -257,7 +263,7 @@ export default function AllShops() {
               </FormField>
               <FormField label="Plan">
                 <Select value={form.subscription_plan} onChange={e => setForm({ ...form, subscription_plan: e.target.value })}>
-                  {PLAN_OPTIONS.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                  {planOptions.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
                 </Select>
               </FormField>
             </div>

@@ -32,6 +32,39 @@ async function run() {
     }
     console.log('Schema applied successfully.\n');
 
+    // Run migration files from db/migrations/ directory (sorted by filename)
+    const migrationsDir = path.join(__dirname, 'migrations');
+    if (fs.existsSync(migrationsDir)) {
+      const migrationFiles = fs.readdirSync(migrationsDir)
+        .filter(f => f.endsWith('.sql'))
+        .sort();
+      for (const file of migrationFiles) {
+        console.log(`Applying migration: ${file}...`);
+        const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+        const stmts = sql.split(/;\s*\n/).filter(s => s.trim().length > 0);
+        for (const stmt of stmts) {
+          await pool.query(stmt);
+        }
+        console.log(`  ✓ ${file}`);
+      }
+      console.log('All migrations applied.\n');
+    }
+
+    // Run standalone migrate-*.sql files (subscription, usage tracking, settings, production hardening)
+    const standaloneFiles = fs.readdirSync(__dirname)
+      .filter(f => f.startsWith('migrate-') && f.endsWith('.sql'))
+      .sort();
+    for (const file of standaloneFiles) {
+      console.log(`Applying standalone migration: ${file}...`);
+      const sql = fs.readFileSync(path.join(__dirname, file), 'utf8');
+      const stmts = sql.split(/;\s*\n/).filter(s => s.trim().length > 0);
+      for (const stmt of stmts) {
+        await pool.query(stmt);
+      }
+      console.log(`  ✓ ${file}`);
+    }
+    console.log('All standalone migrations applied.\n');
+
     // Run seed if requested
     if (shouldSeed) {
       // Bootstrap demo shop + users with proper bcrypt hashes

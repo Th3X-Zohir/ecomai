@@ -4,6 +4,7 @@ const productRepo = require('../repositories/products');
 const variantRepo = require('../repositories/product-variants');
 const inventoryRepo = require('../repositories/inventory-movements');
 const couponService = require('../services/coupons');
+const engine = require('./subscription-engine');
 const { DomainError } = require('../errors/domain-error');
 
 function calculateTotals(items, discountAmount = 0) {
@@ -48,10 +49,10 @@ async function updateOrderStatus(shopId, orderId, status) {
     throw new DomainError('INVALID_TRANSITION', `Cannot transition from '${order.status}' to '${status}'. Allowed: ${allowed.join(', ') || 'none'}`, 400);
   }
 
-  // If cancelling, restore inventory
+  // If cancelling, restore inventory + decrement order usage
   if (status === 'cancelled') {
     const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
-    return db.withTransaction(async (client) => {
+    const result = await db.withTransaction(async (client) => {
       for (const item of itemsRes.rows) {
         if (item.variant_id) {
           await variantRepo.incrementInventory(item.variant_id, item.quantity, client);
@@ -71,6 +72,11 @@ async function updateOrderStatus(shopId, orderId, status) {
       }
       return orderRepo.updateOrder(orderId, shopId, { status }, client);
     });
+
+    // Decrement monthly order usage counter
+    try { await engine.incrementUsage(shopId, 'orders_monthly', -1); } catch (_e) { /* non-blocking */ }
+
+    return result;
   }
 
   return orderRepo.updateOrder(orderId, shopId, { status });
@@ -81,51 +87,70 @@ async function createOrder({ shopId, customer_email, customer_id, items, shippin
     throw new DomainError('VALIDATION_ERROR', 'customer_email and non-empty items are required', 400);
   }
 
-  // Resolve items: look up products/variants for pricing
-  const resolvedItems = [];
+  // Pre-validate items have correct shape before entering transaction
   for (const item of items) {
-    let unitPrice, itemName, variantId = null;
-
-    if (item.variant_id) {
-      const variant = await variantRepo.findByIdAndShop(item.variant_id, shopId);
-      if (!variant) throw new DomainError('VARIANT_NOT_FOUND', `Unknown variant: ${item.variant_id}`, 400);
-      unitPrice = Number(variant.price);
-      itemName = variant.title;
-      variantId = variant.id;
-    } else if (item.product_id) {
-      const product = await productRepo.findByIdAndShop(item.product_id, shopId);
-      if (!product) throw new DomainError('PRODUCT_NOT_FOUND', `Unknown product: ${item.product_id}`, 400);
-      unitPrice = Number(product.base_price);
-      itemName = product.name;
-    } else {
+    if (!item.product_id && !item.variant_id) {
       throw new DomainError('VALIDATION_ERROR', 'Each item must have product_id or variant_id', 400);
     }
-
-    const quantity = Number(item.quantity || 1);
-    resolvedItems.push({
-      product_id: item.product_id || null,
-      variant_id: variantId,
-      item_name: itemName,
-      quantity,
-      unit_price: unitPrice,
-      line_total: Number((quantity * unitPrice).toFixed(2)),
-    });
+    if (!Number.isFinite(Number(item.quantity)) || Number(item.quantity) < 1) {
+      throw new DomainError('VALIDATION_ERROR', 'Each item must have a valid quantity >= 1', 400);
+    }
   }
 
-  const tempTotals = calculateTotals(resolvedItems);
+  // Use transaction for the entire flow: price lookup + order + items + inventory
+  // This prevents TOCTOU issues (price changes between lookup and order creation)
+  const result = await db.withTransaction(async (client) => {
+    // Resolve items inside transaction for consistent pricing
+    const resolvedItems = [];
+    for (const item of items) {
+      let unitPrice, itemName, variantId = null;
 
-  // Apply coupon if provided
-  let couponResult = null;
-  let discountAmount = 0;
-  if (coupon_code) {
-    couponResult = await couponService.validateCoupon(shopId, coupon_code, tempTotals.subtotal);
-    discountAmount = couponResult.discount;
-  }
+      if (item.variant_id) {
+        // Lock variant row to prevent concurrent price changes
+        const vRes = await client.query(
+          'SELECT * FROM product_variants WHERE id = $1 FOR UPDATE', [item.variant_id]
+        );
+        const variant = vRes.rows[0];
+        if (!variant || (variant.shop_id && variant.shop_id !== shopId)) {
+          throw new DomainError('VARIANT_NOT_FOUND', `Unknown variant: ${item.variant_id}`, 400);
+        }
+        unitPrice = Number(variant.price);
+        itemName = variant.title;
+        variantId = variant.id;
+      } else if (item.product_id) {
+        // Lock product row to prevent concurrent price changes
+        const pRes = await client.query(
+          'SELECT * FROM products WHERE id = $1 AND shop_id = $2 FOR UPDATE', [item.product_id, shopId]
+        );
+        const product = pRes.rows[0];
+        if (!product) throw new DomainError('PRODUCT_NOT_FOUND', `Unknown product: ${item.product_id}`, 400);
+        unitPrice = Number(product.base_price);
+        itemName = product.name;
+      }
 
-  const totals = calculateTotals(resolvedItems, discountAmount);
+      const quantity = Math.max(1, Math.floor(Number(item.quantity || 1)));
+      resolvedItems.push({
+        product_id: item.product_id || null,
+        variant_id: variantId,
+        item_name: itemName,
+        quantity,
+        unit_price: unitPrice,
+        line_total: Number((quantity * unitPrice).toFixed(2)),
+      });
+    }
 
-  // Use transaction for order + items + inventory
-  return db.withTransaction(async (client) => {
+    const tempTotals = calculateTotals(resolvedItems);
+
+    // Apply coupon if provided
+    let couponResult = null;
+    let discountAmount = 0;
+    if (coupon_code) {
+      couponResult = await couponService.validateCoupon(shopId, coupon_code, tempTotals.subtotal);
+      discountAmount = couponResult.discount;
+    }
+
+    const totals = calculateTotals(resolvedItems, discountAmount);
+
     const order = await orderRepo.createOrder({
       shop_id: shopId,
       customer_email,
@@ -181,6 +206,11 @@ async function createOrder({ shopId, customer_email, customer_id, items, shippin
 
     return { ...order, items: savedItems, coupon: couponResult ? { code: coupon_code, discount: discountAmount } : null };
   });
+
+  // Track monthly order usage (inside try/catch for resilience)
+  try { await engine.incrementUsage(shopId, 'orders_monthly', 1); } catch (_e) { /* non-blocking */ }
+
+  return result;
 }
 
 async function listOrdersByShop(shopId, opts) {

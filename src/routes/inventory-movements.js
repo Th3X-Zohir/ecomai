@@ -26,16 +26,27 @@ router.get('/', asyncHandler(async (req, res) => {
 
 router.get('/:movementId', asyncHandler(async (req, res) => {
   const movement = await inventoryService.getMovement(req.params.movementId);
+  // Tenant isolation: ensure the movement belongs to this shop (super_admin can see all)
+  if (req.auth.role !== 'super_admin' && movement.shop_id !== req.tenantShopId) {
+    return res.status(404).json({ code: 'MOVEMENT_NOT_FOUND', message: 'Inventory movement not found' });
+  }
   res.json(movement);
 }));
 
 router.post('/', validateBody({
   product_id: { required: true, type: 'string' },
-  type: { required: true, type: 'string', oneOf: ['in', 'out', 'adjustment', 'return'] },
+  type: { required: true, type: 'string', oneOf: ['sale', 'restock', 'adjustment', 'return', 'initial'] },
   quantity: { required: true, type: 'number', min: 1 },
 }), asyncHandler(async (req, res) => {
+  const { product_id, variant_id, type, quantity, reason, reference_id } = req.body;
   const movement = await inventoryService.createMovement({
-    shop_id: req.tenantShopId, ...req.body,
+    shop_id: req.tenantShopId,
+    product_id,
+    variant_id,
+    type,
+    quantity,
+    reason,
+    reference_id,
   });
   res.status(201).json(movement);
 }));

@@ -14,6 +14,7 @@
 const config = require('../config');
 const db = require('../db');
 const { DomainError } = require('../errors/domain-error');
+const engine = require('./subscription-engine');
 
 const SSLCZ_BASE = config.sslcommerzIsLive
   ? 'https://securepay.sslcommerz.com'
@@ -133,6 +134,7 @@ async function handleSubscriptionCallback(body) {
 
   if (status === 'VALID' || status === 'VALIDATED') {
     // Verify with SSLCommerz server-side validation
+    let validated = false;
     try {
       const validation = await sslczGet('/validator/api/validationserverAPI.php', {
         val_id,
@@ -148,9 +150,31 @@ async function handleSubscriptionCallback(body) {
         );
         return { valid: false, shopId: payment.shop_id, userId: payment.user_id };
       }
+
+      // Verify the paid amount matches what we expected
+      const paidAmount = parseFloat(validation.amount || validation.currency_amount || 0);
+      const expectedAmount = parseFloat(payment.amount);
+      if (Math.abs(paidAmount - expectedAmount) > 1) {
+        console.error(`[subscription-payments] Amount mismatch: paid=${paidAmount}, expected=${expectedAmount}, tran_id=${tran_id}`);
+        await db.query(
+          'UPDATE subscription_payments SET status = $1, gateway_response = $2, updated_at = now() WHERE id = $3',
+          ['failed', JSON.stringify({ ...validation, _reason: 'amount_mismatch' }), payment.id],
+        );
+        return { valid: false, shopId: payment.shop_id, userId: payment.user_id, reason: 'amount_mismatch' };
+      }
+
+      validated = true;
     } catch (_e) {
-      // If SSLCommerz validation endpoint is unreachable, trust the callback status (sandbox often does this)
+      // If SSLCommerz validation endpoint is unreachable, FAIL CLOSED — do not trust unverified callbacks
+      console.error('[subscription-payments] SSLCommerz validation endpoint unreachable:', _e.message);
+      await db.query(
+        'UPDATE subscription_payments SET status = $1, gateway_response = $2, updated_at = now() WHERE id = $3',
+        ['pending_verification', JSON.stringify({ error: _e.message, callbackBody: body }), payment.id],
+      );
+      return { valid: false, shopId: payment.shop_id, userId: payment.user_id, reason: 'verification_failed' };
     }
+
+    if (!validated) return { valid: false, shopId: payment.shop_id, userId: payment.user_id };
 
     // Mark payment completed
     await db.query(
@@ -163,6 +187,14 @@ async function handleSubscriptionCallback(body) {
       "UPDATE shops SET status = 'active', updated_at = now() WHERE id = $1",
       [payment.shop_id],
     );
+
+    // Activate subscription record in shop_subscriptions
+    try {
+      await engine.activateSubscription(payment.shop_id, payment.plan_slug, payment.billing_cycle || 'monthly');
+    } catch (_e) {
+      // Non-blocking — shop is already activated above
+      console.error('[subscription-payments] Failed to activate subscription record:', _e.message);
+    }
 
     return { valid: true, shopId: payment.shop_id, userId: payment.user_id };
   }

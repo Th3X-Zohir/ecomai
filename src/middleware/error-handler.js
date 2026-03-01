@@ -21,6 +21,7 @@ function errorHandler(err, req, res, _next) {
   // Structured error logging
   const logEntry = {
     timestamp: new Date().toISOString(),
+    requestId: req.requestId,
     method: req.method,
     path: req.originalUrl,
     error: err.message,

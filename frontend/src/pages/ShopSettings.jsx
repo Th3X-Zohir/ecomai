@@ -3,11 +3,11 @@ import { shops } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { PageHeader, Card, Badge, Button, Modal, FormField, Input, Select, StatCard, PageSkeleton, useToast } from '../components/UI';
 
-const planColors = { starter: 'default', growth: 'info', pro: 'purple', enterprise: 'success' };
+const planColors = { free: 'default', starter: 'info', growth: 'success', enterprise: 'purple' };
 const planIcons = {
+  free: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>,
   starter: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
   growth: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>,
-  pro: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>,
   enterprise: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
 };
 
@@ -72,14 +72,14 @@ export default function ShopSettings() {
           <StatCard label="Active" value={allShops.filter(s => (s.status || 'active') === 'active').length} trend="up" trendLabel="Operational" icon={
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           } />
-          <StatCard label="Plans" value={[...new Set(allShops.map(s => s.subscription_plan || 'starter'))].length + ' types'} icon={
+          <StatCard label="Plans" value={[...new Set(allShops.map(s => s.subscription_plan || 'free'))].length + ' types'} icon={
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
           } />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {allShops.map((s) => {
-            const plan = s.subscription_plan || 'starter';
+            const plan = s.subscription_plan || 'free';
             return (
               <Card key={s.id} hover>
                 <div className="p-5">
@@ -121,7 +121,7 @@ export default function ShopSettings() {
   // Shop admin view
   if (!shop) return <p className="text-gray-500 p-8 text-center">Shop not found</p>;
 
-  const plan = shop.subscription_plan || 'starter';
+  const plan = shop.subscription_plan || 'free';
 
   return (
     <div>
@@ -147,7 +147,7 @@ export default function ShopSettings() {
               <p className="text-sm text-gray-500 font-mono mb-3">{shop.slug || shop.id}</p>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5">
-                  {planIcons[plan] || planIcons.starter}
+                  {planIcons[plan] || planIcons.free}
                   <span className="text-sm font-medium capitalize">{plan} Plan</span>
                 </div>
                 {shop.industry && (

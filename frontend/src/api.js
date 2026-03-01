@@ -53,6 +53,20 @@ async function request(method, path, body, extraHeaders = {}) {
 
 function qs(params) { const p = new URLSearchParams(); if (params) Object.entries(params).forEach(([k, v]) => { if (v != null && v !== '') p.set(k, v); }); const s = p.toString(); return s ? `?${s}` : ''; }
 
+// Download helper for CSV exports (needs auth headers)
+export async function downloadFile(path, filename) {
+  const headers = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  if (_selectedShopId) headers['x-shop-id'] = _selectedShopId;
+  const res = await fetch(`${API_BASE}${path}`, { headers });
+  if (!res.ok) { const err = await res.json().catch(() => ({ message: 'Download failed' })); throw new Error(err.message || `${res.status}`); }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
 export const auth = {
   login: (email, password) => request('POST', '/auth/login', { email, password }),
   refresh: (token) => request('POST', '/auth/refresh', { refreshToken: token }),
@@ -90,6 +104,8 @@ export const products = {
   create: (data) => request('POST', '/products', data),
   update: (id, data) => request('PATCH', `/products/${id}`, data),
   delete: (id) => request('DELETE', `/products/${id}`),
+  stats: () => request('GET', '/products/stats/summary'),
+  exportCsvUrl: (params) => `${API_BASE}/products/export/csv${qs(params)}`,
 };
 
 export const productImages = {
@@ -126,6 +142,9 @@ export const orders = {
   delete: (id) => request('DELETE', `/orders/${id}`),
   createDelivery: (orderId, data) => request('POST', `/orders/${orderId}/delivery-requests`, data),
   createPayment: (orderId, data) => request('POST', `/orders/${orderId}/payments`, data),
+  bulkStatus: (order_ids, status) => request('POST', '/orders/bulk/status', { order_ids, status }),
+  stats: () => request('GET', '/orders/stats/summary'),
+  exportCsvUrl: (params) => `${API_BASE}/orders/export/csv${qs(params)}`,
 };
 
 export const customers = {
@@ -253,7 +272,7 @@ export const subscriptions = {
   deletePlan: (id) => request('DELETE', `/subscriptions/plans/${id}`),
   // Shop subscriptions
   listShops: (params) => request('GET', `/subscriptions/shops${qs(params)}`),
-  updateShop: (shopId, plan) => request('PATCH', `/subscriptions/shops/${shopId}`, { plan }),
+  updateShop: (shopId, plan, billing_cycle) => request('PATCH', `/subscriptions/shops/${shopId}`, { plan, billing_cycle }),
   // Payments
   listPayments: (params) => request('GET', `/subscriptions/payments${qs(params)}`),
   getPayment: (id) => request('GET', `/subscriptions/payments/${id}`),
@@ -261,4 +280,29 @@ export const subscriptions = {
   deletePayment: (id) => request('DELETE', `/subscriptions/payments/${id}`),
   // Stats
   stats: () => request('GET', '/subscriptions/stats'),
+  // Usage & Plan (shop-facing)
+  myUsage: () => request('GET', '/subscriptions/my-usage'),
+  myPlan: () => request('GET', '/subscriptions/my-plan'),
+  cancelSubscription: (immediate = false) => request('POST', '/subscriptions/cancel', { immediate }),
+  myAuditLog: (params) => request('GET', `/subscriptions/my-audit-log${qs(params)}`),
+  // Audit log (super admin)
+  auditLog: (params) => request('GET', `/subscriptions/audit-log${qs(params)}`),
+  // Shop usage (super admin)
+  shopUsage: (shopId) => request('GET', `/subscriptions/shops/${shopId}/usage`),
+};
+
+export const reviews = {
+  list: (params) => request('GET', `/reviews${qs(params)}`),
+  stats: () => request('GET', '/reviews/stats'),
+  approve: (id) => request('PATCH', `/reviews/${id}/approve`),
+  reject: (id) => request('PATCH', `/reviews/${id}/reject`),
+  remove: (id) => request('DELETE', `/reviews/${id}`),
+};
+
+export const newsletter = {
+  list: (params) => request('GET', `/newsletter${qs(params)}`),
+  stats: () => request('GET', '/newsletter/stats'),
+  unsubscribe: (id) => request('PATCH', `/newsletter/${id}/unsubscribe`),
+  remove: (id) => request('DELETE', `/newsletter/${id}`),
+  exportUrl: () => `${API_BASE}/newsletter/export`,
 };

@@ -1,16 +1,18 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { asyncHandler } = require('../middleware/async-handler');
+const { validateBody } = require('../middleware/validate');
 const userRepo = require('../repositories/users');
 const db = require('../db');
 const config = require('../config');
 const { DomainError } = require('../errors/domain-error');
 const subscriptionPayments = require('../services/subscription-payments');
+const engine = require('../services/subscription-engine');
 
 const router = express.Router();
 
 const SALT_ROUNDS = 10;
-const PAID_PLANS = ['starter', 'growth', 'enterprise'];
+// No more hardcoded PAID_PLANS — determined dynamically from DB
 
 /**
  * POST /v1/register
@@ -20,16 +22,17 @@ const PAID_PLANS = ['starter', 'growth', 'enterprise'];
  * PAID plan  → shop created with status='pending_payment', SSLCommerz
  *              checkout URL returned. Shop activates after payment.
  */
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', validateBody({
+  shop_name: { required: true, type: 'string', minLength: 2 },
+  slug: { required: true, type: 'string', pattern: /^[a-z0-9]([a-z0-9-]{0,58}[a-z0-9])?$/ },
+  email: { required: true, type: 'email' },
+  password: { required: true, type: 'string', minLength: 6 },
+  full_name: { type: 'string' },
+  phone: { type: 'string' },
+  plan: { type: 'string' },
+  billing: { type: 'string', oneOf: ['monthly', 'yearly'] },
+}), asyncHandler(async (req, res) => {
   const { shop_name, slug, email, password, full_name, phone, industry, plan, billing } = req.body;
-
-  if (!shop_name || !slug || !email || !password) {
-    throw new DomainError('VALIDATION_ERROR', 'shop_name, slug, email, and password are required', 400);
-  }
-
-  if (password.length < 6) {
-    throw new DomainError('VALIDATION_ERROR', 'password must be at least 6 characters', 400);
-  }
 
   // Check email not taken
   const existingUser = await userRepo.findByEmail(email);
@@ -38,7 +41,19 @@ router.post('/', asyncHandler(async (req, res) => {
   }
 
   const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
-  const isPaid = PAID_PLANS.includes(plan);
+
+  // Dynamic plan lookup — zero hardcoded plan slugs
+  const planSlug = plan || 'free';
+  const planRow = await engine.getPlanBySlug(planSlug);
+  if (planSlug !== 'free' && !planRow) {
+    throw new DomainError('PLAN_NOT_FOUND', `Subscription plan "${planSlug}" not found`, 400);
+  }
+
+  const billingCycle = billing === 'yearly' ? 'yearly' : 'monthly';
+  const amount = planRow
+    ? (billingCycle === 'yearly' ? Number(planRow.price_yearly) : Number(planRow.price_monthly))
+    : 0;
+  const isPaid = amount > 0;
   const shopStatus = isPaid ? 'pending_payment' : 'active';
 
   // Create shop + user + default settings atomically
@@ -74,6 +89,12 @@ router.post('/', asyncHandler(async (req, res) => {
 
   // ── FREE plan: immediate login ──────────────────────────
   if (!isPaid) {
+    // Activate subscription record
+    await engine.activateSubscription(result.shop.id, planSlug, 'monthly');
+
+    // Bootstrap staff usage for the owner user
+    try { await engine.incrementUsage(result.shop.id, 'staff', 1); } catch (_e) { /* non-blocking */ }
+
     const authService = require('../services/auth');
     const tokens = {
       accessToken: authService.signAccessToken({ id: result.user.id, role: result.user.role, shop_id: result.shop.id }),
@@ -88,19 +109,13 @@ router.post('/', asyncHandler(async (req, res) => {
   }
 
   // ── PAID plan: redirect to SSLCommerz ───────────────────
-  const billingCycle = billing === 'yearly' ? 'yearly' : 'monthly';
-
-  // Look up plan price
-  const planRes = await db.query('SELECT * FROM subscription_plans WHERE slug = $1', [plan]);
-  const planRow = planRes.rows[0];
-  if (!planRow) {
-    throw new DomainError('PLAN_NOT_FOUND', `Subscription plan "${plan}" not found`, 400);
-  }
-  const amount = billingCycle === 'yearly' ? Number(planRow.price_yearly) : Number(planRow.price_monthly);
 
   if (amount <= 0) {
     // Plan happens to be free (e.g. price = 0) — activate immediately
     await db.query("UPDATE shops SET status = 'active', updated_at = now() WHERE id = $1", [result.shop.id]);
+    await engine.activateSubscription(result.shop.id, planSlug, billingCycle);
+    // Bootstrap staff usage for the owner user
+    try { await engine.incrementUsage(result.shop.id, 'staff', 1); } catch (_e) { /* non-blocking */ }
     const authService = require('../services/auth');
     const tokens = {
       accessToken: authService.signAccessToken({ id: result.user.id, role: result.user.role, shop_id: result.shop.id }),
@@ -118,7 +133,7 @@ router.post('/', asyncHandler(async (req, res) => {
   const payment = await subscriptionPayments.initSubscriptionPayment({
     shopId: result.shop.id,
     userId: result.user.id,
-    planSlug: plan,
+    planSlug: planSlug,
     amount,
     billingCycle,
     customerName: full_name || shop_name,
@@ -185,11 +200,12 @@ router.get('/payment/status/:shopId', asyncHandler(async (req, res) => {
 
 /**
  * GET /v1/register/plans
- * Public: list subscription plans for pricing page.
+ * Public: list active subscription plans for pricing page.
+ * Returns all plan data dynamically — zero hardcoded plan info.
  */
 router.get('/plans', asyncHandler(async (_req, res) => {
-  const result = await db.query('SELECT * FROM subscription_plans ORDER BY price_monthly ASC');
-  res.json({ items: result.rows });
+  const plans = await engine.getAllPlans();
+  res.json({ items: plans });
 }));
 
 module.exports = router;

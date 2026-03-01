@@ -23,52 +23,72 @@ function useReveal(threshold = 0.15) {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   DATA
+   DATA — Icons & comparison template (all plan data from API)
    ════════════════════════════════════════════════════════════════ */
 
-const PLANS = [
-  {
-    slug: 'free', name: 'Free', price_monthly: 0, price_yearly: 0,
-    tagline: 'For hobby sellers and side projects',
-    icon: '🌱',
-    features: ['Up to 25 products', '50 orders / month', 'Basic storefront', '5 templates', 'Email support', 'SSL included'],
-  },
-  {
-    slug: 'starter', name: 'Starter', price_monthly: 999, price_yearly: 9990,
-    tagline: 'For small businesses getting started',
-    icon: '🚀',
-    features: ['Up to 250 products', '500 orders / month', 'SSLCommerz payments', 'Custom CSS', 'Priority email support', 'Basic analytics', 'Discount codes'],
-  },
-  {
-    slug: 'growth', name: 'Growth', price_monthly: 2499, price_yearly: 24990, popular: true,
-    tagline: 'For growing stores and brands',
-    icon: '⚡',
-    features: ['Unlimited products', 'Unlimited orders', 'All payment gateways', 'API access', 'Advanced analytics', 'Marketing campaigns', 'Custom domain', 'Priority chat support'],
-  },
-  {
-    slug: 'enterprise', name: 'Enterprise', price_monthly: 0, price_yearly: 0,
-    tagline: 'For large-scale & custom deployments',
-    icon: '🏢',
-    features: ['Everything in Growth', 'Custom integrations', 'Dedicated account manager', 'SLA guarantee', 'Custom development', 'On-premise option', 'SSO / SAML', 'Phone support'],
-  },
+const PLAN_ICONS = { free: '🌱', starter: '🚀', growth: '⚡', enterprise: '🏢' };
+
+const COMPARISON_TEMPLATE = [
+  { label: 'Products', getter: p => p.product_limit === -1 ? 'Unlimited' : String(p.product_limit ?? 0) },
+  { label: 'Orders / month', getter: p => p.order_limit === -1 ? 'Unlimited' : String(p.order_limit ?? 0) },
+  { label: 'Staff accounts', getter: p => p.staff_limit === -1 ? 'Unlimited' : String(p.staff_limit ?? 1) },
+  { label: 'Images / product', getter: p => p.image_limit_per_product === -1 ? 'Unlimited' : String(p.image_limit_per_product ?? 5) },
+  { label: 'Custom domain', feature: 'custom_domain' },
+  { label: 'Analytics', variants: [['advanced_analytics', 'Advanced'], ['basic_analytics', 'Basic']] },
+  { label: 'Marketing tools', feature: 'marketing_tools' },
+  { label: 'API access', feature: 'api_access' },
+  { label: 'Dedicated manager', feature: 'dedicated_account_manager' },
+  { label: 'SLA guarantee', feature: 'sla' },
+  { label: 'White label', feature: 'white_label' },
+  { label: 'Support', variants: [['priority_support', 'Priority'], ['email_support', 'Email']] },
 ];
 
-const comparisonRows = [
-  { label: 'Products', free: '25', starter: '250', growth: 'Unlimited', enterprise: 'Unlimited' },
-  { label: 'Orders / month', free: '50', starter: '500', growth: 'Unlimited', enterprise: 'Unlimited' },
-  { label: 'Staff accounts', free: '1', starter: '3', growth: '10', enterprise: 'Unlimited' },
-  { label: 'Templates', free: '5', starter: '5', growth: 'All 8', enterprise: 'All + Custom' },
-  { label: 'Custom domain', free: false, starter: false, growth: true, enterprise: true },
-  { label: 'SSLCommerz / bKash', free: false, starter: true, growth: true, enterprise: true },
-  { label: 'Custom CSS', free: false, starter: true, growth: true, enterprise: true },
-  { label: 'Analytics', free: false, starter: 'Basic', growth: 'Advanced', enterprise: 'Advanced' },
-  { label: 'Marketing tools', free: false, starter: false, growth: true, enterprise: true },
-  { label: 'API access', free: false, starter: false, growth: true, enterprise: true },
-  { label: 'Multi-currency', free: false, starter: false, growth: true, enterprise: true },
-  { label: 'A/B testing', free: false, starter: false, growth: true, enterprise: true },
-  { label: 'Support', free: 'Email', starter: 'Priority Email', growth: 'Chat + Email', enterprise: 'Dedicated + Phone' },
-  { label: 'SLA guarantee', free: false, starter: false, growth: false, enterprise: true },
-];
+function parseFeatures(plan) {
+  return typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || []);
+}
+
+function buildDisplayFeatures(plan) {
+  const out = [];
+  const keys = parseFeatures(plan);
+  if (plan.product_limit === -1) out.push('Unlimited products');
+  else out.push(`Up to ${plan.product_limit ?? 0} products`);
+  if (plan.order_limit === -1) out.push('Unlimited orders');
+  else out.push(`${plan.order_limit ?? 0} orders / month`);
+  if (plan.staff_limit === -1) out.push('Unlimited staff');
+  else if ((plan.staff_limit ?? 1) > 1) out.push(`${plan.staff_limit} staff accounts`);
+  else out.push('1 staff account');
+  if (keys.includes('advanced_analytics')) out.push('Advanced analytics');
+  else if (keys.includes('basic_analytics')) out.push('Basic analytics');
+  if (keys.includes('custom_domain')) out.push('Custom domain');
+  if (keys.includes('api_access')) out.push('API access');
+  if (keys.includes('marketing_tools')) out.push('Marketing campaigns');
+  if (keys.includes('priority_support')) out.push('Priority support');
+  else if (keys.includes('email_support')) out.push('Email support');
+  if (keys.includes('dedicated_account_manager')) out.push('Dedicated manager');
+  if (keys.includes('sla')) out.push('SLA guarantee');
+  if (keys.includes('white_label')) out.push('White label');
+  out.push('SSL included');
+  return out;
+}
+
+function buildComparisonRows(plans) {
+  return COMPARISON_TEMPLATE.map(tmpl => {
+    const row = { label: tmpl.label };
+    for (const p of plans) {
+      const keys = parseFeatures(p);
+      if (tmpl.getter) {
+        row[p.slug] = tmpl.getter(p);
+      } else if (tmpl.variants) {
+        let v = false;
+        for (const [k, text] of tmpl.variants) { if (keys.includes(k)) { v = text; break; } }
+        row[p.slug] = v;
+      } else {
+        row[p.slug] = keys.includes(tmpl.feature);
+      }
+    }
+    return row;
+  });
+}
 
 const faqs = [
   { q: 'Can I start for free?', a: 'Absolutely! Our Free plan gives you everything you need to launch your first store. No credit card required. Upgrade anytime as your business grows.' },
@@ -111,11 +131,13 @@ function CellValue({ val }) {
 
 export default function Pricing() {
   const [billing, setBilling] = useState('monthly');
-  const [plans, setPlans] = useState(PLANS);
+  const [plans, setPlans] = useState([]);
+  const [compRows, setCompRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openFaq, setOpenFaq] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   const [heroRef, heroVis] = useReveal(0.1);
   const [cardsRef, cardsVis] = useReveal(0.05);
@@ -133,14 +155,24 @@ export default function Pricing() {
   useEffect(() => {
     register.plans()
       .then(data => {
-        if (data.items?.length) {
-          setPlans(prev => prev.map(p => {
-            const api = data.items.find(a => a.slug === p.slug);
-            return api ? { ...p, ...api, features: p.features } : p;
+        const items = data.items || [];
+        if (items.length) {
+          const processed = items.map(p => ({
+            ...p,
+            price_monthly: Number(p.price_monthly) || 0,
+            price_yearly: Number(p.price_yearly) || 0,
+            features: parseFeatures(p),
+            displayFeatures: buildDisplayFeatures(p),
+            icon: PLAN_ICONS[p.slug] || '📦',
           }));
+          setPlans(processed);
+          setCompRows(buildComparisonRows(processed));
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('[Pricing] Failed to load plans:', err);
+        setLoadError('Failed to load pricing plans. Please refresh the page.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -243,11 +275,16 @@ export default function Pricing() {
       <section ref={cardsRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         {loading ? (
           <div className="flex justify-center py-20"><div className="w-10 h-10 rounded-full border-4 border-primary-200 border-t-primary-600 animate-spin" /></div>
+        ) : loadError ? (
+          <div className="text-center py-20">
+            <p className="text-red-600 font-medium mb-4">{loadError}</p>
+            <button onClick={() => window.location.reload()} className="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium">Retry</button>
+          </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {plans.map((plan, idx) => {
               const price = getPrice(plan);
-              const isPopular = plan.popular;
+              const isPopular = plan.is_popular;
               const isEnterprise = plan.slug === 'enterprise';
               return (
                 <div
@@ -298,7 +335,7 @@ export default function Pricing() {
 
                   {/* Features */}
                   <ul className="space-y-3.5 mb-8 flex-1">
-                    {plan.features.map((f, i) => (
+                    {(plan.displayFeatures || []).map((f, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-sm text-gray-600">
                         <Check />
                         <span>{f}</span>
@@ -359,21 +396,21 @@ export default function Pricing() {
             <thead>
               <tr className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b border-gray-200">
                 <th className="text-left text-sm font-bold text-gray-900 py-5 px-6 w-1/5">Feature</th>
-                {['Free', 'Starter', 'Growth', 'Enterprise'].map(n => (
-                  <th key={n} className={`text-center text-sm font-bold py-5 px-4 ${n === 'Growth' ? 'text-primary-600 bg-primary-50/50' : 'text-gray-900'}`}>
-                    {n}
-                    {n === 'Growth' && <span className="ml-2 text-[10px] bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">Popular</span>}
+                {plans.map(p => (
+                  <th key={p.slug} className={`text-center text-sm font-bold py-5 px-4 ${p.is_popular ? 'text-primary-600 bg-primary-50/50' : 'text-gray-900'}`}>
+                    {p.name}
+                    {p.is_popular && <span className="ml-2 text-[10px] bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">Popular</span>}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {comparisonRows.map((row, i) => (
+              {compRows.map((row, i) => (
                 <tr key={i} className={`border-b border-gray-100 transition-colors hover:bg-gray-50/50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                   <td className="text-sm text-gray-700 py-4 px-6 font-medium">{row.label}</td>
-                  {['free', 'starter', 'growth', 'enterprise'].map(slug => (
-                    <td key={slug} className={`text-center py-4 px-4 ${slug === 'growth' ? 'bg-primary-50/20' : ''}`}>
-                      <div className="flex justify-center"><CellValue val={row[slug]} /></div>
+                  {plans.map(p => (
+                    <td key={p.slug} className={`text-center py-4 px-4 ${p.is_popular ? 'bg-primary-50/20' : ''}`}>
+                      <div className="flex justify-center"><CellValue val={row[p.slug]} /></div>
                     </td>
                   ))}
                 </tr>
@@ -389,13 +426,13 @@ export default function Pricing() {
               <summary className="flex items-center justify-between p-5 cursor-pointer bg-white hover:bg-gray-50 transition">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{plan.icon}</span>
-                  <span className={`font-bold text-gray-900 ${plan.popular ? 'text-primary-600' : ''}`}>{plan.name}</span>
-                  {plan.popular && <span className="text-[10px] font-bold bg-primary-100 text-primary-700 px-2.5 py-0.5 rounded-full">POPULAR</span>}
+                  <span className={`font-bold text-gray-900 ${plan.is_popular ? 'text-primary-600' : ''}`}>{plan.name}</span>
+                  {plan.is_popular && <span className="text-[10px] font-bold bg-primary-100 text-primary-700 px-2.5 py-0.5 rounded-full">POPULAR</span>}
                 </div>
                 <svg className="w-5 h-5 text-gray-400 transition-transform duration-300 group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </summary>
               <div className="px-5 pb-5 space-y-2.5 border-t border-gray-100 pt-4 bg-gray-50/50">
-                {comparisonRows.map((row, i) => (
+                {compRows.map((row, i) => (
                   <div key={i} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
                     <span className="text-sm text-gray-600">{row.label}</span>
                     <CellValue val={row[plan.slug]} />

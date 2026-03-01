@@ -35,6 +35,7 @@ async function listByShop(shopId, { page = 1, limit = 50, status, search } = {})
   const conditions = [];
   const params = [];
   let idx = 1;
+  conditions.push(`deleted_at IS NULL`);
   if (shopId) { conditions.push(`shop_id = $${idx}`); params.push(shopId); idx++; }
   if (status) { conditions.push(`status = $${idx}`); params.push(status); idx++; }
   if (search) { conditions.push(`(customer_email ILIKE $${idx} OR id::text ILIKE $${idx})`); params.push(`%${search}%`); idx++; }
@@ -51,10 +52,10 @@ async function listByShop(shopId, { page = 1, limit = 50, status, search } = {})
 
 async function findByIdAndShop(id, shopId) {
   if (shopId) {
-    const res = await db.query('SELECT * FROM orders WHERE id = $1 AND shop_id = $2', [id, shopId]);
+    const res = await db.query('SELECT * FROM orders WHERE id = $1 AND shop_id = $2 AND deleted_at IS NULL', [id, shopId]);
     return res.rows[0] || null;
   }
-  const res = await db.query('SELECT * FROM orders WHERE id = $1', [id]);
+  const res = await db.query('SELECT * FROM orders WHERE id = $1 AND deleted_at IS NULL', [id]);
   return res.rows[0] || null;
 }
 
@@ -111,15 +112,14 @@ async function listByCustomer(customerId, { page = 1, limit = 20 } = {}) {
 }
 
 async function countByShop(shopId) {
-  const q = shopId ? 'SELECT COUNT(*) FROM orders WHERE shop_id = $1' : 'SELECT COUNT(*) FROM orders';
+  const q = shopId ? 'SELECT COUNT(*) FROM orders WHERE shop_id = $1 AND deleted_at IS NULL' : 'SELECT COUNT(*) FROM orders WHERE deleted_at IS NULL';
   const res = await db.query(q, shopId ? [shopId] : []);
   return parseInt(res.rows[0].count, 10);
 }
 
 async function deleteOrder(orderId) {
-  // Delete order items first, then the order
-  await db.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
-  const res = await db.query('DELETE FROM orders WHERE id = $1 RETURNING *', [orderId]);
+  // Soft delete: mark order as deleted (items preserved for audit)
+  const res = await db.query('UPDATE orders SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING *', [orderId]);
   return res.rows[0] || null;
 }
 

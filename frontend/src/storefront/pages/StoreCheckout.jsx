@@ -60,6 +60,7 @@ export default function StoreCheckout() {
   const [couponApplied, setCouponApplied] = useState(null); // holds validated coupon info
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('online'); // 'online' | 'cod'
 
   useEffect(() => {
     const token = localStorage.getItem(`customer_token_${shopSlug}`);
@@ -121,6 +122,7 @@ export default function StoreCheckout() {
         customer_password: form.password || undefined,
         order_notes: form.notes || undefined,
         coupon_code: couponApplied ? couponCode.trim() : undefined,
+        payment_method: paymentMethod,
         items: items.map((i) => ({
           product_id: i.product_id,
           variant_id: i.variant_id,
@@ -141,6 +143,7 @@ export default function StoreCheckout() {
         if (result.customer) localStorage.setItem(`customer_${shopSlug}`, JSON.stringify(result.customer));
       }
       if (result.payment?.gatewayUrl) { window.location.href = result.payment.gatewayUrl; return; }
+      // COD or fallback — show order confirmation
       setOrder(result.order || result);
       clearCart();
     } catch (err) { setError(err.message); } finally { setLoading(false); }
@@ -395,6 +398,36 @@ export default function StoreCheckout() {
                   ))}
                 </div>
               </div>
+
+              {/* Payment method selector */}
+              <div className="p-5" style={{ backgroundColor: t.surface, borderRadius: t.radius, border: `1px solid ${t.border}` }}>
+                <h3 className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: t.textMuted }}>Payment Method</h3>
+                <div className="space-y-2">
+                  <label
+                    className="flex items-center gap-3 p-3 cursor-pointer transition"
+                    style={{ borderRadius: t.radius, border: `2px solid ${paymentMethod === 'online' ? t.primary : t.border}`, backgroundColor: paymentMethod === 'online' ? t.primary + '08' : 'transparent' }}
+                  >
+                    <input type="radio" name="payment_method" value="online" checked={paymentMethod === 'online'} onChange={() => setPaymentMethod('online')} className="accent-current" style={{ accentColor: t.primary }} />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium" style={{ color: t.text }}>Pay Online</p>
+                      <p className="text-xs" style={{ color: t.textMuted }}>Secure payment via SSLCommerz (Card, bKash, Nagad, etc.)</p>
+                    </div>
+                    <span className="text-lg">💳</span>
+                  </label>
+                  <label
+                    className="flex items-center gap-3 p-3 cursor-pointer transition"
+                    style={{ borderRadius: t.radius, border: `2px solid ${paymentMethod === 'cod' ? t.primary : t.border}`, backgroundColor: paymentMethod === 'cod' ? t.primary + '08' : 'transparent' }}
+                  >
+                    <input type="radio" name="payment_method" value="cod" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} className="accent-current" style={{ accentColor: t.primary }} />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium" style={{ color: t.text }}>Cash on Delivery</p>
+                      <p className="text-xs" style={{ color: t.textMuted }}>Pay when your order is delivered</p>
+                    </div>
+                    <span className="text-lg">💵</span>
+                  </label>
+                </div>
+              </div>
+
               <div className="flex justify-between pt-2">
                 <button onClick={() => setStep(1)} className="px-6 py-3 text-sm font-medium transition hover:opacity-70 flex items-center gap-2" style={{ color: t.textMuted }}>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" /></svg>
@@ -486,7 +519,7 @@ export default function StoreCheckout() {
                 {loading ? (
                   <><svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Processing...</>
                 ) : (
-                  <>🔒 Pay Now — {formatPrice(total - couponDiscount)}</>  
+                  <>{paymentMethod === 'cod' ? '📦 Place Order' : '🔒 Pay Now'} — {formatPrice(total - couponDiscount)}</>  
                 )}
               </button>
             ) : (
@@ -499,7 +532,7 @@ export default function StoreCheckout() {
               <svg className="w-4 h-4" style={{ color: t.textMuted }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <p className="text-xs" style={{ color: t.textMuted }}>Secure checkout via SSLCommerz</p>
+              <p className="text-xs" style={{ color: t.textMuted }}>{paymentMethod === 'cod' ? 'Pay cash when your order arrives' : 'Secure checkout via SSLCommerz'}</p>
             </div>
 
             {/* Trust signals */}

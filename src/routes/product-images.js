@@ -2,8 +2,9 @@ const { Router } = require('express');
 const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
+const { checkImageLimit } = require('../middleware/plan-enforcement');
 const imageService = require('../services/product-images');
-const { upload } = require('../middleware/upload');
+const { upload, validateUploadedFiles } = require('../middleware/upload');
 
 const router = Router();
 
@@ -16,7 +17,7 @@ router.get('/:productId/images', asyncHandler(async (req, res) => {
 }));
 
 // POST /v1/products/:productId/images — upload images (multipart form)
-router.post('/:productId/images', upload.array('images', 5), asyncHandler(async (req, res) => {
+router.post('/:productId/images', checkImageLimit(), upload.array('images', 5), validateUploadedFiles, asyncHandler(async (req, res) => {
   const results = [];
   for (const file of (req.files || [])) {
     const url = `/uploads/products/${file.filename}`;

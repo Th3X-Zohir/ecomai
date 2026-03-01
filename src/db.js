@@ -1,7 +1,15 @@
 const { Pool } = require('pg');
 const config = require('./config');
 
-const pool = new Pool({ connectionString: config.databaseUrl });
+const isProduction = config.nodeEnv === 'production';
+
+const pool = new Pool({
+  connectionString: config.databaseUrl,
+  max: isProduction ? 20 : 10,                    // max connections
+  idleTimeoutMillis: 30_000,                       // close idle clients after 30s
+  connectionTimeoutMillis: 5_000,                  // fail if can't connect in 5s
+  statement_timeout: isProduction ? 30_000 : 0,    // kill queries > 30s in prod
+});
 
 pool.on('error', (err) => {
   console.error('Unexpected PG pool error:', err.message);

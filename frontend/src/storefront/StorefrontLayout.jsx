@@ -132,17 +132,19 @@ export default function StorefrontLayout() {
     }
   }, [seoDefaults, shop]);
 
-  /* Inject custom JS */
+  /* Inject custom JS - sandboxed in try/catch, admin-controlled */
   useEffect(() => {
-    if (!customJs) return;
+    if (!customJs || typeof customJs !== 'string') return;
+    // Limit custom JS size to prevent abuse
+    const safe = customJs.slice(0, 10000);
     const script = document.createElement('script');
-    script.textContent = customJs;
+    script.textContent = `try{${safe}}catch(e){console.warn('[store-custom-js]',e.message)}`;
     script.setAttribute('data-store-custom', 'true');
     document.body.appendChild(script);
     return () => { script.remove(); };
   }, [customJs]);
 
-  /* Inject analytics (GA4, FB Pixel, GTM) */
+  /* Inject analytics (GA4, FB Pixel, GTM) — validate IDs to prevent injection */
   useEffect(() => {
     if (!analyticsConfig) return;
     const scripts = [];
@@ -154,14 +156,17 @@ export default function StorefrontLayout() {
       document.head.appendChild(el);
       scripts.push(el);
     };
-    if (analyticsConfig.ga4_id) {
+    const GA4_RE = /^G-[A-Z0-9]{4,12}$/;
+    const FB_RE = /^[0-9]{10,20}$/;
+    const GTM_RE = /^GTM-[A-Z0-9]{4,10}$/;
+    if (analyticsConfig.ga4_id && GA4_RE.test(analyticsConfig.ga4_id)) {
       addScript(`https://www.googletagmanager.com/gtag/js?id=${analyticsConfig.ga4_id}`);
       addScript(null, `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${analyticsConfig.ga4_id}');`);
     }
-    if (analyticsConfig.fb_pixel_id) {
+    if (analyticsConfig.fb_pixel_id && FB_RE.test(analyticsConfig.fb_pixel_id)) {
       addScript(null, `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${analyticsConfig.fb_pixel_id}');fbq('track','PageView');`);
     }
-    if (analyticsConfig.gtm_id) {
+    if (analyticsConfig.gtm_id && GTM_RE.test(analyticsConfig.gtm_id)) {
       addScript(null, `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${analyticsConfig.gtm_id}');`);
     }
     return () => scripts.forEach(s => s.remove());

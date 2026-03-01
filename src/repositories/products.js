@@ -4,6 +4,7 @@ async function listByShop(shopId, { page = 1, limit = 50, search, category, cate
   const conditions = [];
   const params = [];
   let idx = 1;
+  conditions.push(`p.deleted_at IS NULL`);
   if (shopId) { conditions.push(`p.shop_id = $${idx}`); params.push(shopId); idx++; }
   if (search) { conditions.push(`(p.name ILIKE $${idx} OR p.slug ILIKE $${idx})`); params.push(`%${search}%`); idx++; }
   if (category) { conditions.push(`p.category = $${idx}`); params.push(category); idx++; }
@@ -24,10 +25,10 @@ async function listByShop(shopId, { page = 1, limit = 50, search, category, cate
 
 async function findByIdAndShop(id, shopId) {
   if (shopId) {
-    const res = await db.query('SELECT * FROM products WHERE id = $1 AND shop_id = $2', [id, shopId]);
+    const res = await db.query('SELECT * FROM products WHERE id = $1 AND shop_id = $2 AND deleted_at IS NULL', [id, shopId]);
     return res.rows[0] || null;
   }
-  const res = await db.query('SELECT * FROM products WHERE id = $1', [id]);
+  const res = await db.query('SELECT * FROM products WHERE id = $1 AND deleted_at IS NULL', [id]);
   return res.rows[0] || null;
 }
 
@@ -81,15 +82,15 @@ async function updateProduct(productId, shopId, patch) {
 
 async function deleteProduct(productId, shopId) {
   if (shopId) {
-    const res = await db.query('DELETE FROM products WHERE id = $1 AND shop_id = $2 RETURNING id', [productId, shopId]);
+    const res = await db.query('UPDATE products SET deleted_at = NOW() WHERE id = $1 AND shop_id = $2 AND deleted_at IS NULL RETURNING id', [productId, shopId]);
     return res.rowCount > 0;
   }
-  const res = await db.query('DELETE FROM products WHERE id = $1 RETURNING id', [productId]);
+  const res = await db.query('UPDATE products SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id', [productId]);
   return res.rowCount > 0;
 }
 
 async function countByShop(shopId) {
-  const q = shopId ? 'SELECT COUNT(*) FROM products WHERE shop_id = $1' : 'SELECT COUNT(*) FROM products';
+  const q = shopId ? 'SELECT COUNT(*) FROM products WHERE shop_id = $1 AND deleted_at IS NULL' : 'SELECT COUNT(*) FROM products WHERE deleted_at IS NULL';
   const res = await db.query(q, shopId ? [shopId] : []);
   return parseInt(res.rows[0].count, 10);
 }
