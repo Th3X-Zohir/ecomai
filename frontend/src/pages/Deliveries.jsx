@@ -397,6 +397,112 @@ export default function Deliveries() {
         confirmLabel="Yes, Delete"
         variant="danger"
       />
+
+      {/* Record Failed Attempt Modal */}
+      <Modal open={!!failingDelivery} onClose={() => setFailingDelivery(null)} title="Record Failed Delivery Attempt" size="sm">
+        {failingDelivery && (
+          <form onSubmit={handleRecordFailure}>
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm font-medium text-red-800">Delivery #{failingDelivery.id?.slice(0, 10)}</p>
+              <p className="text-xs text-red-600 mt-1">Current: {failingDelivery.status.replace('_', ' ')} • Attempt: {(failingDelivery.attempt_count || 0) + 1} of 3</p>
+            </div>
+            <FormField label="Failure Reason *">
+              <Select value={failureReasonCode} onChange={e => setFailureReasonCode(e.target.value)}>
+                {FAILURE_CODES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </Select>
+            </FormField>
+            <FormField label="Additional Details">
+              <textarea value={failureReasonDesc} onChange={e => setFailureReasonDesc(e.target.value)} rows={2}
+                className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Optional description..." />
+            </FormField>
+            <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-gray-100">
+              <Button variant="secondary" type="button" onClick={() => setFailingDelivery(null)}>Cancel</Button>
+              <Button type="submit" variant="danger" loading={failureSaving}>Record Attempt</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Initiate Return Modal */}
+      <Modal open={!!returningDelivery} onClose={() => setReturningDelivery(null)} title="Initiate Return to Merchant" size="sm">
+        {returningDelivery && (
+          <form onSubmit={handleInitiateReturn}>
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm font-medium text-amber-800">Return delivery #{returningDelivery.id?.slice(0, 10)} to merchant</p>
+              {returningDelivery.cod_amount > 0 && (
+                <p className="text-xs text-red-600 mt-1 font-semibold">⚠️ COD amount ৳{Number(returningDelivery.cod_amount).toFixed(2)} was collected — cash reconciliation required</p>
+              )}
+            </div>
+            <FormField label="Return Reason">
+              <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)} rows={2}
+                className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Reason for return..." />
+            </FormField>
+            <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-gray-100">
+              <Button variant="secondary" type="button" onClick={() => setReturningDelivery(null)}>Cancel</Button>
+              <Button type="submit" variant="danger" loading={returnSaving}>Initiate Return</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Reschedule Modal */}
+      <Modal open={!!reschedulingDelivery} onClose={() => setReschedulingDelivery(null)} title="Reschedule Delivery" size="sm">
+        {reschedulingDelivery && (
+          <form onSubmit={handleReschedule}>
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-800">Delivery #{reschedulingDelivery.id?.slice(0, 10)}</p>
+              <p className="text-xs text-blue-600 mt-1">Current: {reschedulingDelivery.status.replace('_', ' ')}</p>
+            </div>
+            <FormField label="New Date *" required>
+              <input type="date" value={newSchedDate} onChange={e => setNewSchedDate(e.target.value)} required
+                className="w-full px-3 py-2 border rounded-lg text-sm" min={new Date().toISOString().split('T')[0]} />
+            </FormField>
+            <FormField label="Time Slot">
+              <Select value={newSchedSlot} onChange={e => setNewSchedSlot(e.target.value)}>
+                <option value="">Select time slot</option>
+                <option value="09:00-12:00">09:00 – 12:00</option>
+                <option value="12:00-15:00">12:00 – 15:00</option>
+                <option value="15:00-18:00">15:00 – 18:00</option>
+                <option value="18:00-21:00">18:00 – 21:00</option>
+              </Select>
+            </FormField>
+            <FormField label="Notes">
+              <textarea value={rescheduleNotes} onChange={e => setRescheduleNotes(e.target.value)} rows={2}
+                className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Delivery notes..." />
+            </FormField>
+            <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-gray-100">
+              <Button variant="secondary" type="button" onClick={() => setReschedulingDelivery(null)}>Cancel</Button>
+              <Button type="submit" loading={rescheduleSaving}>Reschedule</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Confirm Delivery Modal */}
+      <Modal open={!!confirmingDelivery} onClose={() => setConfirmingDelivery(null)} title="Confirm Delivery" size="sm">
+        {confirmingDelivery && (
+          <form onSubmit={handleConfirmDelivery}>
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <p className="text-sm font-medium text-emerald-800">Delivery #{confirmingDelivery.id?.slice(0, 10)}</p>
+              <p className="text-xs text-emerald-600 mt-1">Confirm the package was delivered to the customer</p>
+            </div>
+            {confirmingDelivery.method === 'cod' && (
+              <FormField label="COD Amount Collected (BDT)">
+                <input type="number" value={codAmount} onChange={e => setCodAmount(e.target.value)} step="0.01"
+                  className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Enter amount if COD was collected" />
+              </FormField>
+            )}
+            <FormField label="Delivery Notes">
+              <textarea value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)} rows={2}
+                className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Proof notes or customer instructions..." />
+            </FormField>
+            <div className="flex gap-2 justify-end mt-6 pt-4 border-t border-gray-100">
+              <Button variant="secondary" type="button" onClick={() => setConfirmingDelivery(null)}>Cancel</Button>
+              <Button type="submit" loading={confirmSaving}>Confirm Delivery</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

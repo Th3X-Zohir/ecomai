@@ -39,6 +39,10 @@ import Reviews from './pages/Reviews';
 import Newsletter from './pages/Newsletter';
 import Operations from './pages/Operations';
 import CODReconciliation from './pages/CODReconciliation';
+import SettlementConfig from './pages/SettlementConfig';
+import SettlementLedger from './pages/SettlementLedger';
+import RefundManagement from './pages/RefundManagement';
+import ExceptionQueue from './pages/ExceptionQueue';
 
 // Storefront pages
 import StorefrontLayout from './storefront/StorefrontLayout';
@@ -142,6 +146,10 @@ export default function App() {
         <Route path="deliveries" element={<Deliveries />} />
         <Route path="operations" element={<Operations />} />
         <Route path="cod" element={<CODReconciliation />} />
+        <Route path="settlements/config" element={<SettlementConfig />} />
+        <Route path="settlements/ledger" element={<SettlementLedger />} />
+        <Route path="refunds" element={<RefundManagement />} />
+        <Route path="exceptions" element={<SuperAdminRoute><ExceptionQueue /></SuperAdminRoute>} />
         <Route path="payments" element={<Payments />} />
         <Route path="coupons" element={<Coupons />} />
         <Route path="inventory" element={<Inventory />} />

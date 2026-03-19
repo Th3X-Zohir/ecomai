@@ -1,5 +1,5 @@
 const express = require('express');
-const { authRequired, resolveTenant } = require('../middleware/auth');
+const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const deliveryZonesService = require('../services/delivery-zones');
@@ -14,7 +14,7 @@ router.get('/settings', asyncHandler(async (req, res) => {
   res.json(settings);
 }));
 
-router.patch('/settings', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.patch('/settings', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const settings = await deliveryZonesService.saveSettings(req.tenantShopId, req.body);
   res.json(settings);
 }));
@@ -26,7 +26,7 @@ router.get('/zones', asyncHandler(async (req, res) => {
   res.json({ items: zones });
 }));
 
-router.post('/zones', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.post('/zones', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const zone = await deliveryZonesService.createZone(req.tenantShopId, req.body);
   res.status(201).json(zone);
 }));
@@ -36,22 +36,22 @@ router.get('/zones/:zoneId', asyncHandler(async (req, res) => {
   res.json(zone);
 }));
 
-router.patch('/zones/:zoneId', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.patch('/zones/:zoneId', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const zone = await deliveryZonesService.updateZone(req.tenantShopId, req.params.zoneId, req.body);
   res.json(zone);
 }));
 
-router.delete('/zones/:zoneId', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.delete('/zones/:zoneId', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   await deliveryZonesService.deleteZone(req.tenantShopId, req.params.zoneId);
   res.json({ success: true });
 }));
 
-router.post('/zones/:zoneId/areas', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.post('/zones/:zoneId/areas', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const area = await deliveryZonesService.addAreaToZone(req.tenantShopId, req.params.zoneId, req.body);
   res.status(201).json(area);
 }));
 
-router.delete('/zones/:zoneId/areas/:areaId', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.delete('/zones/:zoneId/areas/:areaId', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   await deliveryZonesService.removeAreaFromZone(req.tenantShopId, req.params.zoneId, req.params.areaId);
   res.json({ success: true });
 }));
@@ -64,17 +64,17 @@ router.get('/charge-rules', asyncHandler(async (req, res) => {
   res.json({ items: rules });
 }));
 
-router.post('/charge-rules', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.post('/charge-rules', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const rule = await deliveryZonesService.createChargeRule(req.tenantShopId, req.body);
   res.status(201).json(rule);
 }));
 
-router.patch('/charge-rules/:ruleId', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.patch('/charge-rules/:ruleId', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const rule = await deliveryZonesService.updateChargeRule(req.tenantShopId, req.params.ruleId, req.body);
   res.json(rule);
 }));
 
-router.delete('/charge-rules/:ruleId', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.delete('/charge-rules/:ruleId', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   await deliveryZonesService.deleteChargeRule(req.tenantShopId, req.params.ruleId);
   res.json({ success: true });
 }));
@@ -86,17 +86,17 @@ router.get('/sla-profiles', asyncHandler(async (req, res) => {
   res.json({ items: profiles });
 }));
 
-router.post('/sla-profiles', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.post('/sla-profiles', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const profile = await deliveryZonesService.createSlaProfile(req.tenantShopId, req.body);
   res.status(201).json(profile);
 }));
 
-router.patch('/sla-profiles/:profileId', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.patch('/sla-profiles/:profileId', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const profile = await deliveryZonesService.updateSlaProfile(req.tenantShopId, req.params.profileId, req.body);
   res.json(profile);
 }));
 
-router.delete('/sla-profiles/:profileId', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.delete('/sla-profiles/:profileId', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   await deliveryZonesService.deleteSlaProfile(req.tenantShopId, req.params.profileId);
   res.json({ success: true });
 }));
@@ -124,17 +124,17 @@ router.post('/estimate-delivery', asyncHandler(async (req, res) => {
 
 /* ── Driver Fleet ───────────────────────────────────────────────────── */
 
-router.get('/fleet', requireRole('shop_admin', 'super_admin'), asyncHandler(async (req, res) => {
+router.get('/fleet', requireRoles(['shop_admin', 'super_admin']), asyncHandler(async (req, res) => {
   const fleet = await deliveryZonesService.getFleet(req.tenantShopId);
   res.json({ items: fleet });
 }));
 
-router.post('/fleet', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.post('/fleet', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const driver = await deliveryZonesService.registerDriver(req.tenantShopId, req.body);
   res.status(201).json(driver);
 }));
 
-router.patch('/fleet/:userId/availability', requireRole('shop_admin'), asyncHandler(async (req, res) => {
+router.patch('/fleet/:userId/availability', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
   const driver = await deliveryZonesService.setDriverAvailability(req.params.userId, req.body.isAvailable);
   if (!driver) throw new (require('../errors/domain-error'))('NOT_FOUND', 'Driver not found in fleet', 404);
   res.json(driver);
