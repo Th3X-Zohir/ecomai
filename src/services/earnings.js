@@ -2,6 +2,7 @@ const db = require('../db');
 const earningsRepo = require('../repositories/earnings');
 const notificationService = require('./notifications');
 const shopRepo = require('../repositories/shops');
+const settlementsService = require('./settlements');
 const { DomainError } = require('../errors/domain-error');
 
 /**
@@ -214,15 +215,16 @@ async function markProcessing(withdrawalId, { referenceId, notes }) {
 
 /**
  * Super admin completes withdrawal — deducts from shop balance.
+ * Also records payout debit in settlement ledger.
  */
 async function completeWithdrawal(withdrawalId, { referenceId, notes }) {
   const w = await earningsRepo.findWithdrawalById(withdrawalId);
-  if (!w) throw new DomainError('NOT_FOUND', 'Withdrawal not found', 404);
+  if (!w) throw new DomainError('NOT_FOUND', 'Withdrawal request not found', 404);
   if (!['approved', 'processing'].includes(w.status)) {
     throw new DomainError('INVALID_STATUS', 'Withdrawal must be approved/processing', 400);
   }
 
-  // Deduct from balance
+  // Deduct from balance (earnings ledger)
   await earningsRepo.createEarning({
     shop_id: w.shop_id,
     type: 'withdrawal',
@@ -232,6 +234,16 @@ async function completeWithdrawal(withdrawalId, { referenceId, notes }) {
     net_amount: -Math.abs(Number(w.amount)),
     description: `Withdrawal #${w.id.slice(0, 8)} completed`,
   });
+
+  // Record payout debit in settlement ledger
+  try {
+    await settlementsService.recordPayoutDebit({
+      shopId: w.shop_id,
+      withdrawalId: w.id,
+      amount: w.amount,
+      currency: w.currency || 'BDT',
+    });
+  } catch (_) { /* non-critical */ }
 
   return earningsRepo.updateWithdrawal(withdrawalId, {
     status: 'completed',

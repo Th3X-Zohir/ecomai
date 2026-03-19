@@ -264,6 +264,28 @@ export const dashboard = {
   platform: () => request('GET', '/dashboard/platform'),
 };
 
+export const operations = {
+  // Merchant
+  merchantOverview: () => request('GET', '/operations/merchant/overview'),
+  fulfillmentQueue: (params) => request('GET', `/operations/merchant/fulfillment-queue${qs(params)}`),
+  deliveryQueue: (params) => request('GET', `/operations/merchant/delivery-queue${qs(params)}`),
+  merchantFinancialOps: (params) => request('GET', `/operations/merchant/financial-ops${qs(params)}`),
+  // Platform
+  platformOverview: () => request('GET', '/operations/platform/overview'),
+  platformExceptions: (params) => request('GET', `/operations/platform/exceptions${qs(params)}`),
+  platformDeliveries: (params) => request('GET', `/operations/platform/deliveries${qs(params)}`),
+};
+
+export const cod = {
+  getSummary: (params) => request('GET', `/cod/summary${qs(params)}`),
+  getUncollected: () => request('GET', '/cod/uncollected'),
+  getCollections: (params) => request('GET', `/cod/collections${qs(params)}`),
+  getSettlements: (params) => request('GET', `/cod/settlements${qs(params)}`),
+  getSettlementById: (id) => request('GET', `/cod/settlements/${id}`),
+  reviewSettlement: (id, data) => request('PATCH', `/cod/settlements/${id}/review`, data),
+  getDrivers: () => request('GET', '/cod/drivers'),
+};
+
 export const subscriptions = {
   // Plans
   listPlans: (params) => request('GET', `/subscriptions/plans${qs(params)}`),

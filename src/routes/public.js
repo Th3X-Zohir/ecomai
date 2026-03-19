@@ -11,6 +11,7 @@ const imageRepo = require('../repositories/product-images');
 const customerService = require('../services/customers');
 const orderService = require('../services/orders');
 const paymentService = require('../services/payments');
+const trackingService = require('../services/tracking');
 const couponService = require('../services/coupons');
 const invoiceService = require('../services/invoices');
 const jwt = require('jsonwebtoken');
@@ -194,6 +195,24 @@ router.get('/shops/:slug/account/orders/:orderId', customerAuth, asyncHandler(as
     throw new DomainError('FORBIDDEN', 'You do not have access to this order', 403);
   }
   res.json(order);
+}));
+
+// ── Public Order Tracking (no auth) ──────────────────────────────────────────
+// Customer can track by order ID + email or phone verification
+router.post('/shops/:slug/track', asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const { order_id, email, phone } = req.body;
+  if (!order_id) throw new DomainError('VALIDATION_ERROR', 'order_id is required', 400);
+  if (!email && !phone) throw new DomainError('VALIDATION_ERROR', 'email or phone is required for verification', 400);
+
+  const tracking = await trackingService.trackOrderById({
+    shopId: shop.id,
+    orderId: order_id,
+    email,
+    phone,
+  });
+  res.json(tracking);
 }));
 
 // Change password

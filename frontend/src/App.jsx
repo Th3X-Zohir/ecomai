@@ -37,6 +37,8 @@ import PlatformEarnings from './pages/PlatformEarnings';
 import Subscriptions from './pages/Subscriptions';
 import Reviews from './pages/Reviews';
 import Newsletter from './pages/Newsletter';
+import Operations from './pages/Operations';
+import CODReconciliation from './pages/CODReconciliation';
 
 // Storefront pages
 import StorefrontLayout from './storefront/StorefrontLayout';
@@ -57,6 +59,7 @@ import StoreCategory from './storefront/pages/StoreCategory';
 import CheckoutSuccess from './storefront/pages/CheckoutSuccess';
 import CheckoutFail from './storefront/pages/CheckoutFail';
 import CheckoutCancel from './storefront/pages/CheckoutCancel';
+import StoreOrderTracking from './storefront/pages/StoreOrderTracking';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -88,6 +91,7 @@ function StorefrontWrapper() {
           <Route path="checkout/success" element={<CheckoutSuccess />} />
           <Route path="checkout/fail" element={<CheckoutFail />} />
           <Route path="checkout/cancel" element={<CheckoutCancel />} />
+          <Route path="track" element={<StoreOrderTracking />} />
           <Route path="auth/login" element={<StoreLogin />} />
           <Route path="auth/register" element={<StoreRegister />} />
           <Route path="auth/forgot-password" element={<StoreForgotPassword />} />
@@ -136,6 +140,8 @@ export default function App() {
         <Route path="customers" element={<Customers />} />
         <Route path="campaigns" element={<Campaigns />} />
         <Route path="deliveries" element={<Deliveries />} />
+        <Route path="operations" element={<Operations />} />
+        <Route path="cod" element={<CODReconciliation />} />
         <Route path="payments" element={<Payments />} />
         <Route path="coupons" element={<Coupons />} />
         <Route path="inventory" element={<Inventory />} />

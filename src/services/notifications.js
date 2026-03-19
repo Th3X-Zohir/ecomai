@@ -162,6 +162,50 @@ async function notifyWithdrawalRequest({ shopId, shopName, shopSlug, withdrawalI
   });
 }
 
+// ─── Delivery Notifications ──────────────────────────────────────
+
+async function notifyDeliveryFailedAttempt({ shopId, shopName, shopSlug, deliveryRequestId, orderId, attemptCount, maxAttempts, reason }) {
+  return notify({
+    shopId, shopName, shopSlug,
+    type: 'delivery_failed',
+    title: `Delivery attempt ${attemptCount}/${maxAttempts} failed`,
+    body: `Delivery attempt for order ${String(orderId).slice(0, 8)} failed: ${reason}. ${
+      attemptCount < maxAttempts ? `Will retry (attempt ${attemptCount + 1} of ${maxAttempts}).` : 'Max attempts reached. Package will be returned.'
+    }`,
+    data: { deliveryRequestId, orderId, attemptCount, maxAttempts, reason },
+  });
+}
+
+async function notifyDeliveryReturned({ shopId, shopName, shopSlug, deliveryRequestId, orderId, reason }) {
+  return notify({
+    shopId, shopName, shopSlug,
+    type: 'delivery_returned',
+    title: 'Delivery returned to merchant',
+    body: `Package for order ${String(orderId).slice(0, 8)} has been returned. Reason: ${reason}`,
+    data: { deliveryRequestId, orderId, reason },
+  });
+}
+
+async function notifyDeliveryCompleted({ shopId, shopName, shopSlug, deliveryRequestId, orderId }) {
+  return notify({
+    shopId, shopName, shopSlug,
+    type: 'delivery_completed',
+    title: 'Delivery completed',
+    body: `Order ${String(orderId).slice(0, 8)} has been successfully delivered.`,
+    data: { deliveryRequestId, orderId },
+  });
+}
+
+async function notifyDriverAssigned({ shopId, shopName, shopSlug, deliveryRequestId, orderId, driverName }) {
+  return notify({
+    shopId, shopName, shopSlug,
+    type: 'driver_assigned',
+    title: 'Driver assigned to delivery',
+    body: `Order ${String(orderId).slice(0, 8)} has been assigned to driver: ${driverName}`,
+    data: { deliveryRequestId, orderId, driverName },
+  });
+}
+
 // ─── Query API ─────────────────────────────────────────────
 
 async function getNotifications(shopId, opts) {
@@ -194,6 +238,10 @@ module.exports = {
   notifyOrderShipped,
   notifyRefundRequested,
   notifyWithdrawalRequest,
+  notifyDeliveryFailedAttempt,
+  notifyDeliveryReturned,
+  notifyDeliveryCompleted,
+  notifyDriverAssigned,
   getNotifications,
   getUnread,
   markRead,

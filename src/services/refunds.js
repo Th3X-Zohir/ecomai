@@ -8,6 +8,7 @@ const refundRepo = require('../repositories/refunds');
 const paymentRepo = require('../repositories/payments');
 const orderRepo = require('../repositories/orders');
 const earningsService = require('./earnings');
+const settlementsService = require('./settlements');
 const notificationService = require('./notifications');
 const shopRepo = require('../repositories/shops');
 const config = require('../config');
@@ -170,18 +171,30 @@ async function completeRefund(shopId, requestId) {
 
 /**
  * Internal: process the financial side of a completed refund.
+ * Updates settlement ledger: deducts from held or available balance.
  */
 async function processCompletedRefund(request, processedBy) {
   // Mark order as refunded
   await orderRepo.updateOrder(request.order_id, request.shop_id, { status: 'refunded' });
 
-  // Deduct from shop earnings
+  // Deduct from shop earnings (earnings ledger)
   try {
     await earningsService.recordRefundDeduction({
       shopId: request.shop_id,
       paymentId: request.payment_id,
       orderId: request.order_id,
       amount: request.refund_amount,
+      currency: request.currency,
+    });
+  } catch (_) { /* non-critical */ }
+
+  // Settle refund in escrow ledger (deduct from held or available balance)
+  try {
+    await settlementsService.settleRefund({
+      shopId: request.shop_id,
+      paymentId: request.payment_id,
+      orderId: request.order_id,
+      refundAmount: request.refund_amount,
       currency: request.currency,
     });
   } catch (_) { /* non-critical */ }

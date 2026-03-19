@@ -2,9 +2,9 @@ const deliveryRepo = require('../repositories/delivery-requests');
 const orderRepo = require('../repositories/orders');
 const { DomainError } = require('../errors/domain-error');
 
-const ALLOWED_STATUSES = ['pending', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
+const ALLOWED_STATUSES = ['pending', 'assigned', 'picked_up', 'in_transit', 'delivered', 'failed', 'cancelled'];
 
-async function createDeliveryRequest({ shopId, orderId, pickup_address, delivery_address, notes }) {
+async function createDeliveryRequest({ shopId, orderId, pickup_address, delivery_address, notes, zoneId, areaCode, packageWeight, packageContents, slaProfileId, scheduledDate, scheduledTimeSlot, customerNotes }) {
   if (!pickup_address || !delivery_address) {
     throw new DomainError('VALIDATION_ERROR', 'pickup_address and delivery_address are required', 400);
   }
@@ -17,7 +17,19 @@ async function createDeliveryRequest({ shopId, orderId, pickup_address, delivery
     throw new DomainError('DELIVERY_ALREADY_EXISTS', 'delivery request already exists for this order', 409);
   }
   return deliveryRepo.createDeliveryRequest({
-    order_id: orderId, shop_id: shopId, pickup_address, delivery_address, notes,
+    order_id: orderId,
+    shop_id: shopId,
+    pickup_address,
+    delivery_address,
+    notes,
+    zone_id: zoneId || null,
+    area_code: areaCode || null,
+    package_weight: packageWeight || null,
+    package_contents: packageContents || null,
+    sla_profile_id: slaProfileId || null,
+    scheduled_date: scheduledDate || null,
+    scheduled_time_slot: scheduledTimeSlot || null,
+    customer_notes: customerNotes || null,
   });
 }
 

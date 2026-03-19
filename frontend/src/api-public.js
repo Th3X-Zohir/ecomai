@@ -59,6 +59,9 @@ export const storeApi = {
   // Checkout (creates order + initiates SSLCommerz payment + auto-creates customer)
   checkout: (slug, data) => request('POST', `/shops/${slug}/checkout`, data),
 
+  // Order tracking (public — no auth required)
+  trackOrder: (slug, data) => request('POST', `/shops/${slug}/track`, data),
+
   // Coupon validation
   validateCoupon: (slug, code, orderTotal) =>
     request('POST', `/shops/${slug}/validate-coupon`, { code, order_amount: orderTotal }),
