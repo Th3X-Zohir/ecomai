@@ -1,0 +1,426 @@
+{
+  "timestamp": 1773865590,
+  "configPath": "C:\\Users\\JihaN\\AppData\\Roaming\\Code - Insiders\\User\\chatLanguageModels.json",
+  "vendor": "customoai",
+  "group": "NVIDIA",
+  "modelCount": 2,
+  "results": [
+    {
+      "id": "moonshotai/kimi-k2.5",
+      "name": "Kimi K2.5 (NVIDIA)",
+      "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+      "configured": {
+        "toolCalling": true,
+        "vision": false,
+        "thinking": true,
+        "maxInputTokens": 128000,
+        "maxOutputTokens": 65536,
+        "streaming": false
+      },
+      "tests": [
+        {
+          "scenario": "basic_short",
+          "summary": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 2150,
+            "model": "moonshotai/kimi-k2.5",
+            "finishReason": "length",
+            "contentIsNull": true,
+            "contentPreview": null,
+            "reasoningPresent": true,
+            "toolCallsCount": 0,
+            "usage": {
+              "prompt_tokens": 13,
+              "total_tokens": 77,
+              "completion_tokens": 64,
+              "prompt_tokens_details": null
+            }
+          },
+          "raw": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 2150,
+            "json": {
+              "id": "chatcmpl-840bedca7a28e70e",
+              "object": "chat.completion",
+              "created": 1773865592,
+              "model": "moonshotai/kimi-k2.5",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "refusal": null,
+                    "annotations": null,
+                    "audio": null,
+                    "function_call": null,
+                    "tool_calls": [],
+                    "reasoning": " The user greeted me with \"hi how are you?\" which is a casual, friendly greeting. I should respond in a warm, helpful manner while keeping it professional.\n\nSince this is just a greeting and not asking for specific information or help with a task, I should:\n1. Acknowledge the greeting\n2. Let"
+                  },
+                  "logprobs": null,
+                  "finish_reason": "length",
+                  "stop_reason": null,
+                  "token_ids": null
+                }
+              ],
+              "service_tier": null,
+              "system_fingerprint": null,
+              "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 77,
+                "completion_tokens": 64,
+                "prompt_tokens_details": null
+              },
+              "prompt_logprobs": null,
+              "prompt_token_ids": null,
+              "kv_transfer_params": null
+            }
+          }
+        },
+        {
+          "scenario": "basic_long",
+          "summary": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 5834,
+            "model": "moonshotai/kimi-k2.5",
+            "finishReason": "stop",
+            "contentIsNull": false,
+            "contentPreview": " Hi! I'm doing well, thank you for asking. How are you doing today? Is there something I can help you with?",
+            "reasoningPresent": true,
+            "toolCallsCount": 0,
+            "usage": {
+              "prompt_tokens": 13,
+              "total_tokens": 219,
+              "completion_tokens": 206,
+              "prompt_tokens_details": null
+            }
+          },
+          "raw": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 5834,
+            "json": {
+              "id": "chatcmpl-aa7eb60e92d5a6f5",
+              "object": "chat.completion",
+              "created": 1773865593,
+              "model": "moonshotai/kimi-k2.5",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": " Hi! I'm doing well, thank you for asking. How are you doing today? Is there something I can help you with?",
+                    "refusal": null,
+                    "annotations": null,
+                    "audio": null,
+                    "function_call": null,
+                    "tool_calls": [],
+                    "reasoning": " The user is greeting me and asking \"how are you?\" This is a simple conversational opening. I should respond politely, acknowledge their greeting, and answer their question about how I am. Since I'm an AI, I don't have feelings in the human sense, but I can say I'm doing well and ready to help. I should keep it friendly and open-ended to invite them to share what they need help with.\n\nKey points:\n- Acknowledge the greeting (\"hi\")\n- Answer \"how are you\" (I'm doing well, thanks for asking)\n- Return the question or ask how I can help\n- Keep tone friendly and conversational\n\nDraft response:\n\"Hi! I'm doing well, thank you for asking. How are you doing today? Is there something I can help you with?\"\n\nThis is polite, answers their question, and opens the door for them to state what they need. "
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop",
+                  "stop_reason": 163586,
+                  "token_ids": null
+                }
+              ],
+              "service_tier": null,
+              "system_fingerprint": null,
+              "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 219,
+                "completion_tokens": 206,
+                "prompt_tokens_details": null
+              },
+              "prompt_logprobs": null,
+              "prompt_token_ids": null,
+              "kv_transfer_params": null
+            }
+          }
+        },
+        {
+          "scenario": "tools_auto",
+          "summary": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 1333,
+            "model": "moonshotai/kimi-k2.5",
+            "finishReason": "tool_calls",
+            "contentIsNull": true,
+            "contentPreview": null,
+            "reasoningPresent": true,
+            "toolCallsCount": 1,
+            "usage": {
+              "prompt_tokens": 55,
+              "total_tokens": 108,
+              "completion_tokens": 53,
+              "prompt_tokens_details": null
+            }
+          },
+          "raw": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 1333,
+            "json": {
+              "id": "chatcmpl-b312f296a3a5d432",
+              "object": "chat.completion",
+              "created": 1773865599,
+              "model": "moonshotai/kimi-k2.5",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "refusal": null,
+                    "annotations": null,
+                    "audio": null,
+                    "function_call": null,
+                    "tool_calls": [
+                      {
+                        "id": "functions.calc:0",
+                        "type": "function",
+                        "function": {
+                          "name": "calc",
+                          "arguments": "{\"expression\":\"2+2\"}"
+                        }
+                      }
+                    ],
+                    "reasoning": " The user is asking what 2+2 equals. I should use the calculator tool to calculate this. Let me call the calc function with the expression \"2+2\". "
+                  },
+                  "logprobs": null,
+                  "finish_reason": "tool_calls",
+                  "stop_reason": 163586,
+                  "token_ids": null
+                }
+              ],
+              "service_tier": null,
+              "system_fingerprint": null,
+              "usage": {
+                "prompt_tokens": 55,
+                "total_tokens": 108,
+                "completion_tokens": 53,
+                "prompt_tokens_details": null
+              },
+              "prompt_logprobs": null,
+              "prompt_token_ids": null,
+              "kv_transfer_params": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "z-ai/glm5",
+      "name": "GLM-5 (NVIDIA fallback)",
+      "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+      "configured": {
+        "toolCalling": true,
+        "vision": false,
+        "thinking": false,
+        "maxInputTokens": 128000,
+        "maxOutputTokens": 16000,
+        "streaming": true
+      },
+      "tests": [
+        {
+          "scenario": "basic_short",
+          "summary": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 2153,
+            "model": "z-ai/glm5",
+            "finishReason": "stop",
+            "contentIsNull": false,
+            "contentPreview": "Hello! I'm doing well, thank you for asking. I'm an AI, so I don't have feelings, but I'm ready and eager to help you.\n\nHow can I assist you today?",
+            "reasoningPresent": false,
+            "toolCallsCount": 0,
+            "usage": {
+              "prompt_tokens": 10,
+              "total_tokens": 52,
+              "completion_tokens": 42,
+              "prompt_tokens_details": null
+            }
+          },
+          "raw": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 2153,
+            "json": {
+              "id": "chatcmpl-bd8247c854bc1c9f",
+              "object": "chat.completion",
+              "created": 1773865601,
+              "model": "z-ai/glm5",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "Hello! I'm doing well, thank you for asking. I'm an AI, so I don't have feelings, but I'm ready and eager to help you.\n\nHow can I assist you today?",
+                    "refusal": null,
+                    "annotations": null,
+                    "audio": null,
+                    "function_call": null,
+                    "tool_calls": [],
+                    "reasoning": null,
+                    "reasoning_content": null
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop",
+                  "stop_reason": 154827,
+                  "token_ids": null
+                }
+              ],
+              "service_tier": null,
+              "system_fingerprint": null,
+              "usage": {
+                "prompt_tokens": 10,
+                "total_tokens": 52,
+                "completion_tokens": 42,
+                "prompt_tokens_details": null
+              },
+              "prompt_logprobs": null,
+              "prompt_token_ids": null,
+              "kv_transfer_params": null
+            }
+          }
+        },
+        {
+          "scenario": "basic_long",
+          "summary": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 3559,
+            "model": "z-ai/glm5",
+            "finishReason": "stop",
+            "contentIsNull": false,
+            "contentPreview": "Hello! I'm just a computer program, so I don't have feelings, but I'm functioning perfectly and ready to help you. How can I assist you today?",
+            "reasoningPresent": false,
+            "toolCallsCount": 0,
+            "usage": {
+              "prompt_tokens": 10,
+              "total_tokens": 45,
+              "completion_tokens": 35,
+              "prompt_tokens_details": null
+            }
+          },
+          "raw": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 3559,
+            "json": {
+              "id": "chatcmpl-b523c91973963ee2",
+              "object": "chat.completion",
+              "created": 1773865603,
+              "model": "z-ai/glm5",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "Hello! I'm just a computer program, so I don't have feelings, but I'm functioning perfectly and ready to help you. How can I assist you today?",
+                    "refusal": null,
+                    "annotations": null,
+                    "audio": null,
+                    "function_call": null,
+                    "tool_calls": [],
+                    "reasoning": null,
+                    "reasoning_content": null
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop",
+                  "stop_reason": 154827,
+                  "token_ids": null
+                }
+              ],
+              "service_tier": null,
+              "system_fingerprint": null,
+              "usage": {
+                "prompt_tokens": 10,
+                "total_tokens": 45,
+                "completion_tokens": 35,
+                "prompt_tokens_details": null
+              },
+              "prompt_logprobs": null,
+              "prompt_token_ids": null,
+              "kv_transfer_params": null
+            }
+          }
+        },
+        {
+          "scenario": "tools_auto",
+          "summary": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 686,
+            "model": "z-ai/glm5",
+            "finishReason": "tool_calls",
+            "contentIsNull": false,
+            "contentPreview": "",
+            "reasoningPresent": false,
+            "toolCallsCount": 1,
+            "usage": {
+              "prompt_tokens": 165,
+              "total_tokens": 177,
+              "completion_tokens": 12,
+              "prompt_tokens_details": null
+            }
+          },
+          "raw": {
+            "ok": true,
+            "status": 200,
+            "elapsedMs": 686,
+            "json": {
+              "id": "chatcmpl-b1df924722a0a2d4",
+              "object": "chat.completion",
+              "created": 1773865606,
+              "model": "z-ai/glm5",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "refusal": null,
+                    "annotations": null,
+                    "audio": null,
+                    "function_call": null,
+                    "tool_calls": [
+                      {
+                        "id": "chatcmpl-tool-bcb70c48944940c4",
+                        "type": "function",
+                        "function": {
+                          "name": "calc",
+                          "arguments": "{\"expression\": \"2+2\"}"
+                        }
+                      }
+                    ],
+                    "reasoning": null,
+                    "reasoning_content": null
+                  },
+                  "logprobs": null,
+                  "finish_reason": "tool_calls",
+                  "stop_reason": 154829,
+                  "token_ids": null
+                }
+              ],
+              "service_tier": null,
+              "system_fingerprint": null,
+              "usage": {
+                "prompt_tokens": 165,
+                "total_tokens": 177,
+                "completion_tokens": 12,
+                "prompt_tokens_details": null
+              },
+              "prompt_logprobs": null,
+              "prompt_token_ids": null,
+              "kv_transfer_params": null
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

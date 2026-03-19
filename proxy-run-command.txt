@@ -1,0 +1,51 @@
+════════════════════════════════════════════════════════════════════════════════
+NVIDIA PROXY (GLM-4.7, MiniMax M2.5) - Port 8788
+════════════════════════════════════════════════════════════════════════════════
+
+Run this from c:\ecomai (in first terminal):
+
+python scripts/nvidia_auth_proxy.py --host 127.0.0.1 --port 8788 --target-base https://integrate.api.nvidia.com --api-key YOUR_NVIDIA_KEY --sanitize-thinking --max-rpm 30 --max-concurrency 1 --max-input-bytes-per-minute 350000 --max-wait-seconds 25
+
+════════════════════════════════════════════════════════════════════════════════
+MINIMAX PROXY (M2.7) - Port 8789
+════════════════════════════════════════════════════════════════════════════════
+
+Run this from c:\ecomai (in second terminal):
+
+python scripts/minimax_auth_proxy.py --host 127.0.0.1 --port 8789 --target-base https://api.minimax.io --api-key YOUR_MINIMAX_KEY --sanitize-thinking
+
+════════════════════════════════════════════════════════════════════════════════
+LOGGING OUTPUT
+════════════════════════════════════════════════════════════════════════════════
+
+Each proxy will show in its terminal:
+- per-request line: [proxy ...] "POST /v1/chat/completions ..."
+- request meta line: [proxy request] model=... messages=... tools=... stream=... tool_choice=... in=...B
+- counter line: [proxy counters] total=... last60s=... in=...B out=...B status={...}
+
+Optional: add periodic summary too (same per terminal)
+--stats-interval 10
+
+════════════════════════════════════════════════════════════════════════════════
+RATE LIMITING NOTES
+════════════════════════════════════════════════════════════════════════════════
+
+NVIDIA Proxy (port 8788):
+- --max-rpm 30 keeps a safety buffer below the advertised 40 RPM per endpoint.
+- --max-concurrency 1 prevents burst pairs from arriving at the provider at the same second.
+- --max-input-bytes-per-minute 350000 throttles very large context bursts (~110KB per request).
+- --max-wait-seconds 25 ensures requests don't queue > 25s (Copilot timeout ~90-120s).
+
+MiniMax Proxy (port 8789):
+- NO rate limiting (paid API, unlimited requests)
+- --max-wait-seconds 120 is default for Copilot timeout safety (can be adjusted)
+
+════════════════════════════════════════════════════════════════════════════════
+EXAMPLE WITH REAL KEYS (replace YOUR_* with actual values):
+════════════════════════════════════════════════════════════════════════════════
+
+Terminal 1 (NVIDIA):
+python scripts/nvidia_auth_proxy.py --host 127.0.0.1 --port 8788 --target-base https://integrate.api.nvidia.com --api-key YOUR_NVIDIA_KEY --sanitize-thinking --max-rpm 30 --max-concurrency 1 --max-input-bytes-per-minute 350000 --max-wait-seconds 25
+
+Terminal 2 (MiniMax - Unlimited, Paid API):
+python scripts/minimax_auth_proxy.py --host 127.0.0.1 --port 8789 --target-base https://api.minimax.io --api-key YOUR_MINIMAX_KEY --sanitize-thinking

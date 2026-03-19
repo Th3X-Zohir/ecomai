@@ -5,5 +5,44 @@
         "Test-Path": true,
         "docker compose": true,
         "docker exec": true
-    }
+    },
+    "claudeCode.selectedModel": "minimax-m2.7",
+    "claudeCode.environmentVariables": [
+        {
+            "name": "ANTHROPIC_BASE_URL",
+            "value": "https://api.minimax.io/anthropic"
+        },
+        {
+            "name": "ANTHROPIC_AUTH_TOKEN",
+            "value": "sk-cp-xkeqrGd7UyFjQPkkfo4pMAfY-qfj9Z3lXfCiNhQP1w57NhV7urMUL_8yj_e7r6e9fuTEj2U9r0NeRT_rNLR1p-bQD35I5QazhAZ7tbqXNm_dD2LhN1Zcjy8"
+        },
+        {
+            "name": "API_TIMEOUT_MS",
+            "value": "3000000"
+        },
+        {
+            "name": "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
+            "value": "1"
+        },
+        {
+            "name": "ANTHROPIC_MODEL",
+            "value": "MiniMax-M2.7"
+        },
+        {
+            "name": "ANTHROPIC_SMALL_FAST_MODEL",
+            "value": "MiniMax-M2.7"
+        },
+        {
+            "name": "ANTHROPIC_DEFAULT_SONNET_MODEL",
+            "value": "MiniMax-M2.7"
+        },
+        {
+            "name": "ANTHROPIC_DEFAULT_OPUS_MODEL",
+            "value": "MiniMax-M2.7"
+        },
+        {
+            "name": "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+            "value": "MiniMax-M2.7"
+        }
+    ]
 }
