@@ -60,6 +60,7 @@ router.post('/plans', validateBody({
   slug: { required: true, type: 'string' },
 }), asyncHandler(async (req, res) => {
   const plan = await subService.createPlan(req.body);
+  engine.invalidatePlanCache();
   res.status(201).json(plan);
 }));
 
@@ -68,11 +69,13 @@ router.patch('/plans/:id', validateBody({
   slug: { type: 'string' },
 }), asyncHandler(async (req, res) => {
   const plan = await subService.updatePlan(req.params.id, req.body);
+  engine.invalidatePlanCache();
   res.json(plan);
 }));
 
 router.delete('/plans/:id', asyncHandler(async (req, res) => {
   await subService.deletePlan(req.params.id);
+  engine.invalidatePlanCache();
   res.json({ message: 'Plan deleted' });
 }));
 

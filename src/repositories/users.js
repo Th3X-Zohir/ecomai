@@ -74,6 +74,10 @@ async function updateUser(userId, patch) {
   }
   if (sets.length === 0) return findById(userId);
   sets.push(`updated_at = now()`);
+  // When password_hash is updated, also update password_changed_at to invalidate old sessions
+  if (Object.prototype.hasOwnProperty.call(patch, 'password_hash')) {
+    sets.push(`password_changed_at = now()`);
+  }
   params.push(userId);
   const res = await db.query(
     `UPDATE users SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,

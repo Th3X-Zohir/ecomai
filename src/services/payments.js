@@ -11,21 +11,57 @@ const SSLCZ_BASE = config.sslcommerzIsLive
   : 'https://sandbox.sslcommerz.com';
 
 /** POST form-encoded data to SSLCommerz using native fetch */
-async function sslczPost(endpoint, data) {
+async function sslczPost(endpoint, data, timeoutMs = 15_000) {
   const body = new URLSearchParams(data).toString();
-  const res = await fetch(`${SSLCZ_BASE}${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  return res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${SSLCZ_BASE}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+      signal: controller.signal,
+    });
+    return res.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** GET with query params from SSLCommerz */
-async function sslczGet(endpoint, params) {
+async function sslczGet(endpoint, params, timeoutMs = 10_000) {
   const qs = new URLSearchParams(params).toString();
-  const res = await fetch(`${SSLCZ_BASE}${endpoint}?${qs}`);
-  return res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${SSLCZ_BASE}${endpoint}?${qs}`, { signal: controller.signal });
+    return res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Verify SSLCommerz IPN signature.
+ * SSLCommerz IPN validation requires posting the received fields back to their
+ * validation API with store credentials. Returns true if the IPN is verified.
+ */
+async function verifyIPNSignature(ipnBody) {
+  const { tran_id, val_id, store_id, store_passwd } = ipnBody;
+  if (!tran_id || !val_id) return false;
+  try {
+    const result = await sslczPost('/validator/api/validationserverAPI.php', {
+      val_id: val_id,
+      store_id: config.sslcommerzStoreId,
+      store_passwd: config.sslcommerzStorePasswd,
+      v: '1',
+      format: 'json',
+    });
+    // If the response status matches the IPN status, signature is valid
+    return result.status === 'VALID' || result.status === 'VALIDATED';
+  } catch (_e) {
+    return false;
+  }
 }
 
 async function ensureOrder(shopId, orderId) {
@@ -42,6 +78,12 @@ async function ensureOrder(shopId, orderId) {
  */
 async function initiatePayment({ shopId, orderId, customerName, customerEmail, customerPhone, shippingAddress }) {
   const order = await ensureOrder(shopId, orderId);
+
+  // Idempotency: if a pending payment already exists for this order, return it instead of creating a duplicate
+  const existingPending = await paymentRepo.findPendingByOrder(orderId);
+  if (existingPending) {
+    return { gatewayUrl: null, paymentId: existingPending.id, tranId: existingPending.gateway_tran_id, alreadyExists: true };
+  }
 
   const tranId = `TXN_${order.id}_${Date.now()}`;
 

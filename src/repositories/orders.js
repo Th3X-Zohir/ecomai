@@ -66,7 +66,10 @@ async function listItemsByOrder(orderId) {
 
 async function updateOrder(orderId, shopId, patch, client) {
   const q = client || db;
-  const allowed = ['status', 'payment_status', 'shipping_address', 'notes', 'total_amount', 'tax_amount', 'discount_amount'];
+  // NOTE: total_amount, tax_amount, discount_amount are intentionally NOT included.
+  // Order totals are computed at creation time and must not be modified post-creation
+  // to prevent financial fraud. Use a refund record to adjust financially.
+  const allowed = ['status', 'payment_status', 'shipping_address', 'notes'];
   const sets = [];
   const params = [];
   let idx = 1;
@@ -96,7 +99,7 @@ async function updateOrder(orderId, shopId, patch, client) {
 }
 
 async function findById(orderId) {
-  const res = await db.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+  const res = await db.query('SELECT * FROM orders WHERE id = $1 AND deleted_at IS NULL', [orderId]);
   return res.rows[0] || null;
 }
 

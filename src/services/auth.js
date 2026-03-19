@@ -80,6 +80,17 @@ async function refresh(refreshToken) {
     throw new DomainError('INVALID_REFRESH', 'Refresh token user not found', 401);
   }
 
+  // Revoke refresh tokens if password was changed after this token was issued
+  if (user.password_changed_at) {
+    const tokenIssuedAt = new Date(payload.iat * 1000); // iat is Unix seconds
+    const pwdChangedAt = new Date(user.password_changed_at);
+    if (pwdChangedAt > tokenIssuedAt) {
+      // Token was issued before password change — revoke all user tokens
+      await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [user.id]);
+      throw new DomainError('SESSION_REVOKED', 'Session has been revoked due to credential change', 401);
+    }
+  }
+
   // Rotate: delete old, create new
   await db.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
 

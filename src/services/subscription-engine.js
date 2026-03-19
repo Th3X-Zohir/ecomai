@@ -15,7 +15,7 @@ const { DomainError } = require('../errors/domain-error');
 // ── Plan cache (invalidated on plan CRUD) ─────────────────
 let _planCache = null;
 let _planCacheAt = 0;
-const PLAN_CACHE_TTL = 60_000; // 1 minute
+const PLAN_CACHE_TTL = 10_000; // 10 seconds — balances freshness vs DB load
 
 function invalidatePlanCache() {
   _planCache = null;

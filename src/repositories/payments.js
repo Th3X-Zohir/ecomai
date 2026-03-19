@@ -30,6 +30,15 @@ async function findByTranId(tranId) {
   return res.rows[0] || null;
 }
 
+// Idempotency: find existing pending payment for an order to prevent duplicate payments on retry
+async function findPendingByOrder(orderId) {
+  const res = await db.query(
+    `SELECT * FROM payments WHERE order_id = $1 AND status = 'pending' ORDER BY created_at DESC LIMIT 1`,
+    [orderId]
+  );
+  return res.rows[0] || null;
+}
+
 async function updatePayment(paymentId, patch, client) {
   const q = client || db;
   const allowed = ['status', 'gateway_tran_id', 'gateway_response', 'method'];
@@ -105,5 +114,5 @@ async function deletePayment(paymentId) {
   return res.rows[0] || null;
 }
 
-module.exports = { createPayment, findById, findByIdAndShop, findByTranId, updatePayment, listByShop, listByOrder, createRefund, listRefundsByPayment, deletePayment };
+module.exports = { createPayment, findById, findByIdAndShop, findByTranId, findPendingByOrder, updatePayment, listByShop, listByOrder, createRefund, listRefundsByPayment, deletePayment };
 

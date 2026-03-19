@@ -4,7 +4,10 @@ const compression = require('compression');
 const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const { errorHandler } = require('./middleware/error-handler');
+const { csrfToken, csrfValidate } = require('./middleware/csrf');
+const { requestLogger } = require('./middleware/request-logger');
 const config = require('./config');
 
 // Routes
@@ -32,11 +35,10 @@ const earningsRoutes = require('./routes/earnings');
 const subscriptionRoutes = require('./routes/subscriptions');
 const reviewRoutes = require('./routes/reviews');
 const newsletterRoutes = require('./routes/newsletter');
-const { requestLogger } = require('./middleware/request-logger');
 
 const app = express();
 
-// Security
+// ── Security middleware ──────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -59,7 +61,8 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true, limit: '100kb' })); // SSLCommerz callbacks use form POST
+app.use(express.urlencoded({ extended: true, limit: '100kb' })); // SSLCommerz form POST callbacks
+app.use(cookieParser()); // Parse cookies for CSRF validation
 
 // Request correlation ID for distributed tracing
 app.use((req, res, next) => {
@@ -71,7 +74,12 @@ app.use((req, res, next) => {
 
 app.use(requestLogger);
 
-// Rate limiting
+// Set CSRF token cookie on safe (non-mutating) requests
+app.use(csrfToken);
+// Validate CSRF token on all mutating requests
+app.use(csrfValidate);
+
+// ── Rate limiting ────────────────────────────────────────────
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false,
   message: { code: 'RATE_LIMITED', message: 'Too many requests, please try again later' },
 });
@@ -84,24 +92,25 @@ const customerAuthLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 15, stand
 const writeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false,
   message: { code: 'RATE_LIMITED', message: 'Too many submissions, please try again later' },
 });
+const webhookLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false,
+  message: { code: 'RATE_LIMITED', message: 'Too many callback requests, please try again later' },
+});
 
 app.use('/v1', apiLimiter);
 app.use('/v1/auth', authLimiter);
 app.use('/v1/register', authLimiter);
-// Rate limit customer auth endpoints (storefront login/register)
+// Payment webhook callbacks — stricter limits to prevent replay attacks
+app.use('/v1/payments/sslcommerz', webhookLimiter);
 app.use('/v1/public/shops/:slug/auth', customerAuthLimiter);
-// Rate limit storefront write endpoints (reviews, newsletter, checkout)
 app.use('/v1/public/shops/:slug/newsletter', writeLimiter);
 app.use('/v1/public/shops/:slug/checkout', writeLimiter);
 app.use('/v1/public/shops/:slug/products/:productId/reviews', writeLimiter);
 
-// Serve uploaded files
+// ── Static files ──────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-
-// Serve frontend static files
 app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
 
-// API routes
+// ── Health check ─────────────────────────────────────────────
 app.get('/health', async (_req, res) => {
   try {
     const db = require('./db');
@@ -112,6 +121,7 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+// ── API routes ──────────────────────────────────────────────
 // Public routes (no auth)
 app.use('/v1/public', publicRoutes);
 app.use('/v1/register', registerRoutes);
@@ -142,7 +152,7 @@ app.use('/v1/reviews', reviewRoutes);
 app.use('/v1/newsletter', newsletterRoutes);
 app.use('/v1/dashboard', dashboardRoutes);
 
-// SPA fallback — serve index.html for any non-API route
+// SPA fallback
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/v1') && !req.path.startsWith('/health')) {
     return res.sendFile(path.join(__dirname, '..', 'frontend', 'dist', 'index.html'));
@@ -150,7 +160,7 @@ app.get('*', (req, res) => {
   return res.status(404).json({ message: 'Not found' });
 });
 
-// Global error handler — must be after all routes
+// Global error handler — must be last
 app.use(errorHandler);
 
 module.exports = app;

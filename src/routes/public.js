@@ -156,7 +156,7 @@ function customerAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, jwtSecret);
     if (payload.type !== 'customer') {
-      return res.status(403).json({ message: 'Not a customer token' });
+      return res.status(401).json({ message: 'Not a customer token' });
     }
     req.customer = payload;
     next();

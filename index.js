@@ -2,6 +2,28 @@ const app = require('./src/app');
 const { port } = require('./src/config');
 const db = require('./src/db');
 
+// ── Sentry (error tracking) ───────────────────────────────────
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    // Only trace performance in production
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
+    // Don't send errors in test environment
+    enabled: process.env.NODE_ENV !== 'test',
+    beforeSend(event) {
+      // Scrub sensitive fields before sending
+      if (event.request?.headers) {
+        delete event.request.headers['authorization'];
+        delete event.request.headers['x-csrf-token'];
+      }
+      return event;
+    },
+  });
+  console.log('[Sentry] Error tracking initialized');
+}
+
 const server = app.listen(port, () => {
   console.log(`Ecomai API listening on :${port}`);
 });

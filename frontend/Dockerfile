@@ -1,15 +1,39 @@
-# ── Ecomai Frontend (dev with Vite) ──
-FROM oven/bun:1.1-alpine
+# ── Ecomai Frontend (production build) ──
+# Stage 1: Build
+FROM oven/bun:1.1-alpine AS builder
 
 WORKDIR /app
 
-# Install deps first (layer cache)
+# Install deps
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile 2>/dev/null || bun install
 
 # Copy source
 COPY . .
 
-EXPOSE 5173
+# Build-time vars (VITE_* must be set at build time)
+# If VITE_API_URL is provided at build time, embed it; otherwise use relative path
+ARG VITE_API_URL=""
+ENV VITE_API_URL ${VITE_API_URL:-http://localhost:3000}
 
-CMD ["bun", "run", "dev", "--host", "0.0.0.0"]
+RUN bun run build
+
+# Stage 2: Serve with static file server
+FROM oven/bun:1.1-alpine
+
+WORKDIR /app
+
+# Install serve (lightweight production static file server)
+RUN bun add -g serve
+
+# Copy built assets from builder
+COPY --from=builder /app/dist ./dist
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1
+
+EXPOSE 3000
+
+# serve handles SPA routing and static file serving (-l = port, -s = SPA mode)
+CMD ["sh", "-c", "serve -s dist -l 3000"]

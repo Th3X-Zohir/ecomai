@@ -1,4 +1,5 @@
 const { DomainError } = require('../errors/domain-error');
+const Sentry = require('@sentry/node');
 
 function errorHandler(err, req, res, _next) {
   if (err instanceof DomainError) {
@@ -30,6 +31,17 @@ function errorHandler(err, req, res, _next) {
     shopId: req.tenantShopId || null,
   };
   console.error('[ERROR]', JSON.stringify(logEntry));
+
+  // Report to Sentry (only in production/development, not in test)
+  if (process.env.NODE_ENV !== 'test' && process.env.SENTRY_DSN) {
+    Sentry.withScope((scope) => {
+      scope.setTag('request_id', req.requestId);
+      scope.setTag('method', req.method);
+      scope.setTag('path', req.originalUrl);
+      if (req.auth?.sub) scope.setUser({ id: req.auth.sub, shop_id: req.tenantShopId || undefined });
+      Sentry.captureException(err);
+    });
+  }
 
   return res.status(500).json({ code: 'INTERNAL_ERROR', message: 'Internal server error' });
 }
