@@ -94,6 +94,14 @@ function csrfToken(req, res, next) {
       maxAge: 8 * 60 * 60 * 1000,
       path: '/',
     });
+    // Also set a raw-token cookie (non-httpOnly) so the frontend can read it for the X-CSRF-Token header
+    res.cookie('csrf_raw', rawToken, {
+      httpOnly: false,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 8 * 60 * 60 * 1000,
+      path: '/',
+    });
     res.locals.csrfToken = rawToken;
   }
 

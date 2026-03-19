@@ -37,10 +37,8 @@ const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
 function getCsrfToken() {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
-  if (!match) return null;
-  // Cookie stores the raw (unsigned) token directly as the first segment
-  return match[1].split('.')[0];
+  const match = document.cookie.match(/(?:^|;\s*)csrf_raw=([^;]+)/);
+  return match ? match[1] : null;
 }
 
 async function request(method, path, body, extraHeaders = {}) {
