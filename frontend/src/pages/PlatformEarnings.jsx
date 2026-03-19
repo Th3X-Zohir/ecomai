@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { earnings as api } from '../api';
+import { platformSettlements, earnings as api } from '../api';
 
 const W_STATUS_COLORS = {
   pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-blue-100 text-blue-700', processing: 'bg-indigo-100 text-indigo-700',
@@ -36,8 +36,8 @@ export default function PlatformEarnings() {
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const [s, b] = await Promise.all([api.platformSummary(), api.shopBalances()]);
-      setSummary(s); setBalances(b.items);
+      const [s, b] = await Promise.all([platformSettlements.getSummary(), platformSettlements.getBalances()]);
+      setSummary(s); setBalances(b.shopBalances || []);
     } catch (e) { setError(e.message); }
     setLoading(false);
   }, []);
@@ -94,12 +94,12 @@ export default function PlatformEarnings() {
       {/* Platform Summary */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          <Card label="Gross Sales" value={currency(summary.total_gross_sales)} accent="text-gray-900" />
-          <Card label="Commission Earned" value={currency(summary.total_commission_earned)} accent="text-primary-600" />
-          <Card label="Shop Earnings" value={currency(summary.total_shop_earnings)} accent="text-green-600" />
-          <Card label="Total Withdrawn" value={currency(summary.total_withdrawn)} accent="text-orange-600" />
-          <Card label="Total Sales" value={summary.total_sales} />
-          <Card label="Active Shops" value={summary.active_shops} />
+          <Card label="Total Commission" value={currency(summary.platform?.totalCommission)} accent="text-primary-600" />
+          <Card label="Commission Refunded" value={currency(summary.platform?.totalRefunds)} accent="text-red-500" />
+          <Card label="Net Commission" value={currency(summary.platform?.netCommission)} accent="text-green-600" />
+          <Card label="Platform Held" value={currency(summary.totals?.platformHeld)} accent="text-orange-600" />
+          <Card label="Platform Available" value={currency(summary.totals?.platformAvailable)} accent="text-emerald-600" />
+          <Card label="In Payout" value={currency(summary.totals?.platformProcessing)} accent="text-blue-600" />
         </div>
       )}
 
@@ -119,26 +119,24 @@ export default function PlatformEarnings() {
           <table className="w-full text-sm">
             <thead><tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
               <th className="px-4 py-3 text-left">Shop</th>
-              <th className="px-4 py-3 text-right">Balance</th>
-              <th className="px-4 py-3 text-right">Gross Earned</th>
-              <th className="px-4 py-3 text-right">Commission</th>
-              <th className="px-4 py-3 text-right">Withdrawn</th>
-              <th className="px-4 py-3 text-right">Sales</th>
+              <th className="px-4 py-3 text-right">Held (Escrow)</th>
+              <th className="px-4 py-3 text-right">Releasable</th>
+              <th className="px-4 py-3 text-right">Available</th>
+              <th className="px-4 py-3 text-right">In Payout</th>
             </tr></thead>
             <tbody className="divide-y divide-gray-100">
               {balances.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-400">No earning data yet</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-400">No balance data yet</td></tr>
               ) : balances.map(b => (
                 <tr key={b.shop_id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-gray-900">{b.shop_name || 'Unknown'}</div>
-                    <div className="text-xs text-gray-400">{b.shop_slug}</div>
+                    <div className="font-medium text-gray-900">{b.shop_name || b.name || 'Unknown'}</div>
+                    <div className="text-xs text-gray-400">{b.slug || b.shop_slug || ''}</div>
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-primary-600">{currency(b.balance)}</td>
-                  <td className="px-4 py-3 text-right">{currency(b.gross_earned)}</td>
-                  <td className="px-4 py-3 text-right text-orange-500">{currency(b.commission_paid)}</td>
-                  <td className="px-4 py-3 text-right text-blue-600">{currency(b.withdrawn)}</td>
-                  <td className="px-4 py-3 text-right">{b.sale_count}</td>
+                  <td className="px-4 py-3 text-right font-bold text-orange-500">{currency(b.held_balance)}</td>
+                  <td className="px-4 py-3 text-right text-teal-600">{currency(b.releasable_balance)}</td>
+                  <td className="px-4 py-3 text-right text-green-600">{currency(b.available_balance)}</td>
+                  <td className="px-4 py-3 text-right text-blue-600">{currency(b.payouts_processing)}</td>
                 </tr>
               ))}
             </tbody>

@@ -133,7 +133,7 @@ function PlatformDashboard({ user, shopList, selectShop }) {
         <StatCard label="Shops" value={fmtInt(totals.shops)} icon={'\u{1F3EA}'} color="primary" />
         <StatCard label="Products" value={fmtInt(totals.products)} icon={'\u{1F4E6}'} color="info" />
         <StatCard label="Orders" value={fmtInt(totals.orders)} icon={'\u{1F6D2}'} color="success" />
-        <StatCard label="Revenue" value={'$' + fmt(totals.revenue)} icon={'\u{1F4B0}'} color="warning" />
+        <StatCard label="Revenue" value={'৳' + fmt(totals.revenue)} icon={'\u{1F4B0}'} color="warning" />
         <StatCard label="Customers" value={fmtInt(totals.customers)} icon={'\u{1F464}'} color="purple" />
         <StatCard label="Users" value={fmtInt(totals.users)} icon={'\u{1F465}'} color="danger" />
       </div>
@@ -166,7 +166,7 @@ function PlatformDashboard({ user, shopList, selectShop }) {
                           <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: pct + '%' }} />
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900 tabular-nums">${fmt(rev)}</span>
+                      <span className="text-sm font-semibold text-gray-900 tabular-nums">৳{fmt(rev)}</span>
                     </div>
                   );
                 })
@@ -182,7 +182,7 @@ function PlatformDashboard({ user, shopList, selectShop }) {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Total Revenue</span>
-                    <span className="text-xl font-bold text-emerald-600">${fmt(totals.revenue)}</span>
+                    <span className="text-xl font-bold text-emerald-600">৳{fmt(totals.revenue)}</span>
                   </div>
                   <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                     <div className="h-full bg-emerald-500 rounded-full" style={{ width: Math.min(100, totals.revenue > 0 ? 70 : 0) + '%' }} />
@@ -191,7 +191,7 @@ function PlatformDashboard({ user, shopList, selectShop }) {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Avg Revenue / Shop</span>
                   <span className="text-lg font-bold text-gray-900">
-                    ${totals.shops > 0 ? fmt(totals.revenue / totals.shops) : '0.00'}
+                    ৳{totals.shops > 0 ? fmt(totals.revenue / totals.shops) : '0.00'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -204,7 +204,7 @@ function PlatformDashboard({ user, shopList, selectShop }) {
                   <div className="pt-3 border-t border-gray-100">
                     <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Top Performer</span>
                     <p className="text-sm font-semibold text-gray-900 mt-1">{topShop.name}</p>
-                    <p className="text-xs text-emerald-600 font-medium">${fmt(topShop.total_revenue)} revenue</p>
+                    <p className="text-xs text-emerald-600 font-medium">৳{fmt(topShop.total_revenue)} revenue</p>
                   </div>
                 )}
               </div>
@@ -273,7 +273,7 @@ function PlatformDashboard({ user, shopList, selectShop }) {
                     <td className="text-right px-4 py-3 font-medium tabular-nums">{fmtInt(s.product_count)}</td>
                     <td className="text-right px-4 py-3 font-medium tabular-nums">{fmtInt(s.order_count)}</td>
                     <td className="text-right px-4 py-3 font-medium tabular-nums">{fmtInt(s.customer_count)}</td>
-                    <td className="text-right px-4 py-3 font-semibold text-emerald-600 tabular-nums">${fmt(s.total_revenue)}</td>
+                    <td className="text-right px-4 py-3 font-semibold text-emerald-600 tabular-nums">৳{fmt(s.total_revenue)}</td>
                     <td className="text-center px-4 py-3">
                       <button
                         onClick={() => { selectShop(s.id); navigate('/admin'); }}
@@ -463,7 +463,7 @@ function ShopDashboard({ user, isSuperAdmin, currentShop, selectedShop }) {
                 <div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Total Revenue</span>
-                    <span className="text-xl font-bold text-emerald-600">${fmt(revenue)}</span>
+                    <span className="text-xl font-bold text-emerald-600">৳{fmt(revenue)}</span>
                   </div>
                   <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                     <div className="h-full bg-emerald-500 rounded-full" style={{ width: Math.min(100, revenue > 0 ? 60 : 0) + '%' }} />
@@ -471,7 +471,7 @@ function ShopDashboard({ user, isSuperAdmin, currentShop, selectedShop }) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Avg Order Value</span>
-                  <span className="text-lg font-bold text-gray-900">${fmt(avgOrder)}</span>
+                  <span className="text-lg font-bold text-gray-900">৳{fmt(avgOrder)}</span>
                 </div>
                 {Object.keys(ordersByStatus).length > 0 && (
                   <div className="pt-3 border-t border-gray-100">
@@ -506,7 +506,7 @@ function ShopDashboard({ user, isSuperAdmin, currentShop, selectedShop }) {
                         <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
                         <p className="text-xs text-gray-500">{p.units_sold} sold</p>
                       </div>
-                      <span className="text-sm font-semibold text-emerald-600 tabular-nums">${fmt(p.revenue)}</span>
+                      <span className="text-sm font-semibold text-emerald-600 tabular-nums">৳{fmt(p.revenue)}</span>
                     </div>
                   ))}
                 </div>

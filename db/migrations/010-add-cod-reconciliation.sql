@@ -6,7 +6,7 @@ BEGIN;
 
 -- ── COD Collections ──────────────────────────────────────────────────────────
 -- Records when a driver collects cash from a customer for a COD order
-CREATE TABLE cod_collections (
+CREATE TABLE IF NOT EXISTS cod_collections (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   delivery_request_id  UUID NOT NULL REFERENCES delivery_requests(id) ON DELETE CASCADE,
   shop_id              UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
@@ -23,7 +23,7 @@ CREATE TABLE cod_collections (
 
 -- ── COD Settlements ────────────────────────────────────────────────────────────
 -- When a driver settles their collected COD cash with the shop
-CREATE TABLE cod_settlements (
+CREATE TABLE IF NOT EXISTS cod_settlements (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id          UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
   driver_user_id  UUID NOT NULL REFERENCES users(id),
@@ -45,7 +45,7 @@ CREATE TABLE cod_settlements (
 );
 
 -- ── COD Settlement Line Items ──────────────────────────────────────────────────
-CREATE TABLE cod_settlement_items (
+CREATE TABLE IF NOT EXISTS cod_settlement_items (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   settlement_id     UUID NOT NULL REFERENCES cod_settlements(id) ON DELETE CASCADE,
   collection_id     UUID NOT NULL REFERENCES cod_collections(id) ON DELETE CASCADE,
@@ -54,14 +54,14 @@ CREATE TABLE cod_settlement_items (
 );
 
 -- ── Indexes ──────────────────────────────────────────────────────────────────
-CREATE INDEX idx_cod_collections_shop ON cod_collections(shop_id);
-CREATE INDEX idx_cod_collections_driver ON cod_collections(driver_user_id);
-CREATE INDEX idx_cod_collections_delivery ON cod_collections(delivery_request_id);
-CREATE INDEX idx_cod_collections_order ON cod_collections(order_id);
-CREATE INDEX idx_cod_collections_collected_at ON cod_collections(collected_at);
-CREATE INDEX idx_cod_settlements_shop ON cod_settlements(shop_id);
-CREATE INDEX idx_cod_settlements_driver ON cod_settlements(driver_user_id);
-CREATE INDEX idx_cod_settlements_status ON cod_settlements(status);
-CREATE INDEX idx_cod_settlement_items_settlement ON cod_settlement_items(settlement_id);
+CREATE INDEX IF NOT EXISTS idx_cod_collections_shop ON cod_collections(shop_id);
+CREATE INDEX IF NOT EXISTS idx_cod_collections_driver ON cod_collections(driver_user_id);
+CREATE INDEX IF NOT EXISTS idx_cod_collections_delivery ON cod_collections(delivery_request_id);
+CREATE INDEX IF NOT EXISTS idx_cod_collections_order ON cod_collections(order_id);
+CREATE INDEX IF NOT EXISTS idx_cod_collections_collected_at ON cod_collections(collected_at);
+CREATE INDEX IF NOT EXISTS idx_cod_settlements_shop ON cod_settlements(shop_id);
+CREATE INDEX IF NOT EXISTS idx_cod_settlements_driver ON cod_settlements(driver_user_id);
+CREATE INDEX IF NOT EXISTS idx_cod_settlements_status ON cod_settlements(status);
+CREATE INDEX IF NOT EXISTS idx_cod_settlement_items_settlement ON cod_settlement_items(settlement_id);
 
 COMMIT;

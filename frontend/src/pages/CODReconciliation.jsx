@@ -3,6 +3,7 @@
  * Cash-on-Delivery collection tracking, driver accountability, and settlement management
  */
 import { useState, useEffect } from 'react';
+import { useAdmin } from '../contexts/AdminContext';
 import { cod } from '../api';
 import { PageSkeleton } from '../components/UI';
 

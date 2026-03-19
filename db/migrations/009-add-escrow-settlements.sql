@@ -6,7 +6,7 @@
 BEGIN;
 
 -- ── Settlement Configuration (per-shop) ──────────────────────────────────────
-CREATE TABLE settlement_config (
+CREATE TABLE IF NOT EXISTS settlement_config (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id              UUID NOT NULL UNIQUE REFERENCES shops(id) ON DELETE CASCADE,
   is_enabled           BOOLEAN NOT NULL DEFAULT true,
@@ -22,7 +22,7 @@ CREATE TABLE settlement_config (
 );
 
 -- ── Settlement Ledger (immutable financial record) ───────────────────────────
-CREATE TABLE settlement_ledger (
+CREATE TABLE IF NOT EXISTS settlement_ledger (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id           UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
   payment_id        UUID REFERENCES payments(id),          -- link to original payment
@@ -51,7 +51,7 @@ CREATE TABLE settlement_ledger (
 );
 
 -- ── Shop Balance Summary (materialized/cached view for fast balance reads) ───
-CREATE TABLE shop_balance_summary (
+CREATE TABLE IF NOT EXISTS shop_balance_summary (
   shop_id              UUID PRIMARY KEY REFERENCES shops(id) ON DELETE CASCADE,
   held_balance         DECIMAL(12,2) NOT NULL DEFAULT 0,
   releasable_balance   DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -62,7 +62,7 @@ CREATE TABLE shop_balance_summary (
 
 -- ── Automatic Settlement Jobs Queue ─────────────────────────────────────────
 -- Track scheduled automatic settlement releases
-CREATE TABLE settlement_schedules (
+CREATE TABLE IF NOT EXISTS settlement_schedules (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id         UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
   earning_id      UUID REFERENCES shop_earnings(id),
@@ -77,12 +77,12 @@ CREATE TABLE settlement_schedules (
 -- ── Payout Records (enhanced from simple withdrawal) ─────────────────────────
 -- Links withdrawals to settlement ledger entries
 ALTER TABLE withdrawal_requests
-  ADD COLUMN settlement_ledger_id  UUID REFERENCES settlement_ledger(id),
-  ADD COLUMN payout_batch_id        TEXT,
-  ADD COLUMN payout_reference       TEXT;
+  ADD COLUMN IF NOT EXISTS settlement_ledger_id  UUID REFERENCES settlement_ledger(id),
+  ADD COLUMN IF NOT EXISTS payout_batch_id        TEXT,
+  ADD COLUMN IF NOT EXISTS payout_reference       TEXT;
 
 -- ── Platform Commission Ledger (separate from shop earnings) ─────────────────
-CREATE TABLE platform_ledger (
+CREATE TABLE IF NOT EXISTS platform_ledger (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id           UUID REFERENCES shops(id) ON DELETE SET NULL,
   payment_id        UUID REFERENCES payments(id),
@@ -98,7 +98,7 @@ CREATE TABLE platform_ledger (
 
 -- ── Refund Dispute Window ────────────────────────────────────────────────────
 -- Allows shops to dispute a refund within the hold period
-CREATE TABLE refund_disputes (
+CREATE TABLE IF NOT EXISTS refund_disputes (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   refund_request_id UUID NOT NULL REFERENCES refund_requests(id) ON DELETE CASCADE,
   shop_id          UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
@@ -113,18 +113,18 @@ CREATE TABLE refund_disputes (
 );
 
 -- ── Indexes ──────────────────────────────────────────────────────────────────
-CREATE INDEX idx_settlement_config_shop_id ON settlement_config(shop_id);
-CREATE INDEX idx_settlement_ledger_shop_id ON settlement_ledger(shop_id);
-CREATE INDEX idx_settlement_ledger_payment_id ON settlement_ledger(payment_id) WHERE payment_id IS NOT NULL;
-CREATE INDEX idx_settlement_ledger_order_id ON settlement_ledger(order_id) WHERE order_id IS NOT NULL;
-CREATE INDEX idx_settlement_ledger_release_at ON settlement_ledger(release_at) WHERE release_at IS NOT NULL AND released_at IS NULL;
-CREATE INDEX idx_settlement_ledger_type ON settlement_ledger(transaction_type);
-CREATE INDEX idx_settlement_schedules_scheduled ON settlement_schedules(scheduled_for) WHERE status = 'pending';
-CREATE INDEX idx_settlement_schedules_shop ON settlement_schedules(shop_id);
-CREATE INDEX idx_withdrawal_requests_settlement ON withdrawal_requests(settlement_ledger_id) WHERE settlement_ledger_id IS NOT NULL;
-CREATE INDEX idx_platform_ledger_shop_id ON platform_ledger(shop_id) WHERE shop_id IS NOT NULL;
-CREATE INDEX idx_platform_ledger_entry_type ON platform_ledger(entry_type);
-CREATE INDEX idx_refund_disputes_refund_id ON refund_disputes(refund_request_id);
-CREATE INDEX idx_refund_disputes_shop_id ON refund_disputes(shop_id);
+CREATE INDEX IF NOT EXISTS idx_settlement_config_shop_id ON settlement_config(shop_id);
+CREATE INDEX IF NOT EXISTS idx_settlement_ledger_shop_id ON settlement_ledger(shop_id);
+CREATE INDEX IF NOT EXISTS idx_settlement_ledger_payment_id ON settlement_ledger(payment_id) WHERE payment_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_settlement_ledger_order_id ON settlement_ledger(order_id) WHERE order_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_settlement_ledger_release_at ON settlement_ledger(release_at) WHERE release_at IS NOT NULL AND released_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_settlement_ledger_type ON settlement_ledger(transaction_type);
+CREATE INDEX IF NOT EXISTS idx_settlement_schedules_scheduled ON settlement_schedules(scheduled_for) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_settlement_schedules_shop ON settlement_schedules(shop_id);
+CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_settlement ON withdrawal_requests(settlement_ledger_id) WHERE settlement_ledger_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_platform_ledger_shop_id ON platform_ledger(shop_id) WHERE shop_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_platform_ledger_entry_type ON platform_ledger(entry_type);
+CREATE INDEX IF NOT EXISTS idx_refund_disputes_refund_id ON refund_disputes(refund_request_id);
+CREATE INDEX IF NOT EXISTS idx_refund_disputes_shop_id ON refund_disputes(shop_id);
 
 COMMIT;

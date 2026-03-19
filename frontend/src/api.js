@@ -284,6 +284,49 @@ export const cod = {
   getSettlementById: (id) => request('GET', `/cod/settlements/${id}`),
   reviewSettlement: (id, data) => request('PATCH', `/cod/settlements/${id}/review`, data),
   getDrivers: () => request('GET', '/cod/drivers'),
+  collect: (data) => request('POST', '/cod/collect', data),
+  submitSettlement: (data) => request('POST', '/cod/settlements/submit', data),
+};
+
+// Merchant settlement (escrow) operations
+export const settlements = {
+  getBalance: () => request('GET', '/settlements/balance'),
+  getConfig: () => request('GET', '/settlements/config'),
+  saveConfig: (data) => request('PATCH', '/settlements/config', data),
+  getLedger: (params) => request('GET', `/settlements/ledger${qs(params)}`),
+  getReport: (params) => request('GET', `/settlements/report${qs(params)}`),
+  listDisputes: () => request('GET', '/settlements/disputes'),
+  createDispute: (data) => request('POST', '/settlements/disputes', data),
+  resolveDispute: (id, data) => request('PATCH', `/settlements/disputes/${id}/resolve`, data),
+};
+
+// Platform settlement (escrow) oversight
+export const platformSettlements = {
+  getBalances: () => request('GET', '/platform-settlements/balances'),
+  getSummary: () => request('GET', '/platform-settlements/summary'),
+  getLedger: (params) => request('GET', `/platform-settlements/ledger${qs(params)}`),
+  getPlatformLedger: (params) => request('GET', `/platform-settlements/platform-ledger${qs(params)}`),
+  processReleases: () => request('POST', '/platform-settlements/process-releases'),
+};
+
+// Delivery exception actions
+export const deliveryExceptions = {
+  recordFailedAttempt: (deliveryRequestId, data) => request('POST', `/delivery-requests/${deliveryRequestId}/failed-attempt`, data),
+  initiateReturn: (deliveryRequestId, data) => request('POST', `/delivery-requests/${deliveryRequestId}/return`, data),
+  completeReturn: (deliveryRequestId, data) => request('POST', `/delivery-requests/${deliveryRequestId}/return/complete`, data),
+  confirmDelivery: (deliveryRequestId, data) => request('POST', `/delivery-requests/${deliveryRequestId}/confirm-delivery`, data),
+  reschedule: (deliveryRequestId, data) => request('POST', `/delivery-requests/${deliveryRequestId}/reschedule`, data),
+  getExceptions: (deliveryRequestId) => request('GET', `/delivery-requests/${deliveryRequestId}/exceptions`),
+};
+
+// Refund request management
+export const refunds = {
+  list: (params) => request('GET', `/refunds${qs(params)}`),
+  get: (id) => request('GET', `/refunds/${id}`),
+  stats: () => request('GET', '/refunds/stats'),
+  approve: (id) => request('POST', `/refunds/${id}/approve`, {}),
+  reject: (id, data) => request('POST', `/refunds/${id}/reject`, data),
+  complete: (id, data) => request('POST', `/refunds/${id}/complete`, data),
 };
 
 export const subscriptions = {

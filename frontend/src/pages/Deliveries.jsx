@@ -1,9 +1,23 @@
 import { useState, useEffect } from 'react';
-import { deliveries } from '../api';
+import { deliveries, deliveryExceptions } from '../api';
 import { PageHeader, Table, Badge, Button, Modal, FormField, Select, Pagination, StatCard, Card, SearchInput, PageSkeleton, ConfirmDialog, useToast } from '../components/UI';
 import { useAdmin } from '../contexts/AdminContext';
 
 const STATUSES = ['pending', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'];
+
+const FAILURE_CODES = [
+  { value: 'customer_unavailable', label: 'Customer Unavailable' },
+  { value: 'wrong_address', label: 'Wrong Address' },
+  { value: 'address_incomplete', label: 'Address Incomplete' },
+  { value: 'refused', label: 'Refused by Customer' },
+  { value: 'not_home', label: 'Not Home' },
+  { value: 'business_closed', label: 'Business Closed' },
+  { value: 'flooded_area', label: 'Area Flooded' },
+  { value: 'area_out_of_delivery_zone', label: 'Out of Delivery Zone' },
+  { value: 'package_damaged', label: 'Package Damaged' },
+  { value: 'lost', label: 'Package Lost' },
+  { value: 'other', label: 'Other' },
+];
 
 export default function Deliveries() {
   const { isSuperAdmin, shopList, selectedShop } = useAdmin();
@@ -19,6 +33,30 @@ export default function Deliveries() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const toast = useToast();
+
+  // Exception action state
+  const [failingDelivery, setFailingDelivery] = useState(null);
+  const [failureReasonCode, setFailureReasonCode] = useState('customer_unavailable');
+  const [failureReasonDesc, setFailureReasonDesc] = useState('');
+  const [failureSaving, setFailureSaving] = useState(false);
+
+  // Return action state
+  const [returningDelivery, setReturningDelivery] = useState(null);
+  const [returnReason, setReturnReason] = useState('');
+  const [returnSaving, setReturnSaving] = useState(false);
+
+  // Reschedule action state
+  const [reschedulingDelivery, setReschedulingDelivery] = useState(null);
+  const [newSchedDate, setNewSchedDate] = useState('');
+  const [newSchedSlot, setNewSchedSlot] = useState('');
+  const [rescheduleNotes, setRescheduleNotes] = useState('');
+  const [rescheduleSaving, setRescheduleSaving] = useState(false);
+
+  // Confirm delivery state
+  const [confirmingDelivery, setConfirmingDelivery] = useState(null);
+  const [codAmount, setCodAmount] = useState('');
+  const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [confirmSaving, setConfirmSaving] = useState(false);
 
   const shopName = (shopId) => {
     const s = shopList.find(sh => sh.id === shopId);
@@ -53,7 +91,102 @@ export default function Deliveries() {
       setUpdating(null);
       toast('Delivery status updated!', 'success');
       load();
-    } catch (err) { setError(err.message); } finally { setSaving(false); }
+    } catch (err) {
+      if (err.message.includes('409') || err.message.toLowerCase().includes('conflict')) {
+        setError('This delivery was modified by another action (e.g., a driver app update). Please refresh the page and try again.');
+      } else {
+        setError(err.message);
+      }
+    } finally { setSaving(false); }
+  };
+
+  const handleRecordFailure = async (e) => {
+    e.preventDefault();
+    setFailureSaving(true);
+    try {
+      await deliveryExceptions.recordFailedAttempt(failingDelivery.id, {
+        reasonCode: failureReasonCode,
+        reasonDescription: failureReasonDesc,
+        attemptCount: failingDelivery.attempt_count || 0,
+      });
+      setFailingDelivery(null);
+      setFailureReasonCode('customer_unavailable');
+      setFailureReasonDesc('');
+      toast('Failed attempt recorded. Delivery will retry.', 'success');
+      load();
+    } catch (err) {
+      if (err.message.includes('409') || err.message.toLowerCase().includes('conflict')) {
+        toast('Delivery was modified by another operation. Please refresh and try again.', 'error');
+      } else {
+        toast(err.message, 'error');
+      }
+    } finally { setFailureSaving(false); }
+  };
+
+  const handleInitiateReturn = async (e) => {
+    e.preventDefault();
+    setReturnSaving(true);
+    try {
+      await deliveryExceptions.initiateReturn(returningDelivery.id, {
+        reason: returnReason || 'Delivery failed after maximum attempts',
+      });
+      setReturningDelivery(null);
+      setReturnReason('');
+      toast('Return initiated. Package will be returned to merchant.', 'success');
+      load();
+    } catch (err) {
+      if (err.message.includes('409') || err.message.toLowerCase().includes('conflict')) {
+        toast('Delivery was modified by another operation. Please refresh and try again.', 'error');
+      } else {
+        toast(err.message, 'error');
+      }
+    } finally { setReturnSaving(false); }
+  };
+
+  const handleReschedule = async (e) => {
+    e.preventDefault();
+    setRescheduleSaving(true);
+    try {
+      await deliveryExceptions.reschedule(reschedulingDelivery.id, {
+        newDate: newSchedDate,
+        newTimeSlot: newSchedSlot,
+        notes: rescheduleNotes,
+      });
+      setReschedulingDelivery(null);
+      setNewSchedDate('');
+      setNewSchedSlot('');
+      setRescheduleNotes('');
+      toast('Delivery rescheduled successfully.', 'success');
+      load();
+    } catch (err) {
+      if (err.message.includes('409') || err.message.toLowerCase().includes('conflict')) {
+        toast('Delivery was modified by another operation. Please refresh and try again.', 'error');
+      } else {
+        toast(err.message, 'error');
+      }
+    } finally { setRescheduleSaving(false); }
+  };
+
+  const handleConfirmDelivery = async (e) => {
+    e.preventDefault();
+    setConfirmSaving(true);
+    try {
+      await deliveryExceptions.confirmDelivery(confirmingDelivery.id, {
+        codAmount: codAmount ? Number(codAmount) : undefined,
+        notes: deliveryNotes,
+      });
+      setConfirmingDelivery(null);
+      setCodAmount('');
+      setDeliveryNotes('');
+      toast('Delivery confirmed successfully!', 'success');
+      load();
+    } catch (err) {
+      if (err.message.includes('409') || err.message.toLowerCase().includes('conflict')) {
+        toast('Delivery was modified by another operation. Please refresh and try again.', 'error');
+      } else {
+        toast(err.message, 'error');
+      }
+    } finally { setConfirmSaving(false); }
   };
 
   const statusVariant = (s) => {
@@ -121,11 +254,29 @@ export default function Deliveries() {
       <span className="text-sm text-gray-500">{new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
     )},
     { key: 'actions', label: '', render: (r) => (
-      <div className="flex items-center gap-1">
-        {r.status !== 'delivered' && r.status !== 'cancelled' && (
-          <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); setUpdating(r); setNewStatus(r.status); }}
-            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}>
-            Update
+      <div className="flex items-center gap-1 flex-wrap">
+        {['assigned', 'picked_up', 'in_transit'].includes(r.status) && (
+          <>
+            <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); setFailingDelivery(r); setFailureReasonCode('customer_unavailable'); setFailureReasonDesc(''); }}
+              icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}>
+              Failed
+            </Button>
+            <Button size="xs" variant="ghost" onClick={(e) => { e.stopPropagation(); setConfirmingDelivery(r); setCodAmount(''); setDeliveryNotes(''); }}
+              icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}>
+              Delivered
+            </Button>
+          </>
+        )}
+        {['pending', 'assigned', 'failed'].includes(r.status) && (
+          <Button size="xs" variant="secondary" onClick={(e) => { e.stopPropagation(); setReschedulingDelivery(r); setNewSchedDate(''); setNewSchedSlot(''); setRescheduleNotes(''); }}
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}>
+            Reschedule
+          </Button>
+        )}
+        {r.status === 'failed' && (
+          <Button size="xs" variant="danger" onClick={(e) => { e.stopPropagation(); setReturningDelivery(r); setReturnReason(''); }}
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" /></svg>}>
+            Return
           </Button>
         )}
         {['pending', 'cancelled'].includes(r.status) && (

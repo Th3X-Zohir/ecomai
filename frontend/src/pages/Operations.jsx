@@ -154,7 +154,7 @@ export default function Operations() {
       {tab === 'overview' && (
         <div className="space-y-6">
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <OpStatCard
               label="Needs Attention"
               value={ops.summary?.needsAttention?.count || 0}
@@ -194,6 +194,28 @@ export default function Operations() {
               icon={
                 <svg className="w-5 h-5" style={{ color: '#dc2626' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+            />
+            <OpStatCard
+              label="COD Uncollected"
+              value={ops.summary?.uncollectedCod?.count || 0}
+              color={ops.summary?.uncollectedCod?.overdue > 0 ? 'red' : 'orange'}
+              onClick={() => window.location.href = '/admin/cod'}
+              icon={
+                <svg className="w-5 h-5" style={{ color: ops.summary?.uncollectedCod?.overdue > 0 ? '#dc2626' : '#d97706' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              }
+            />
+            <OpStatCard
+              label="COD Reconciliation"
+              value={ops.summary?.cashReconciliation?.count || 0}
+              color={ops.summary?.cashReconciliation?.count > 0 ? 'red' : 'teal'}
+              onClick={() => window.location.href = '/admin/cod'}
+              icon={
+                <svg className="w-5 h-5" style={{ color: ops.summary?.cashReconciliation?.count > 0 ? '#dc2626' : '#0d9488' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
               }
             />

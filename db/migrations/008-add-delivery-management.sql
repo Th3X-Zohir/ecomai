@@ -6,7 +6,7 @@ BEGIN;
 
 -- ── Delivery Zones ────────────────────────────────────────────────────────────
 -- Areas/regions that a shop delivers to, with base charges and estimated days
-CREATE TABLE delivery_zones (
+CREATE TABLE IF NOT EXISTS delivery_zones (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id     UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,                    -- e.g. "Dhaka Metro", "Chittagong", "Outside Dhaka"
@@ -21,7 +21,7 @@ CREATE TABLE delivery_zones (
 );
 
 -- Area codes within zones (for more granular control / third-party provider mapping)
-CREATE TABLE delivery_area_codes (
+CREATE TABLE IF NOT EXISTS delivery_area_codes (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   zone_id    UUID NOT NULL REFERENCES delivery_zones(id) ON DELETE CASCADE,
   code       TEXT NOT NULL,   -- e.g. "DHK-10", "CTG-02"
@@ -31,7 +31,7 @@ CREATE TABLE delivery_area_codes (
 
 -- ── Delivery Charge Rules ────────────────────────────────────────────────────
 -- Weight-based and order-amount-based surcharge rules per zone
-CREATE TABLE delivery_charge_rules (
+CREATE TABLE IF NOT EXISTS delivery_charge_rules (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id           UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
   zone_id           UUID REFERENCES delivery_zones(id) ON DELETE CASCADE,  -- NULL = applies to all zones
@@ -48,7 +48,7 @@ CREATE TABLE delivery_charge_rules (
 
 -- ── Delivery Settings (per-shop) ─────────────────────────────────────────────
 -- Controls delivery mode, SLA defaults, free-shipping thresholds, etc.
-CREATE TABLE delivery_settings (
+CREATE TABLE IF NOT EXISTS delivery_settings (
   id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id                     UUID NOT NULL UNIQUE REFERENCES shops(id) ON DELETE CASCADE,
   delivery_mode               TEXT NOT NULL DEFAULT 'merchant_managed'
@@ -69,7 +69,7 @@ CREATE TABLE delivery_settings (
 
 -- ── Delivery SLA Profiles ─────────────────────────────────────────────────────
 -- Named delivery speed profiles a shop can configure
-CREATE TABLE delivery_sla_profiles (
+CREATE TABLE IF NOT EXISTS delivery_sla_profiles (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id          UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
   name             TEXT NOT NULL,   -- e.g. "Standard", "Express", "Next Day"
@@ -86,28 +86,28 @@ CREATE TABLE delivery_sla_profiles (
 -- ── Enhanced Delivery Requests ───────────────────────────────────────────────
 -- Add columns to existing delivery_requests table via ALTER
 ALTER TABLE delivery_requests
-  ADD COLUMN zone_id             UUID REFERENCES delivery_zones(id) ON DELETE SET NULL,
-  ADD COLUMN area_code           TEXT,
-  ADD COLUMN package_weight       DECIMAL(8,2),                    -- weight in kg
-  ADD COLUMN package_contents    TEXT,                            -- package description
-  ADD COLUMN sla_profile_id      UUID REFERENCES delivery_sla_profiles(id) ON DELETE SET NULL,
-  ADD COLUMN scheduled_date      DATE,                            -- customer-selected delivery date
-  ADD COLUMN scheduled_time_slot TEXT,                            -- e.g. "10:00-14:00", "14:00-18:00"
-  ADD COLUMN failure_reason      TEXT,
-  ADD COLUMN failure_code         TEXT,                           -- e.g. 'customer_unavailable', 'wrong_address', 'refused'
-  ADD COLUMN attempt_count        INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN proof_of_delivery    TEXT,                           -- base64 image or URL after successful delivery
-  ADD COLUMN delivery_charge      DECIMAL(10,2) NOT NULL DEFAULT 0,
-  ADD COLUMN packaging_charge    DECIMAL(10,2) NOT NULL DEFAULT 0,
-  ADD COLUMN cod_amount          DECIMAL(10,2),                   -- cash collected for COD (populated at pickup)
-  ADD COLUMN collected_at        TIMESTAMPTZ,                     -- when cash was collected from customer
-  ADD COLUMN returned_at         TIMESTAMPTZ,                     -- when package returned to merchant
-  ADD COLUMN return_reason       TEXT,
-  ADD COLUMN customer_notes      TEXT;                            -- delivery instructions from customer
+  ADD COLUMN IF NOT EXISTS zone_id             UUID REFERENCES delivery_zones(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS area_code           TEXT,
+  ADD COLUMN IF NOT EXISTS package_weight       DECIMAL(8,2),                    -- weight in kg
+  ADD COLUMN IF NOT EXISTS package_contents    TEXT,                            -- package description
+  ADD COLUMN IF NOT EXISTS sla_profile_id      UUID REFERENCES delivery_sla_profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS scheduled_date      DATE,                            -- customer-selected delivery date
+  ADD COLUMN IF NOT EXISTS scheduled_time_slot TEXT,                            -- e.g. "10:00-14:00", "14:00-18:00"
+  ADD COLUMN IF NOT EXISTS failure_reason      TEXT,
+  ADD COLUMN IF NOT EXISTS failure_code         TEXT,                           -- e.g. 'customer_unavailable', 'wrong_address', 'refused'
+  ADD COLUMN IF NOT EXISTS attempt_count        INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS proof_of_delivery    TEXT,                           -- base64 image or URL after successful delivery
+  ADD COLUMN IF NOT EXISTS delivery_charge      DECIMAL(10,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS packaging_charge    DECIMAL(10,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cod_amount          DECIMAL(10,2),                   -- cash collected for COD (populated at pickup)
+  ADD COLUMN IF NOT EXISTS collected_at        TIMESTAMPTZ,                     -- when cash was collected from customer
+  ADD COLUMN IF NOT EXISTS returned_at         TIMESTAMPTZ,                     -- when package returned to merchant
+  ADD COLUMN IF NOT EXISTS return_reason       TEXT,
+  ADD COLUMN IF NOT EXISTS customer_notes      TEXT;                            -- delivery instructions from customer
 
 -- ── Delivery Exception Log ───────────────────────────────────────────────────
 -- Tracks all delivery exceptions for auditing and operations
-CREATE TABLE delivery_exceptions (
+CREATE TABLE IF NOT EXISTS delivery_exceptions (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   delivery_request_id UUID NOT NULL REFERENCES delivery_requests(id) ON DELETE CASCADE,
   exception_type      TEXT NOT NULL,   -- 'failed_attempt', 'return_initiated', 'return_completed', 'damaged', 'lost'
@@ -120,7 +120,7 @@ CREATE TABLE delivery_exceptions (
 );
 
 -- ── Driver Fleet (for platform-managed/hybrid mode) ───────────────────────────
-CREATE TABLE driver_fleet (
+CREATE TABLE IF NOT EXISTS driver_fleet (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id      UUID REFERENCES shops(id) ON DELETE CASCADE,  -- NULL = platform-level fleet
   user_id      UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
@@ -134,16 +134,16 @@ CREATE TABLE driver_fleet (
 );
 
 -- ── Indexes ──────────────────────────────────────────────────────────────────
-CREATE INDEX idx_delivery_zones_shop_id ON delivery_zones(shop_id);
-CREATE INDEX idx_delivery_area_codes_zone_id ON delivery_area_codes(zone_id);
-CREATE INDEX idx_delivery_charge_rules_shop_id ON delivery_charge_rules(shop_id);
-CREATE INDEX idx_delivery_charge_rules_zone_id ON delivery_charge_rules(zone_id) WHERE zone_id IS NOT NULL;
-CREATE INDEX idx_delivery_requests_zone_id ON delivery_requests(zone_id) WHERE zone_id IS NOT NULL;
-CREATE INDEX idx_delivery_requests_scheduled_date ON delivery_requests(scheduled_date) WHERE scheduled_date IS NOT NULL;
-CREATE INDEX idx_delivery_requests_status ON delivery_requests(status);
-CREATE INDEX idx_delivery_requests_shop_status ON delivery_requests(shop_id, status);
-CREATE INDEX idx_delivery_requests_driver ON delivery_requests(assigned_driver_user_id) WHERE assigned_driver_user_id IS NOT NULL;
-CREATE INDEX idx_delivery_exceptions_request_id ON delivery_exceptions(delivery_request_id);
-CREATE INDEX idx_driver_fleet_shop_id ON driver_fleet(shop_id) WHERE shop_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_delivery_zones_shop_id ON delivery_zones(shop_id);
+CREATE INDEX IF NOT EXISTS idx_delivery_area_codes_zone_id ON delivery_area_codes(zone_id);
+CREATE INDEX IF NOT EXISTS idx_delivery_charge_rules_shop_id ON delivery_charge_rules(shop_id);
+CREATE INDEX IF NOT EXISTS idx_delivery_charge_rules_zone_id ON delivery_charge_rules(zone_id) WHERE zone_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_delivery_requests_zone_id ON delivery_requests(zone_id) WHERE zone_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_delivery_requests_scheduled_date ON delivery_requests(scheduled_date) WHERE scheduled_date IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_delivery_requests_status ON delivery_requests(status);
+CREATE INDEX IF NOT EXISTS idx_delivery_requests_shop_status ON delivery_requests(shop_id, status);
+CREATE INDEX IF NOT EXISTS idx_delivery_requests_driver ON delivery_requests(assigned_driver_user_id) WHERE assigned_driver_user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_delivery_exceptions_request_id ON delivery_exceptions(delivery_request_id);
+CREATE INDEX IF NOT EXISTS idx_driver_fleet_shop_id ON driver_fleet(shop_id) WHERE shop_id IS NOT NULL;
 
 COMMIT;

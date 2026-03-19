@@ -19,8 +19,9 @@ CREATE INDEX IF NOT EXISTS idx_orders_shop_status
   ON orders (shop_id, status);
 
 -- Index on products.shop_id + products.status — used in storefront product listing
+-- Keep this non-partial because deleted_at is introduced by a later migration.
 CREATE INDEX IF NOT EXISTS idx_products_shop_status
-  ON products (shop_id, status) WHERE deleted_at IS NULL;
+  ON products (shop_id, status);
 
 -- Index on customers.shop_id — used in customer listing and lookup
 CREATE INDEX IF NOT EXISTS idx_customers_shop_id

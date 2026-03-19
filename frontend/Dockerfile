@@ -23,9 +23,6 @@ FROM oven/bun:1.1-alpine
 
 WORKDIR /app
 
-# Install serve (lightweight production static file server)
-RUN bun add -g serve
-
 # Copy built assets from builder
 COPY --from=builder /app/dist ./dist
 
@@ -36,4 +33,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 EXPOSE 3000
 
 # serve handles SPA routing and static file serving (-l = port, -s = SPA mode)
-CMD ["sh", "-c", "serve -s dist -l 3000"]
+CMD ["bunx", "--bun", "serve", "-s", "dist", "-l", "3000"]
