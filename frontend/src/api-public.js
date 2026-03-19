@@ -1,5 +1,13 @@
 /* ── Public Storefront API client ── */
-const API_BASE = '/v1/public';
+function resolvePublicApiBase() {
+  const raw = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+  if (!raw) return '/v1/public';
+  if (raw.endsWith('/v1/public')) return raw;
+  if (raw.endsWith('/v1')) return `${raw}/public`;
+  return `${raw}/v1/public`;
+}
+
+const API_BASE = resolvePublicApiBase();
 
 async function request(method, path, body, token) {
   const headers = { 'Content-Type': 'application/json' };
