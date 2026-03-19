@@ -227,6 +227,17 @@ async function markScheduleFailed(scheduleId, errorMessage) {
   return rows[0] || null;
 }
 
+async function cancelPendingSchedulesForShop(shopId) {
+  const { rows } = await db.query(
+    `UPDATE settlement_schedules
+     SET status = 'cancelled', processed_at = NOW(), error_message = 'Escrow disabled'
+     WHERE shop_id = $1 AND status = 'pending'
+     RETURNING *`,
+    [shopId]
+  );
+  return rows;
+}
+
 /* ── Platform Ledger ──────────────────────────────────────────────── */
 
 async function createPlatformLedgerEntry({ shopId, paymentId, earningId, description, amount, entryType, referenceId }) {
@@ -321,7 +332,7 @@ module.exports = {
   // Ledger
   createLedgerEntry, releaseLedgerEntries, getLedgerEntries, getPendingReleases, getHeldEntries,
   // Schedules
-  createSettlementSchedule, getPendingSettlementSchedules, markScheduleProcessed, markScheduleFailed,
+  createSettlementSchedule, getPendingSettlementSchedules, markScheduleProcessed, markScheduleFailed, cancelPendingSchedulesForShop,
   // Platform
   createPlatformLedgerEntry, getPlatformLedger, getPlatformSummary,
   // Disputes

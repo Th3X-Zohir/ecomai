@@ -130,5 +130,49 @@ async function deleteDeliveryRequest(requestId) {
   return res.rows[0] || null;
 }
 
-module.exports = { createDeliveryRequest, findById, findByIdAndShop, findByOrderAndShop, updateDeliveryRequest, deleteDeliveryRequest, listByShop, listByDriver };
+/**
+ * Conditional UPDATE with optimistic locking.
+ * Only updates if current status matches expectedStatus.
+ * Returns the updated row, or null if no rows matched (concurrent modification).
+ */
+async function updateDeliveryRequestConditional(requestId, expectedStatus, patch) {
+  const allowed = [
+    'status', 'assigned_driver_user_id', 'pickup_address', 'dropoff_address',
+    'notes', 'estimated_delivery', 'location_updates',
+    'zone_id', 'area_code', 'package_weight', 'package_contents',
+    'sla_profile_id', 'scheduled_date', 'scheduled_time_slot', 'customer_notes',
+    'failure_reason', 'failure_code', 'attempt_count',
+    'proof_of_delivery', 'delivery_charge', 'packaging_charge',
+    'cod_amount', 'collected_at', 'returned_at', 'return_reason',
+  ];
+  const sets = [];
+  const params = [];
+  let idx = 1;
+  for (const k of allowed) {
+    if (Object.prototype.hasOwnProperty.call(patch, k)) {
+      sets.push(`${k} = $${idx}`);
+      params.push(
+        ['location_updates', 'pickup_address', 'dropoff_address'].includes(k)
+          ? JSON.stringify(patch[k]) : patch[k]
+      );
+      idx++;
+    }
+  }
+  if (sets.length === 0) return null;
+  sets.push(`updated_at = now()`);
+  params.push(requestId, expectedStatus);
+  const res = await db.query(
+    `UPDATE delivery_requests SET ${sets.join(', ')}
+     WHERE id = $${idx} AND status = $${idx + 1}
+     RETURNING *`,
+    params
+  );
+  return res.rows[0] || null;
+}
+
+module.exports = {
+  createDeliveryRequest, findById, findByIdAndShop, findByOrderAndShop,
+  updateDeliveryRequest, updateDeliveryRequestConditional, deleteDeliveryRequest,
+  listByShop, listByDriver,
+};
 

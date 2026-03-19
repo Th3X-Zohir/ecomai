@@ -187,10 +187,14 @@ async function updateSettlementStatus(settlementId, { status, reviewedBy, review
 
 async function getUncollectedCodOrders(shopId) {
   // COD orders that are delivered but no collection recorded
+  // Includes aging so merchants can act on overdue collections
   const { rows } = await db.query(
-    `SELECT o.*, dr.id AS delivery_id, dr.status AS delivery_status,
+    `SELECT o.*,
+            dr.id AS delivery_id, dr.status AS delivery_status,
             dr.driver_name, dr.assigned_driver_user_id,
-            p.amount AS paid_amount, p.method AS payment_method
+            p.amount AS paid_amount, p.method AS payment_method,
+            o.updated_at AS delivered_at,
+            EXTRACT(DAY FROM NOW() - o.updated_at)::int AS days_since_delivered
      FROM orders o
      JOIN payments p ON p.order_id = o.id AND p.status = 'completed'
      LEFT JOIN cod_collections cc ON cc.order_id = o.id
@@ -203,7 +207,7 @@ async function getUncollectedCodOrders(shopId) {
        AND p.method = 'cod'
        AND o.status = 'delivered'
        AND cc.id IS NULL
-     ORDER BY o.updated_at DESC`,
+     ORDER BY o.updated_at ASC`,
     [shopId]
   );
   return rows;

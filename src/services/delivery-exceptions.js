@@ -42,12 +42,19 @@ async function recordFailedAttempt({ deliveryRequestId, reasonCode, reasonDescri
     nextStatus = delivery.status === 'picked_up' ? 'picked_up' : 'assigned';
   }
 
-  await deliveryRequestsRepo.updateDeliveryRequest(deliveryRequestId, {
-    status: nextStatus,
-    attempt_count: newAttemptCount,
-    failure_reason: reasonDescription,
-    failure_code: reasonCode,
-  });
+  // Optimistic lock: only update if status hasn't changed since we read it
+  const updated = await deliveryRequestsRepo.updateDeliveryRequestConditional(
+    deliveryRequestId, delivery.status, {
+      status: nextStatus,
+      attempt_count: newAttemptCount,
+      failure_reason: reasonDescription,
+      failure_code: reasonCode,
+    }
+  );
+  if (!updated) {
+    throw new DomainError('CONFLICT', 'Delivery was modified by another operation. Please retry.', 409);
+  }
+  const updatedDelivery = updated;
 
   // Log the exception
   const exception = await deliveryZonesRepo.createDeliveryException({
@@ -70,8 +77,7 @@ async function recordFailedAttempt({ deliveryRequestId, reasonCode, reasonDescri
     });
   } catch (_) { /* non-critical */ }
 
-  const updated = await deliveryRequestsRepo.findById(deliveryRequestId);
-  return { delivery: updated, exception, willRetry: newAttemptCount < MAX_ATTEMPTS };
+  return { delivery: updatedDelivery, exception, willRetry: newAttemptCount < MAX_ATTEMPTS };
 }
 
 async function initiateReturn({ deliveryRequestId, reason, recordedByUserId }) {
@@ -81,20 +87,42 @@ async function initiateReturn({ deliveryRequestId, reason, recordedByUserId }) {
     throw new DomainError('INVALID_STATUS', `Cannot initiate return for a ${delivery.status} delivery`, 400);
   }
 
-  await deliveryRequestsRepo.updateDeliveryRequest(deliveryRequestId, {
-    status: 'cancelled',
-    return_reason: reason || 'Delivery failed after maximum attempts',
-    returned_at: new Date(),
-  });
+  // Optimistic lock: only update if status hasn't changed since we read it
+  const updated = await deliveryRequestsRepo.updateDeliveryRequestConditional(
+    deliveryRequestId, delivery.status, {
+      status: 'cancelled',
+      return_reason: reason || 'Delivery failed after maximum attempts',
+      returned_at: new Date(),
+    }
+  );
+  if (!updated) {
+    throw new DomainError('CONFLICT', 'Delivery was modified by another operation. Please retry.', 409);
+  }
 
   // Log the exception
+  const returnDescription = reason || 'Returned to merchant after maximum delivery attempts';
+  // If COD was collected on this delivery, flag for cash reconciliation
+  const hasCollectedCash = delivery.cod_amount && Number(delivery.cod_amount) > 0;
   const exception = await deliveryZonesRepo.createDeliveryException({
     deliveryRequestId,
     exceptionType: 'return_initiated',
     reasonCode: 'max_attempts_reached',
-    reasonDescription: reason || 'Returned to merchant after maximum delivery attempts',
+    reasonDescription: hasCollectedCash
+      ? `[CASH RECONCILIATION REQUIRED — BDT ${Number(delivery.cod_amount).toFixed(2)} collected] ${returnDescription}`
+      : returnDescription,
     recordedByUserId,
   });
+
+  // Create a dedicated cash reconciliation flag exception if COD was collected
+  if (hasCollectedCash) {
+    await deliveryZonesRepo.createDeliveryException({
+      deliveryRequestId,
+      exceptionType: 'cash_reconciliation',
+      reasonCode: 'collected_cod_returned',
+      reasonDescription: `COD amount BDT ${Number(delivery.cod_amount).toFixed(2)} collected by driver but delivery returned. Manual settlement required.`,
+      recordedByUserId,
+    });
+  }
 
   // Update order status if applicable
   if (delivery.order_id) {
@@ -114,7 +142,7 @@ async function initiateReturn({ deliveryRequestId, reason, recordedByUserId }) {
     });
   } catch (_) { /* non-critical */ }
 
-  return deliveryRequestsRepo.findById(deliveryRequestId);
+  return updated;
 }
 
 async function completeReturn({ deliveryRequestId, recordedByUserId }) {
@@ -153,7 +181,13 @@ async function confirmDelivery({ deliveryRequestId, proofOfDelivery, codAmount, 
     updates.cod_amount = codAmount;
   }
 
-  await deliveryRequestsRepo.updateDeliveryRequest(deliveryRequestId, updates);
+  // Optimistic lock: only update if status hasn't changed since we read it
+  const updated = await deliveryRequestsRepo.updateDeliveryRequestConditional(
+    deliveryRequestId, delivery.status, updates
+  );
+  if (!updated) {
+    throw new DomainError('CONFLICT', 'Delivery was modified by another operation. Please retry.', 409);
+  }
 
   // Update order to delivered if applicable
   if (delivery.order_id) {
@@ -171,7 +205,7 @@ async function confirmDelivery({ deliveryRequestId, proofOfDelivery, codAmount, 
     recordedByUserId,
   });
 
-  return deliveryRequestsRepo.findById(deliveryRequestId);
+  return updated;
 }
 
 async function rescheduleDelivery({ deliveryRequestId, newDate, newTimeSlot, notes, recordedByUserId }) {
@@ -193,7 +227,13 @@ async function rescheduleDelivery({ deliveryRequestId, newDate, newTimeSlot, not
     updates.failure_code = null;
   }
 
-  await deliveryRequestsRepo.updateDeliveryRequest(deliveryRequestId, updates);
+  // Optimistic lock: only update if status hasn't changed since we read it
+  const updated = await deliveryRequestsRepo.updateDeliveryRequestConditional(
+    deliveryRequestId, delivery.status, updates
+  );
+  if (!updated) {
+    throw new DomainError('CONFLICT', 'Delivery was modified by another operation. Please retry.', 409);
+  }
 
   if (notes) {
     await deliveryZonesRepo.createDeliveryException({
@@ -204,7 +244,7 @@ async function rescheduleDelivery({ deliveryRequestId, newDate, newTimeSlot, not
     });
   }
 
-  return deliveryRequestsRepo.findById(deliveryRequestId);
+  return updated;
 }
 
 async function getDeliveryExceptions(deliveryRequestId) {

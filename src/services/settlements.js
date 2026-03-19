@@ -22,6 +22,17 @@ async function getConfig(shopId) {
 }
 
 async function saveConfig(shopId, data) {
+  const currentConfig = await getConfig(shopId);
+  const isDisablingEscrow = currentConfig.is_enabled && data.isEnabled === false;
+
+  // If disabling escrow, cancel all pending settlement schedules
+  // to prevent orphaned schedules firing if escrow is re-enabled later
+  if (isDisablingEscrow) {
+    try {
+      await settlementRepo.cancelPendingSchedulesForShop(shopId);
+    } catch (_) { /* non-critical: schedule cleanup failure shouldn't block config update */ }
+  }
+
   return settlementRepo.upsertSettlementConfig(shopId, data);
 }
 

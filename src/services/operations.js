@@ -25,6 +25,8 @@ async function getMerchantOperations(shopId) {
     refundStats,
     recentOrders,
     balanceSummary,
+    uncollectedCodResult,
+    cashReconciliationResult,
   ] = await Promise.all([
     db.query(`
       SELECT status, COUNT(*)::int AS count
@@ -39,6 +41,21 @@ async function getMerchantOperations(shopId) {
     refundRepo.getShopRefundStats(shopId),
     orderRepo.listOrders(shopId, { page: 1, limit: 10 }),
     settlementsRepo.getShopBalance(shopId),
+    // COD: uncollected delivered orders (aging)
+    db.query(`
+      SELECT COUNT(*)::int AS count,
+             COUNT(CASE WHEN o.updated_at < NOW() - INTERVAL '3 days' THEN 1 END)::int AS overdue_count
+      FROM orders o
+      JOIN payments p ON p.order_id = o.id AND p.status = 'completed' AND p.method = 'cod'
+      LEFT JOIN cod_collections cc ON cc.order_id = o.id
+      WHERE o.shop_id = $1 AND o.status = 'delivered' AND cc.id IS NULL`, [shopId]),
+    // COD: cash reconciliation needed (returned with collected cash)
+    db.query(`
+      SELECT COUNT(*)::int AS count
+      FROM delivery_exceptions de
+      WHERE de.exception_type = 'cash_reconciliation'
+        AND de.resolved_at IS NULL
+        AND EXISTS (SELECT 1 FROM delivery_requests dr WHERE dr.id = de.delivery_request_id AND dr.shop_id = $1)`, [shopId]),
   ]);
 
   // Orders needing attention: pending, confirmed, processing (not shipped/delivered/cancelled)
@@ -62,12 +79,19 @@ async function getMerchantOperations(shopId) {
     return sum;
   }, 0);
 
+  // COD metrics
+  const uncollectedCodCount = parseInt(uncollectedCodResult.rows?.[0]?.count || 0, 10);
+  const uncollectedCodOverdue = parseInt(uncollectedCodResult.rows?.[0]?.overdue_count || 0, 10);
+  const cashReconciliationCount = parseInt(cashReconciliationResult.rows?.[0]?.count || 0, 10);
+
   return {
     summary: {
       needsAttention: { count: needsAttention, label: 'Needs Attention' },
       fulfillmentQueue: { count: fulfillmentQueue, label: 'Fulfillment Queue' },
       activeDeliveries: { count: activeDeliveries, label: 'Active Deliveries' },
       failedDeliveries: { count: failedDeliveries, label: 'Failed Deliveries' },
+      uncollectedCod: { count: uncollectedCodCount, overdue: uncollectedCodOverdue, label: 'COD Uncollected' },
+      cashReconciliation: { count: cashReconciliationCount, label: 'COD Cash Reconciliation' },
     },
     ordersByStatus: ordersByStatus.rows || [],
     deliveriesByStatus: deliveriesByStatus.rows || [],
@@ -307,12 +331,25 @@ async function getPlatformExceptionQueue(opts = {}) {
     WHERE wr.status = 'pending' AND wr.created_at < NOW() - INTERVAL '2 days'
     ORDER BY wr.created_at ASC LIMIT 50`);
 
+  // COD cash reconciliation needed (returns with collected cash)
+  const { rows: cashReconciliationItems } = await db.query(`
+    SELECT de.id, dr.shop_id, dr.order_id, 'cancelled' AS status, de.created_at,
+           de.reason_description AS failure_reason, 'cash_reconciliation' AS exception_type,
+           s.name AS shop_name
+    FROM delivery_exceptions de
+    JOIN delivery_requests dr ON dr.id = de.delivery_request_id
+    JOIN shops s ON s.id = dr.shop_id
+    WHERE de.exception_type = 'cash_reconciliation'
+      AND de.resolved_at IS NULL
+    ORDER BY de.created_at ASC LIMIT 50`);
+
   // Combine all exceptions
   const allExceptions = [
     ...(staleFailures || []),
     ...(slaBreaches || []),
     ...(staleRefunds || []),
     ...(staleWithdrawals || []),
+    ...(cashReconciliationItems || []),
   ].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
   const total = allExceptions.length;
