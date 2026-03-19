@@ -1,11 +1,12 @@
 const express = require('express');
-const { authRequired, requireRoles } = require('../middleware/auth');
+const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const codReconciliationService = require('../services/cod-reconciliation');
 
 const router = express.Router();
 router.use(authRequired);
+router.use(resolveTenant, requireTenantContext);
 
 /* ── Merchant / Admin Routes ─────────────────────────────────────── */
 
@@ -120,7 +121,7 @@ router.get('/my/collections', requireRoles('delivery_agent'), asyncHandler(async
 }));
 
 router.get('/my/settlements', requireRoles('delivery_agent'), asyncHandler(async (req, res) => {
-  const settlements = await codReconciliationService.listDriverSettlements(req.auth.sub);
+  const settlements = await codReconciliationService.listDriverSettlements(req.auth.sub, req.tenantShopId);
   res.json({ items: settlements });
 }));
 

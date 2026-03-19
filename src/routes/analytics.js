@@ -1,5 +1,5 @@
 const express = require('express');
-const { authRequired, requireRoles } = require('../middleware/auth');
+const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const analyticsService = require('../services/analytics');
@@ -7,7 +7,7 @@ const analyticsService = require('../services/analytics');
 const router = express.Router();
 
 // All routes require authentication and tenant context
-router.use(authRequired, requireTenantContext);
+router.use(authRequired, resolveTenant, requireTenantContext);
 
 // ── GET /v1/analytics/benchmark ─────────────────────────────
 // Full benchmark report: KPIs + peer comparison + percentile ranks + insights

@@ -1,12 +1,12 @@
 const express = require('express');
-const { authRequired, requireRoles } = require('../middleware/auth');
+const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const { validateBody } = require('../middleware/validate');
 const refundService = require('../services/refunds');
 
 const router = express.Router();
-router.use(authRequired, requireTenantContext);
+router.use(authRequired, resolveTenant, requireTenantContext);
 
 // ── GET /v1/refunds ──────────────────────────────────────────
 router.get('/', asyncHandler(async (req, res) => {

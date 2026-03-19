@@ -1,5 +1,5 @@
 const express = require('express');
-const { authRequired, requireRoles } = require('../middleware/auth');
+const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const { validateBody } = require('../middleware/validate');
@@ -8,7 +8,7 @@ const affiliateService = require('../services/affiliates');
 const router = express.Router();
 
 // All routes require authentication
-router.use(authRequired, requireTenantContext);
+router.use(authRequired, resolveTenant, requireTenantContext);
 
 // ── GET /v1/affiliates/program ──────────────────────────────
 router.get('/program', asyncHandler(async (req, res) => {

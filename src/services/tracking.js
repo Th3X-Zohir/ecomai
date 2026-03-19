@@ -61,19 +61,16 @@ async function assembleTrackingData(order) {
   const payments = await paymentRepo.listByOrder(order.id);
   const completedPayment = payments.find(p => p.status === 'completed');
 
-  // Get delivery request if exists
-  const deliveryRequests = await deliveryRepo.listByShop(order.shop_id, { status: undefined, search: order.id });
-  const delivery = deliveryRequests.items?.find(d => d.order_id === order.id);
+  // Get delivery request if exists (direct lookup by order ID — no ILIKE search)
+  const delivery = await deliveryRepo.findByOrderAndShop(order.id, order.shop_id);
 
   // Build timeline
   const timeline = buildTimeline(order.status);
 
-  // Get last location if available
+  // Get last location if available (JSONB field — PostgreSQL returns objects directly)
   let lastLocation = null;
   if (delivery?.location_updates?.length > 0) {
-    const updates = typeof delivery.location_updates === 'string'
-      ? JSON.parse(delivery.location_updates)
-      : delivery.location_updates;
+    const updates = delivery.location_updates;
     const last = updates[updates.length - 1];
     lastLocation = { lat: last.lat, lng: last.lng, updatedAt: last.updated_at };
   }

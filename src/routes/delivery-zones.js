@@ -1,11 +1,11 @@
 const express = require('express');
-const { authRequired, requireRoles } = require('../middleware/auth');
+const { authRequired, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const deliveryZonesService = require('../services/delivery-zones');
 
 const router = express.Router();
-router.use(authRequired, requireTenantContext);
+router.use(authRequired, resolveTenant, requireTenantContext);
 
 /* ── Delivery Settings ─────────────────────────────────────────────── */
 

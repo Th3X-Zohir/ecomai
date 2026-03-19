@@ -1,11 +1,11 @@
 const express = require('express');
-const { authRequired, requireRoles } = require('../middleware/auth');
+const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const operationsService = require('../services/operations');
 
 const router = express.Router();
-router.use(authRequired);
+router.use(authRequired, resolveTenant);
 
 /* ═══════════════════════════════════════════════════════
    MERCHANT OPERATIONS

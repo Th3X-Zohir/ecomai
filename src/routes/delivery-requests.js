@@ -8,7 +8,8 @@ const deliveryExceptionsService = require('../services/delivery-exceptions');
 const deliveryZonesService = require('../services/delivery-zones');
 
 const router = express.Router();
-router.use(authRequired, requireRoles(['super_admin', 'shop_admin', 'shop_user']), resolveTenant, requireTenantContext);
+router.use(authRequired, requireRoles(['super_admin', 'shop_admin', 'shop_user']));
+router.use(resolveTenant, requireTenantContext);
 
 /* ── List / Search ──────────────────────────────────────────────────── */
 

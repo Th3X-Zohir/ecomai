@@ -141,8 +141,8 @@ async function listSettlements(shopId, opts = {}) {
   return codRepo.listSettlementsByShop(shopId, opts);
 }
 
-async function listDriverSettlements(driverUserId) {
-  return codRepo.listSettlementsByDriver(driverUserId);
+async function listDriverSettlements(driverUserId, shopId) {
+  return codRepo.listSettlementsByDriver(driverUserId, shopId);
 }
 
 /* ── Driver Summary ───────────────────────────────────────────────── */

@@ -1,12 +1,12 @@
 const express = require('express');
-const { authRequired } = require('../middleware/auth');
+const { authRequired, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const { validateBody } = require('../middleware/validate');
 const upsellService = require('../services/upsell');
 
 const router = express.Router();
-router.use(authRequired, requireTenantContext);
+router.use(authRequired, resolveTenant, requireTenantContext);
 
 // ── Shop rules ──────────────────────────────────────────────
 

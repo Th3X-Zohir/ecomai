@@ -181,7 +181,6 @@ async function getPlatformOperations() {
     deliveriesByStatus,
     refundRequests,
     platformSummary,
-    financialSummary,
     activeShops,
   ] = await Promise.all([
     db.query(`SELECT status, COUNT(*)::int AS count FROM shops GROUP BY status`),
@@ -189,7 +188,6 @@ async function getPlatformOperations() {
     db.query(`SELECT status, COUNT(*)::int AS count FROM delivery_requests GROUP BY status`),
     db.query(`SELECT status, COUNT(*)::int AS count FROM refund_requests GROUP BY status`),
     earningsRepo.getPlatformSummary(),
-    settlementsRepo.getShopBalance(null), // This would fail, settlements uses shopId
     db.query(`SELECT COUNT(*)::int AS count FROM shops WHERE status = 'active'`),
   ]);
 
@@ -263,8 +261,9 @@ async function getPlatformExceptionQueue(opts = {}) {
   let idx = 1;
 
   // Stale failed deliveries (> 1 day)
+  let staleFailures = [];
   if (!type || type === 'delivery_failure') {
-    const { rows: staleFailures } = await db.query(`
+    const result = await db.query(`
       SELECT dr.id, dr.shop_id, dr.order_id, dr.status, dr.updated_at AS created_at,
              dr.failure_reason, 'delivery_failure' AS exception_type,
              s.name AS shop_name
@@ -272,6 +271,7 @@ async function getPlatformExceptionQueue(opts = {}) {
       JOIN shops s ON s.id = dr.shop_id
       WHERE dr.status = 'failed' AND dr.updated_at < NOW() - INTERVAL '1 day'
       ORDER BY dr.updated_at ASC LIMIT 100`);
+    staleFailures = result.rows || [];
   }
 
   // SLA breaches

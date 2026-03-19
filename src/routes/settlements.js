@@ -1,11 +1,11 @@
 const express = require('express');
-const { authRequired, requireRoles } = require('../middleware/auth');
+const { authRequired, requireRoles, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const settlementsService = require('../services/settlements');
 
 const router = express.Router();
-router.use(authRequired, requireTenantContext);
+router.use(authRequired, resolveTenant, requireTenantContext);
 
 /* ── Shop-level Settlements ──────────────────────────────────────── */
 
@@ -19,7 +19,7 @@ router.get('/config', asyncHandler(async (req, res) => {
   res.json(config);
 }));
 
-router.patch('/config', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
+router.patch('/config', requireRoles(['shop_admin']), asyncHandler(async (req, res) => {
   const config = await settlementsService.saveConfig(req.tenantShopId, req.body);
   res.json(config);
 }));
@@ -45,12 +45,12 @@ router.get('/report', asyncHandler(async (req, res) => {
 
 /* ── Disputes ────────────────────────────────────────────────────── */
 
-router.get('/disputes', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
+router.get('/disputes', requireRoles(['shop_admin']), asyncHandler(async (req, res) => {
   const disputes = await settlementsService.listDisputes(req.tenantShopId);
   res.json({ items: disputes });
 }));
 
-router.post('/disputes', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
+router.post('/disputes', requireRoles(['shop_admin']), asyncHandler(async (req, res) => {
   const dispute = await settlementsService.createDispute({
     refundRequestId: req.body.refundRequestId,
     shopId: req.tenantShopId,
@@ -60,7 +60,7 @@ router.post('/disputes', requireRoles('shop_admin'), asyncHandler(async (req, re
   res.status(201).json(dispute);
 }));
 
-router.patch('/disputes/:disputeId/resolve', requireRoles('shop_admin'), asyncHandler(async (req, res) => {
+router.patch('/disputes/:disputeId/resolve', requireRoles(['shop_admin']), asyncHandler(async (req, res) => {
   const dispute = await settlementsService.resolveDispute(req.params.disputeId, {
     resolvedBy: req.auth.sub,
     status: req.body.status,

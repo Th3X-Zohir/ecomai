@@ -3,9 +3,8 @@
  * Cash-on-Delivery collection tracking, driver accountability, and settlement management
  */
 import { useState, useEffect } from 'react';
-import { useAdmin } from '../contexts/AdminContext';
 import { cod } from '../api';
-import { StatCard, Card, Badge, Button, PageSkeleton } from '../components/UI';
+import { PageSkeleton } from '../components/UI';
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -41,24 +40,48 @@ export default function CODReconciliation() {
   const [settlements, setSettlements] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errors, setErrors] = useState({});
+  const [actionLoading, setActionLoading] = useState(null);
   const [tab, setTab] = useState('summary');
 
-  useEffect(() => {
+  async function refresh() {
     setLoading(true);
-    Promise.allSettled([
+    setErrors({});
+    const [s, u, c, st, d] = await Promise.allSettled([
       cod.getSummary(),
       cod.getUncollected(),
       cod.getCollections(),
       cod.getSettlements(),
       cod.getDrivers(),
-    ]).then(([s, u, c, st, d]) => {
-      if (s.status === 'fulfilled') setSummary(s.value);
-      if (u.status === 'fulfilled') setUncollected(u.value.items || []);
-      if (c.status === 'fulfilled') setCollections(c.value.items || []);
-      if (st.status === 'fulfilled') setSettlements(st.value.items || []);
-      if (d.status === 'fulfilled') setDrivers(d.value.items || []);
-      setLoading(false);
-    });
+    ]);
+    if (s.status === 'fulfilled') setSummary(s.value);
+    else setErrors(e => ({ ...e, summary: 'Failed to load summary' }));
+    if (u.status === 'fulfilled') setUncollected(u.value.items || []);
+    else setErrors(e => ({ ...e, uncollected: 'Failed to load uncollected' }));
+    if (c.status === 'fulfilled') setCollections(c.value.items || []);
+    else setErrors(e => ({ ...e, collections: 'Failed to load collections' }));
+    if (st.status === 'fulfilled') setSettlements(st.value.items || []);
+    else setErrors(e => ({ ...e, settlements: 'Failed to load settlements' }));
+    if (d.status === 'fulfilled') setDrivers(d.value.items || []);
+    else setErrors(e => ({ ...e, drivers: 'Failed to load drivers' }));
+    setLoading(false);
+  }
+
+  async function handleReview(settlementId, action) {
+    if (!window.confirm(`Are you sure you want to ${action} this settlement?`)) return;
+    setActionLoading(settlementId);
+    try {
+      await cod.reviewSettlement(settlementId, { action, reviewNotes: '' });
+      await refresh();
+    } catch (err) {
+      alert(`Failed to ${action} settlement: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  useEffect(() => {
+    refresh();
   }, []);
 
   if (loading) return <PageSkeleton />;
@@ -265,11 +288,19 @@ export default function CODReconciliation() {
                     <td className="px-5 py-3">
                       {s.status === 'submitted' && (
                         <div className="flex gap-2">
-                          <button className="text-xs px-3 py-1 rounded-lg font-medium" style={{ backgroundColor: '#dcfce7', color: '#166534' }}>
-                            Approve
+                          <button
+                            onClick={() => handleReview(s.id, 'approve')}
+                            disabled={actionLoading === s.id}
+                            className="text-xs px-3 py-1 rounded-lg font-medium disabled:opacity-50"
+                            style={{ backgroundColor: '#dcfce7', color: '#166534' }}>
+                            {actionLoading === s.id ? '...' : 'Approve'}
                           </button>
-                          <button className="text-xs px-3 py-1 rounded-lg font-medium" style={{ backgroundColor: '#fee2e2', color: '#991b1b' }}>
-                            Reject
+                          <button
+                            onClick={() => handleReview(s.id, 'reject')}
+                            disabled={actionLoading === s.id}
+                            className="text-xs px-3 py-1 rounded-lg font-medium disabled:opacity-50"
+                            style={{ backgroundColor: '#fee2e2', color: '#991b1b' }}>
+                            {actionLoading === s.id ? '...' : 'Reject'}
                           </button>
                         </div>
                       )}

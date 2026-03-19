@@ -1,12 +1,12 @@
 const express = require('express');
-const { authRequired } = require('../middleware/auth');
+const { authRequired, resolveTenant } = require('../middleware/auth');
 const { requireTenantContext } = require('../middleware/tenant');
 const { asyncHandler } = require('../middleware/async-handler');
 const { validateBody } = require('../middleware/validate');
 const notificationService = require('../services/notifications');
 
 const router = express.Router();
-router.use(authRequired, requireTenantContext);
+router.use(authRequired, resolveTenant, requireTenantContext);
 
 // GET /v1/notifications
 router.get('/', asyncHandler(async (req, res) => {

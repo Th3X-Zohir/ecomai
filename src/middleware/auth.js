@@ -18,8 +18,9 @@ function authRequired(req, res, next) {
 }
 
 function requireRoles(roles) {
+  const roleArray = Array.isArray(roles) ? roles : [roles];
   return (req, res, next) => {
-    if (!roles.includes(req.auth.role)) {
+    if (!roleArray.includes(req.auth.role)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     return next();

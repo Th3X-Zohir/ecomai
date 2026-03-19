@@ -123,14 +123,18 @@ async function listSettlementsByShop(shopId, { status, driverId } = {}) {
   return rows;
 }
 
-async function listSettlementsByDriver(driverUserId) {
+async function listSettlementsByDriver(driverUserId, shopId) {
+  const conditions = ['cs.driver_user_id = $1'];
+  const params = [driverUserId];
+  if (shopId) { conditions.push('cs.shop_id = $2'); params.push(shopId); }
+  const where = 'WHERE ' + conditions.join(' AND ');
   const { rows } = await db.query(
     `SELECT cs.*, s.name AS shop_name
      FROM cod_settlements cs
      JOIN shops s ON s.id = cs.shop_id
-     WHERE cs.driver_user_id = $1
+     ${where}
      ORDER BY cs.created_at DESC`,
-    [driverUserId]
+    params
   );
   return rows;
 }

@@ -97,6 +97,36 @@ async function holdPaymentFunds({ shopId, paymentId, orderId, grossAmount, commi
   return true;
 }
 
+/* ── Immediate ledger entry for manual payments (cash already collected) ── */
+
+async function recordManualPaymentFunds({ shopId, paymentId, orderId, grossAmount, commissionAmount, currency }) {
+  // Manual payments bypass escrow — cash already collected by merchant
+  await settlementRepo.createLedgerEntry({
+    shopId,
+    paymentId,
+    orderId,
+    transactionType: 'payment_hold',
+    amount: grossAmount - commissionAmount,
+    currency: currency || 'BDT',
+    referenceId: paymentId,
+    description: `Manual payment for order ${orderId ? String(orderId).slice(0, 8) : ''}`,
+    releaseAt: null, // immediate
+  });
+  // Platform commission
+  if (commissionAmount > 0) {
+    await settlementRepo.createPlatformLedgerEntry({
+      shopId,
+      paymentId,
+      description: `Commission from manual payment for order ${orderId ? String(orderId).slice(0, 8) : ''}`,
+      amount: commissionAmount,
+      entryType: 'commission_collected',
+      referenceId: paymentId,
+    });
+  }
+  await settlementRepo.updateShopBalanceSummary(shopId);
+  return true;
+}
+
 /* ── Funds Released on Delivery (called when order marked delivered) ── */
 
 async function releaseFundsOnDelivery({ shopId, orderId }) {
@@ -216,7 +246,7 @@ async function settleRefund({ shopId, paymentId, orderId, refundAmount, currency
 
   // Platform: credit back proportional commission
   if (earning) {
-    const refundRatio = Number(refundAmount) / Number(earning.gross_amount || earning.commission_amount || 1);
+    const refundRatio = Number(refundAmount) / Number(earning.gross_amount || 1);
     const commissionRefund = Number((Number(earning.commission_amount || 0) * refundRatio).toFixed(2));
     if (commissionRefund > 0) {
       await settlementRepo.createPlatformLedgerEntry({
@@ -334,7 +364,7 @@ module.exports = {
   // Balance & Ledger
   getBalance, getAllBalances, getLedger,
   // Fund flows
-  holdPaymentFunds, releaseFundsOnDelivery,
+  holdPaymentFunds, releaseFundsOnDelivery, recordManualPaymentFunds,
   processAutomaticReleases,
   settleRefund,
   linkWithdrawalToLedger, recordPayoutDebit,

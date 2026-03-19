@@ -77,7 +77,7 @@ async function recordFailedAttempt({ deliveryRequestId, reasonCode, reasonDescri
 async function initiateReturn({ deliveryRequestId, reason, recordedByUserId }) {
   const delivery = await deliveryRequestsRepo.findById(deliveryRequestId);
   if (!delivery) throw new DomainError('NOT_FOUND', 'Delivery request not found', 404);
-  if (!['failed', 'in_transit', 'picked_up'].includes(delivery.status)) {
+  if (!['failed', 'in_transit', 'picked_up', 'delivered'].includes(delivery.status)) {
     throw new DomainError('INVALID_STATUS', `Cannot initiate return for a ${delivery.status} delivery`, 400);
   }
 
@@ -99,7 +99,7 @@ async function initiateReturn({ deliveryRequestId, reason, recordedByUserId }) {
   // Update order status if applicable
   if (delivery.order_id) {
     const order = await orderRepo.findByIdAndShop(delivery.order_id, delivery.shop_id);
-    if (order && order.status === 'shipped') {
+    if (order && ['shipped', 'delivered', 'processing'].includes(order.status)) {
       await orderRepo.updateOrder(delivery.order_id, delivery.shop_id, { status: 'returned' });
     }
   }

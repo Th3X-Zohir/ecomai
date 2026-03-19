@@ -224,6 +224,23 @@ async function createManualPayment({ shopId, orderId, amount, currency, method }
     shop_id: shopId, order_id: orderId, amount: normalizedAmount,
     currency: currency || 'BDT', method: method || 'manual', status: 'completed',
   });
+
+  // Record shop earnings and create immediate settlement ledger entry
+  // (manual payments bypass escrow — cash already collected by merchant)
+  try {
+    const earning = await earningsService.recordSaleEarning({
+      shopId, paymentId: payment.id, orderId,
+      grossAmount: normalizedAmount,
+      currency: currency || 'BDT',
+    });
+    await settlementsService.recordManualPaymentFunds({
+      shopId, paymentId: payment.id, orderId,
+      grossAmount: normalizedAmount,
+      commissionAmount: earning ? earning.commission_amount : 0,
+      currency: currency || 'BDT',
+    });
+  } catch (_e) { /* non-critical — don't block manual payment */ }
+
   // Update order payment_status to 'paid'
   await orderRepo.updateOrder(orderId, shopId, { payment_status: 'paid' });
 
