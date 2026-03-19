@@ -25,6 +25,7 @@ import Deliveries from './pages/Deliveries';
 import Payments from './pages/Payments';
 import Categories from './pages/Categories';
 import WebsiteSettings from './pages/WebsiteSettings';
+import TemplateSettings from './pages/TemplateSettings';
 import ShopSettings from './pages/ShopSettings';
 import AllShops from './pages/AllShops';
 import AllUsers from './pages/AllUsers';
@@ -161,6 +162,7 @@ export default function App() {
         <Route path="platform-earnings" element={<SuperAdminRoute><PlatformEarnings /></SuperAdminRoute>} />
         <Route path="subscriptions" element={<SuperAdminRoute><Subscriptions /></SuperAdminRoute>} />
         <Route path="website-settings" element={<WebsiteSettings />} />
+        <Route path="template-settings" element={<SuperAdminRoute><TemplateSettings /></SuperAdminRoute>} />
         <Route path="shop" element={<ShopSettings />} />
         <Route path="all-shops" element={<SuperAdminRoute><AllShops /></SuperAdminRoute>} />
         <Route path="all-users" element={<SuperAdminRoute><AllUsers /></SuperAdminRoute>} />

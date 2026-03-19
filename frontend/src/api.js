@@ -33,10 +33,25 @@ export function clearTokens() {
   localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken');
 }
 
+const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
+
+function getCsrfToken() {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+  if (!match) return null;
+  // Cookie stores the raw (unsigned) token directly as the first segment
+  return match[1].split('.')[0];
+}
+
 async function request(method, path, body, extraHeaders = {}) {
   const headers = { 'Content-Type': 'application/json', ...extraHeaders };
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
   if (_selectedShopId) headers['x-shop-id'] = _selectedShopId;
+  // Include CSRF token on all mutating requests
+  if (!SAFE_METHODS.includes(method)) {
+    const csrf = getCsrfToken();
+    if (csrf) headers['x-csrf-token'] = csrf;
+  }
   const res = await fetch(`${API_BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
 
   if (res.status === 401 && refreshToken) {
@@ -379,4 +394,18 @@ export const newsletter = {
   unsubscribe: (id) => request('PATCH', `/newsletter/${id}/unsubscribe`),
   remove: (id) => request('DELETE', `/newsletter/${id}`),
   exportUrl: () => `${API_BASE}/newsletter/export`,
+};
+
+// Super admin template management
+export const adminTemplates = {
+  listTemplates: (params) =>
+    request('GET', `/admin/templates${params ? qs(params) : ''}`),
+  getTemplate: (id) => request('GET', `/admin/templates/${id}`),
+  createTemplate: (data) => request('POST', '/admin/templates', data),
+  updateTemplate: (id, data) => request('PATCH', `/admin/templates/${id}`, data),
+  deleteTemplate: (id) => request('DELETE', `/admin/templates/${id}`),
+  listSections: (params) =>
+    request('GET', `/admin/homepage-sections${params ? qs(params) : ''}`),
+  updateSection: (sectionKey, data) =>
+    request('PATCH', `/admin/homepage-sections/${sectionKey}`, data),
 };

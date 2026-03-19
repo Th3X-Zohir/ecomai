@@ -45,6 +45,7 @@ const settlementsRoutes = require('./routes/settlements');
 const platformSettlementsRoutes = require('./routes/platform-settlements');
 const operationsRoutes = require('./routes/operations');
 const codReconciliationRoutes = require('./routes/cod-reconciliation');
+const adminTemplatesRoutes = require('./routes/admin-templates');
 
 const app = express();
 
@@ -171,6 +172,7 @@ app.use('/v1/affiliates', affiliateRoutes);
 app.use('/v1/upsell', upsellRoutes);
 app.use('/v1/refunds', refundRoutes);
 app.use('/v1/notifications', notificationRoutes);
+app.use('/v1/admin', adminTemplatesRoutes);
 
 // SPA fallback
 app.get('*', (req, res) => {
