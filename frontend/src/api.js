@@ -48,7 +48,12 @@ async function request(method, path, body, extraHeaders = {}) {
   // Include CSRF token on all mutating requests
   if (!SAFE_METHODS.includes(method)) {
     const csrf = getCsrfToken();
-    if (csrf) headers['x-csrf-token'] = csrf;
+    if (csrf) {
+      headers['x-csrf-token'] = csrf;
+    } else {
+      // Debug: log when CSRF token is missing for mutation
+      console.warn(`[CSRF] Missing token for ${method} ${path} — cookies: ${document.cookie}`);
+    }
   }
   const res = await fetch(`${API_BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
 
