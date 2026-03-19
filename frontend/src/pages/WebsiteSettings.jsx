@@ -193,6 +193,43 @@ export default function WebsiteSettings() {
   const [countdownBg, setCountdownBg] = useState('#ef4444');
   const [countdownTextColor, setCountdownTextColor] = useState('#ffffff');
 
+  /* ── Draft / Publish workflow ── */
+  const [settingsStatus, setSettingsStatus] = useState('published'); // 'draft' | 'published'
+  const [hasDraft, setHasDraft] = useState(false);
+
+  /* ── Homepage Sections ── */
+  const [homepageTab, setHomepageTab] = useState('hero'); // 'hero' | 'featured' | 'sections' | 'content'
+  const [sectionOrder, setSectionOrder] = useState([
+    'hero', 'brand_promise', 'social_proof', 'categories', 'promo_banner',
+    'featured', 'how_it_works', 'brand_values', 'trust_badges', 'testimonials',
+    'guarantee', 'faq', 'credibility', 'newsletter', 'final_cta',
+  ]);
+  const [sectionsVisible, setSectionsVisible] = useState({});
+  const [editingSection, setEditingSection] = useState(null); // which section is being edited in the content panel
+
+  /* ── Section Content Editors ── */
+  const [howItWorks, setHowItWorks] = useState([
+    { step: '01', icon: '🔍', title: 'Browse & Discover', description: 'Explore our curated collection.' },
+    { step: '02', icon: '🛒', title: 'Add to Cart & Checkout', description: 'Select items and complete purchase.' },
+    { step: '03', icon: '🚀', title: 'Fast Delivery', description: 'Carefully packed and delivered.' },
+  ]);
+  const [brandValues, setBrandValues] = useState([
+    { emoji: '✅', text: '100% Authentic Products' },
+    { emoji: '🛡️', text: 'Buyer Protection Guarantee' },
+    { emoji: '🔄', text: 'Hassle-Free Returns' },
+    { emoji: '⚡', text: 'Express Delivery Available' },
+  ]);
+  const [testimonials, setTestimonials] = useState([
+    { name: 'Satisfied Customer', text: 'Excellent product quality and super fast delivery. Will definitely order again!', rating: 5 },
+    { name: 'Happy Shopper', text: 'Great customer service and the products are exactly as described.', rating: 5 },
+    { name: 'Repeat Buyer', text: 'This is my go-to store now. Competitive prices and reliable shipping.', rating: 5 },
+  ]);
+  const [faqItems, setFaqItems] = useState([
+    { q: 'How long does shipping take?', a: 'We typically process orders within 1-2 business days. Standard delivery takes 3-7 business days.' },
+    { q: 'What is your return policy?', a: 'We offer a hassle-free 30-day return policy. Contact our support team and we\'ll arrange a return or exchange.' },
+    { q: 'Is my payment information secure?', a: 'Absolutely! We use industry-standard 256-bit SSL encryption to protect all transactions.' },
+  ]);
+
   const iframeRef = useRef(null);
 
   /* ═══════ LOAD DATA ═══════ */
@@ -249,6 +286,17 @@ export default function WebsiteSettings() {
         setCtaHeadline(hp?.cta?.headline || '');
         setCtaSubtitle(hp?.cta?.subtitle || '');
         if (hp?.ab_test) setAbTest(hp.ab_test);
+        // Section order & visibility
+        if (hp?.section_order?.length) setSectionOrder(hp.section_order);
+        if (hp?.sections_visible) setSectionsVisible(hp.sections_visible);
+        // Section content
+        if (hp?.how_it_works?.length) setHowItWorks(hp.how_it_works);
+        if (hp?.brand_values?.length) setBrandValues(hp.brand_values);
+        if (hp?.testimonials?.length) setTestimonials(hp.testimonials);
+        if (hp?.faq?.length) setFaqItems(hp.faq);
+        // Draft status
+        setSettingsStatus(data.settings_status || 'published');
+        setHasDraft(data.settings_status === 'draft');
 
         // Announcement
         const ann = data.announcement || {};
@@ -327,90 +375,100 @@ export default function WebsiteSettings() {
     load();
   }, [user]);
 
-  /* ═══════ SAVE ═══════ */
+  /* ═══════ BUILD PATCH — used for both save and draft ═══════ */
+  const buildPatch = () => ({
+    template: selectedTemplate,
+    theme: tokenOverrides,
+    header: {
+      logo_url: logoUrl || undefined,
+      logo_height: logoHeight || '40',
+      show_name: showShopName,
+      layout: headerLayout,
+      nav: navItems,
+    },
+    footer: {
+      tagline: footerTagline || undefined,
+      copyright: footerCopyright || undefined,
+      links: footerLinks,
+      show_payment_icons: showPaymentIcons,
+    },
+    homepage: {
+      hero: {
+        headline: heroHeadline || undefined,
+        subtitle: heroSubtitle || undefined,
+        cta: heroCta || undefined,
+        image_url: heroImageUrl || undefined,
+        overlay_opacity: heroOverlayOpacity,
+        overlay_color: heroOverlayColor,
+      },
+      featured_title: featuredTitle || undefined,
+      featured_subtitle: featuredSubtitle || undefined,
+      featured_product_ids: featuredProductIds.length > 0 ? featuredProductIds : undefined,
+      cta: {
+        headline: ctaHeadline || undefined,
+        subtitle: ctaSubtitle || undefined,
+      },
+      ab_test: abTest.enabled ? abTest : undefined,
+      section_order: sectionOrder,
+      sections_visible: sectionsVisible,
+      how_it_works: howItWorks,
+      brand_values: brandValues,
+      testimonials: testimonials,
+      faq: faqItems,
+    },
+    custom_css: customCss || null,
+    custom_js: customJs || null,
+    seo_defaults: { title: seoTitle || undefined, description: seoDescription || undefined, og_image_url: ogImageUrl || undefined, favicon_url: faviconUrl || undefined },
+    social_links: socialLinks,
+    business_info: businessInfo,
+    announcement,
+    store_policies: storePolicies,
+    trust_badges: trustBadges,
+    currency_config: { symbol: currencySymbol, code: currencyCode, position: currencyPosition, decimals: Number(currencyDecimals), secondary: secondaryCurrency.enabled ? secondaryCurrency : undefined },
+    store_config: {
+      maintenance_mode: maintenanceMode,
+      maintenance_message: maintenanceMessage || undefined,
+      products_per_page: Number(productsPerPage),
+      grid_columns: Number(gridColumns),
+      default_sort: defaultSort,
+      show_out_of_stock: showOutOfStock,
+      min_order_amount: minOrderAmount ? Number(minOrderAmount) : undefined,
+      guest_checkout: guestCheckout,
+      cookie_consent: cookieConsent,
+      shipping_display: shippingDisplay,
+      flat_shipping_rate: flatShippingRate ? Number(flatShippingRate) : undefined,
+      free_shipping_threshold: freeShippingThreshold ? Number(freeShippingThreshold) : undefined,
+      shipping_custom_text: shippingCustomText || undefined,
+      store_layout: storeLayout,
+    },
+    analytics: { ga4_id: ga4Id || undefined, fb_pixel_id: fbPixelId || undefined, gtm_id: gtmId || undefined },
+    popup_config: {
+      enabled: popupEnabled,
+      headline: popupHeadline || undefined,
+      body: popupBody || undefined,
+      cta_text: popupCtaText || undefined,
+      cta_link: popupCtaLink || undefined,
+      discount_code: popupDiscountCode || undefined,
+      delay_seconds: Number(popupDelay),
+      show_once: popupShowOnce,
+    },
+    countdown: {
+      enabled: countdownEnabled,
+      end_date: countdownEndDate || undefined,
+      headline: countdownHeadline || undefined,
+      bg_color: countdownBg,
+      text_color: countdownTextColor,
+    },
+  });
+
+  /* ═══════ SAVE (DIRECT PUBLISH) ═══════ */
   const handleSave = async () => {
     setError(''); setSaving(true); setSuccess('');
     try {
-      const patch = {
-        template: selectedTemplate,
-        theme: tokenOverrides,
-        header: {
-          logo_url: logoUrl || undefined,
-          logo_height: logoHeight || '40',
-          show_name: showShopName,
-          layout: headerLayout,
-          nav: navItems,
-        },
-        footer: {
-          tagline: footerTagline || undefined,
-          copyright: footerCopyright || undefined,
-          links: footerLinks,
-          show_payment_icons: showPaymentIcons,
-        },
-        homepage: {
-          hero: {
-            headline: heroHeadline || undefined,
-            subtitle: heroSubtitle || undefined,
-            cta: heroCta || undefined,
-            image_url: heroImageUrl || undefined,
-            overlay_opacity: heroOverlayOpacity,
-            overlay_color: heroOverlayColor,
-          },
-          featured_title: featuredTitle || undefined,
-          featured_subtitle: featuredSubtitle || undefined,
-          featured_product_ids: featuredProductIds.length > 0 ? featuredProductIds : undefined,
-          cta: {
-            headline: ctaHeadline || undefined,
-            subtitle: ctaSubtitle || undefined,
-          },
-          ab_test: abTest.enabled ? abTest : undefined,
-        },
-        custom_css: customCss || null,
-        custom_js: customJs || null,
-        seo_defaults: { title: seoTitle || undefined, description: seoDescription || undefined, og_image_url: ogImageUrl || undefined, favicon_url: faviconUrl || undefined },
-        social_links: socialLinks,
-        business_info: businessInfo,
-        announcement,
-        store_policies: storePolicies,
-        trust_badges: trustBadges,
-        currency_config: { symbol: currencySymbol, code: currencyCode, position: currencyPosition, decimals: Number(currencyDecimals), secondary: secondaryCurrency.enabled ? secondaryCurrency : undefined },
-        store_config: {
-          maintenance_mode: maintenanceMode,
-          maintenance_message: maintenanceMessage || undefined,
-          products_per_page: Number(productsPerPage),
-          grid_columns: Number(gridColumns),
-          default_sort: defaultSort,
-          show_out_of_stock: showOutOfStock,
-          min_order_amount: minOrderAmount ? Number(minOrderAmount) : undefined,
-          guest_checkout: guestCheckout,
-          cookie_consent: cookieConsent,
-          shipping_display: shippingDisplay,
-          flat_shipping_rate: flatShippingRate ? Number(flatShippingRate) : undefined,
-          free_shipping_threshold: freeShippingThreshold ? Number(freeShippingThreshold) : undefined,
-          shipping_custom_text: shippingCustomText || undefined,
-          store_layout: storeLayout,
-        },
-        analytics: { ga4_id: ga4Id || undefined, fb_pixel_id: fbPixelId || undefined, gtm_id: gtmId || undefined },
-        popup_config: {
-          enabled: popupEnabled,
-          headline: popupHeadline || undefined,
-          body: popupBody || undefined,
-          cta_text: popupCtaText || undefined,
-          cta_link: popupCtaLink || undefined,
-          discount_code: popupDiscountCode || undefined,
-          delay_seconds: Number(popupDelay),
-          show_once: popupShowOnce,
-        },
-        countdown: {
-          enabled: countdownEnabled,
-          end_date: countdownEndDate || undefined,
-          headline: countdownHeadline || undefined,
-          bg_color: countdownBg,
-          text_color: countdownTextColor,
-        },
-      };
-      const updated = await websiteSettings.update(patch);
+      const updated = await websiteSettings.update(buildPatch());
       setSettings(updated);
+      setSettingsStatus('published');
+      setHasDraft(false);
       setSuccess('Published! Your storefront is now updated.');
       setTimeout(() => setSuccess(''), 5000);
       if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
@@ -518,7 +576,37 @@ export default function WebsiteSettings() {
               Preview
             </a>
           )}
-          <Button onClick={handleSave} disabled={saving}>
+          <Button variant="secondary" onClick={async () => {
+            setError(''); setSuccess('');
+            try {
+              await websiteSettings.saveDraft(buildPatch());
+              setSettingsStatus('draft');
+              setHasDraft(true);
+              setSuccess('Draft saved. Publish when ready.');
+              setTimeout(() => setSuccess(''), 4000);
+            } catch (err) { setError(err.message); }
+          }} disabled={saving}>
+            Save Draft
+          </Button>
+          <Button onClick={async () => {
+            setError(''); setSaving(true); setSuccess('');
+            try {
+              if (hasDraft) {
+                await websiteSettings.publish();
+                setSettingsStatus('published');
+                setHasDraft(false);
+                setSuccess('Settings published successfully!');
+              } else {
+                await websiteSettings.update(buildPatch());
+                setSettingsStatus('published');
+                setHasDraft(false);
+                setSuccess('Published! Your storefront is now updated.');
+              }
+              setTimeout(() => setSuccess(''), 5000);
+              if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
+            } catch (err) { setError(err.message); }
+            setSaving(false);
+          }} disabled={saving}>
             {saving ? <span className="flex items-center gap-2"><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Publishing...</span> : 'Publish Changes'}
           </Button>
         </div>
@@ -532,8 +620,31 @@ export default function WebsiteSettings() {
       )}
       {success && (
         <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl flex items-center gap-3">
-          <span className="text-lg">✅</span><div className="flex-1">{success}</div>
+          <span className="text-lg">{success.includes('Draft') ? '📝' : '✅'}</span><div className="flex-1">{success}</div>
           <button onClick={() => setSuccess('')} className="text-emerald-400 hover:text-emerald-600">✕</button>
+        </div>
+      )}
+
+      {hasDraft && !success && (
+        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-xl flex items-center gap-3">
+          <span className="text-lg">📝</span>
+          <div className="flex-1">
+            <span className="font-semibold">You have unpublished draft changes.</span>
+            <span className="ml-2 text-amber-700">Save and publish to make them live.</span>
+          </div>
+          <button onClick={async () => {
+            setError(''); setSaving(true);
+            try {
+              await websiteSettings.publish();
+              setSettingsStatus('published');
+              setHasDraft(false);
+              setSuccess('Changes published!');
+              setTimeout(() => setSuccess(''), 5000);
+            } catch (err) { setError(err.message); }
+            setSaving(false);
+          }} disabled={saving} className="text-xs font-semibold px-3 py-1.5 bg-amber-200 hover:bg-amber-300 text-amber-800 rounded-lg transition">
+            Publish Now
+          </button>
         </div>
       )}
 
@@ -817,119 +928,364 @@ export default function WebsiteSettings() {
           {/* ════════════ HOMEPAGE ════════════ */}
           {activeTab === 'homepage' && (
             <>
-              <Card>
-                <div className="p-5">
-                  <h3 className="font-semibold text-gray-900 mb-1">Hero Section</h3>
-                  <p className="text-xs text-gray-500 mb-4">The main banner at the top of your homepage.</p>
-                  <ImageUploader label="Hero Background Image" value={heroImageUrl} onChange={setHeroImageUrl} hint="1920×800px recommended. Falls back to gradient if empty." />
-                  {heroImageUrl && (
-                    <div className="grid grid-cols-2 gap-3 mt-3">
-                      <FormField label="Overlay Color">
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={heroOverlayColor} onChange={e => setHeroOverlayColor(e.target.value)} className="w-9 h-9 rounded-lg border cursor-pointer" />
-                          <Input value={heroOverlayColor} onChange={e => setHeroOverlayColor(e.target.value)} />
-                        </div>
-                      </FormField>
-                      <FormField label={`Overlay Opacity: ${heroOverlayOpacity}%`}>
-                        <input type="range" min="0" max="100" value={heroOverlayOpacity} onChange={e => setHeroOverlayOpacity(Number(e.target.value))} className="w-full mt-2" />
-                      </FormField>
-                    </div>
-                  )}
-                  <div className="space-y-3 mt-4">
-                    <FormField label="Hero Headline"><Input value={heroHeadline} onChange={e => setHeroHeadline(e.target.value)} placeholder={`Welcome to ${shop?.name || 'Your Store'}`} /></FormField>
-                    <FormField label="Hero Subtitle"><Input value={heroSubtitle} onChange={e => setHeroSubtitle(e.target.value)} placeholder="Discover our curated collection of premium products." /></FormField>
-                    <FormField label="CTA Button Text"><Input value={heroCta} onChange={e => setHeroCta(e.target.value)} placeholder="Shop Now" /></FormField>
-                  </div>
-                </div>
-              </Card>
-              <Card>
-                <div className="p-5">
-                  <h3 className="font-semibold text-gray-900 mb-1">Featured Products Section</h3>
-                  <p className="text-xs text-gray-500 mb-4">Customize the featured products display.</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField label="Section Title"><Input value={featuredTitle} onChange={e => setFeaturedTitle(e.target.value)} placeholder="Featured Products" /></FormField>
-                    <FormField label="Section Subtitle"><Input value={featuredSubtitle} onChange={e => setFeaturedSubtitle(e.target.value)} placeholder="Hand-picked just for you" /></FormField>
-                  </div>
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Hand-pick Featured Products (optional)</label>
-                    <p className="text-xs text-gray-500 mb-2">Select specific products to feature. Leave empty to auto-select latest.</p>
-                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
-                      {allProducts.map(p => (
-                        <label key={p.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                          <input type="checkbox" checked={featuredProductIds.includes(p.id)}
-                            onChange={e => { if (e.target.checked) setFeaturedProductIds([...featuredProductIds, p.id]); else setFeaturedProductIds(featuredProductIds.filter(x => x !== p.id)); }}
-                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                          <span className="text-sm text-gray-700">{p.name}</span>
-                          <span className="text-xs text-gray-400 ml-auto">{currencySymbol}{Number(p.base_price).toFixed(2)}</span>
-                        </label>
-                      ))}
-                      {allProducts.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No products found</p>}
-                    </div>
-                    {featuredProductIds.length > 0 && <p className="text-xs text-primary-600 mt-1">{featuredProductIds.length} product(s) selected</p>}
-                  </div>
-                </div>
-              </Card>
-              <Card>
-                <div className="p-5">
-                  <h3 className="font-semibold text-gray-900 mb-1">Newsletter / CTA Section</h3>
-                  <p className="text-xs text-gray-500 mb-4">The email signup section at the bottom of your homepage.</p>
-                  <div className="space-y-3">
-                    <FormField label="CTA Headline"><Input value={ctaHeadline} onChange={e => setCtaHeadline(e.target.value)} placeholder="Stay in the Loop" /></FormField>
-                    <FormField label="CTA Subtitle"><Input value={ctaSubtitle} onChange={e => setCtaSubtitle(e.target.value)} placeholder="Subscribe for exclusive offers and new arrivals." /></FormField>
-                  </div>
-                </div>
-              </Card>
-              {/* ── A/B Testing ── */}
-              <Card>
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">A/B Testing</h3>
-                      <p className="text-xs text-gray-500 mt-0.5">Split-test different hero headlines to see which converts better. Visitors are randomly assigned a variant.</p>
-                    </div>
-                    <Toggle checked={abTest.enabled} onChange={v => setAbTest(prev => ({ ...prev, enabled: v }))} />
-                  </div>
-                  {abTest.enabled && (
-                    <div className="space-y-4 mt-4">
-                      {abTest.variants.map((variant, idx) => (
-                        <div key={idx} className="p-4 border border-gray-200 rounded-xl space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Variant {String.fromCharCode(65 + idx)}</span>
-                            {idx > 1 && (
-                              <button onClick={() => setAbTest(prev => ({ ...prev, variants: prev.variants.filter((_, i) => i !== idx) }))}
-                                className="text-xs text-red-500 hover:text-red-700">Remove</button>
-                            )}
-                          </div>
-                          <FormField label="Headline">
-                            <Input value={variant.headline} onChange={e => {
-                              const vs = [...abTest.variants]; vs[idx] = { ...vs[idx], headline: e.target.value }; setAbTest(prev => ({ ...prev, variants: vs }));
-                            }} placeholder={idx === 0 ? heroHeadline || 'Original headline' : 'Alternative headline'} />
+              {/* Sub-tab navigation */}
+              <div className="flex items-center gap-1 mb-6 bg-white rounded-xl border border-gray-200 p-1 shadow-sm overflow-x-auto">
+                {[
+                  { id: 'hero', label: 'Hero' },
+                  { id: 'featured', label: 'Featured' },
+                  { id: 'sections', label: 'Sections' },
+                  { id: 'content', label: 'Content' },
+                  { id: 'ab', label: 'A/B Test' },
+                ].map(tab => (
+                  <button key={tab.id} onClick={() => setHomepageTab(tab.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${
+                      homepageTab === tab.id
+                        ? 'bg-primary-50 text-primary-700 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    }`}>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── HERO ── */}
+              {homepageTab === 'hero' && (
+                <>
+                  <Card>
+                    <div className="p-5">
+                      <h3 className="font-semibold text-gray-900 mb-1">Hero Section</h3>
+                      <p className="text-xs text-gray-500 mb-4">The main banner at the top of your homepage.</p>
+                      <ImageUploader label="Hero Background Image" value={heroImageUrl} onChange={setHeroImageUrl} hint="1920×800px recommended. Falls back to gradient if empty." />
+                      {heroImageUrl && (
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                          <FormField label="Overlay Color">
+                            <div className="flex items-center gap-2">
+                              <input type="color" value={heroOverlayColor} onChange={e => setHeroOverlayColor(e.target.value)} className="w-9 h-9 rounded-lg border cursor-pointer" />
+                              <Input value={heroOverlayColor} onChange={e => setHeroOverlayColor(e.target.value)} />
+                            </div>
                           </FormField>
-                          <FormField label="Subtitle">
-                            <Input value={variant.subtitle} onChange={e => {
-                              const vs = [...abTest.variants]; vs[idx] = { ...vs[idx], subtitle: e.target.value }; setAbTest(prev => ({ ...prev, variants: vs }));
-                            }} placeholder={idx === 0 ? heroSubtitle || 'Original subtitle' : 'Alternative subtitle'} />
-                          </FormField>
-                          <FormField label="CTA Button">
-                            <Input value={variant.cta} onChange={e => {
-                              const vs = [...abTest.variants]; vs[idx] = { ...vs[idx], cta: e.target.value }; setAbTest(prev => ({ ...prev, variants: vs }));
-                            }} placeholder={idx === 0 ? heroCta || 'Shop Now' : 'Alternative CTA'} />
+                          <FormField label={`Overlay Opacity: ${heroOverlayOpacity}%`}>
+                            <input type="range" min="0" max="100" value={heroOverlayOpacity} onChange={e => setHeroOverlayOpacity(Number(e.target.value))} className="w-full mt-2" />
                           </FormField>
                         </div>
-                      ))}
-                      {abTest.variants.length < 4 && (
-                        <button onClick={() => setAbTest(prev => ({ ...prev, variants: [...prev.variants, { headline: '', subtitle: '', cta: '' }] }))}
-                          className="text-sm text-primary-600 font-semibold hover:text-primary-800 transition">
-                          + Add Variant
-                        </button>
                       )}
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-                        💡 Each visitor is randomly assigned one variant. Results are tracked via standard analytics. Use your GA4 or FB Pixel data to compare conversion rates between variants.
+                      <div className="space-y-3 mt-4">
+                        <FormField label="Hero Headline"><Input value={heroHeadline} onChange={e => setHeroHeadline(e.target.value)} placeholder={`Welcome to ${shop?.name || 'Your Store'}`} /></FormField>
+                        <FormField label="Hero Subtitle"><Input value={heroSubtitle} onChange={e => setHeroSubtitle(e.target.value)} placeholder="Discover our curated collection of premium products." /></FormField>
+                        <FormField label="CTA Button Text"><Input value={heroCta} onChange={e => setHeroCta(e.target.value)} placeholder="Shop Now" /></FormField>
                       </div>
                     </div>
-                  )}
-                </div>
-              </Card>
+                  </Card>
+                  <Card>
+                    <div className="p-5">
+                      <h3 className="font-semibold text-gray-900 mb-1">Newsletter / CTA Section</h3>
+                      <p className="text-xs text-gray-500 mb-4">The email signup section at the bottom of your homepage.</p>
+                      <div className="space-y-3">
+                        <FormField label="CTA Headline"><Input value={ctaHeadline} onChange={e => setCtaHeadline(e.target.value)} placeholder="Stay in the Loop" /></FormField>
+                        <FormField label="CTA Subtitle"><Input value={ctaSubtitle} onChange={e => setCtaSubtitle(e.target.value)} placeholder="Subscribe for exclusive offers and new arrivals." /></FormField>
+                      </div>
+                    </div>
+                  </Card>
+                </>
+              )}
+
+              {/* ── FEATURED PRODUCTS ── */}
+              {homepageTab === 'featured' && (
+                <Card>
+                  <div className="p-5">
+                    <h3 className="font-semibold text-gray-900 mb-1">Featured Products Section</h3>
+                    <p className="text-xs text-gray-500 mb-4">Customize the featured products display on your homepage.</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField label="Section Title"><Input value={featuredTitle} onChange={e => setFeaturedTitle(e.target.value)} placeholder="Featured Products" /></FormField>
+                      <FormField label="Section Subtitle"><Input value={featuredSubtitle} onChange={e => setFeaturedSubtitle(e.target.value)} placeholder="Hand-picked just for you" /></FormField>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Hand-pick Featured Products (optional)</label>
+                      <p className="text-xs text-gray-500 mb-2">Select specific products to feature. Leave empty to auto-select latest products.</p>
+                      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                        {allProducts.map(p => (
+                          <label key={p.id} className="flex items-center gap-2 p-1.5 rounded hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" checked={featuredProductIds.includes(p.id)}
+                              onChange={e => { if (e.target.checked) setFeaturedProductIds([...featuredProductIds, p.id]); else setFeaturedProductIds(featuredProductIds.filter(x => x !== p.id)); }}
+                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                            <span className="text-sm text-gray-700">{p.name}</span>
+                            <span className="text-xs text-gray-400 ml-auto">{currencySymbol}{Number(p.base_price).toFixed(2)}</span>
+                          </label>
+                        ))}
+                        {allProducts.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No products found</p>}
+                      </div>
+                      {featuredProductIds.length > 0 && <p className="text-xs text-primary-600 mt-1">{featuredProductIds.length} product(s) selected</p>}
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* ── SECTION ORDER & VISIBILITY ── */}
+              {homepageTab === 'sections' && (
+                <>
+                  <Card>
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-1">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">Homepage Sections</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">Show, hide, or reorder the sections on your homepage.</p>
+                        </div>
+                        <span className="text-xs text-gray-400 font-mono">{sectionOrder.filter(s => sectionsVisible[s] !== false).length} active</span>
+                      </div>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {sectionOrder.map((sectionId, idx) => {
+                        const isVisible = sectionsVisible[sectionId] !== false;
+                        const sectionNames = {
+                          hero: { name: 'Hero Banner', icon: '🖼️', desc: 'Main banner with headline and CTA' },
+                          brand_promise: { name: 'Brand Promise Bar', icon: '✨', desc: 'Shipping, payment, returns, support icons' },
+                          social_proof: { name: 'Social Proof', icon: '📊', desc: 'Animated counters (customers, orders)' },
+                          categories: { name: 'Category Grid', icon: '📁', desc: 'Shop by category links' },
+                          promo_banner: { name: 'Promo Banners', icon: '🎯', desc: 'Promotional banner strips' },
+                          featured: { name: 'Featured Products', icon: '⭐', desc: 'Highlighted products grid' },
+                          how_it_works: { name: 'How It Works', icon: '📋', desc: 'Step-by-step process' },
+                          brand_values: { name: 'Brand Values', icon: '🏆', desc: 'Core brand values and guarantee' },
+                          trust_badges: { name: 'Trust Badges', icon: '🛡️', desc: 'Security, warranty, guarantee badges' },
+                          testimonials: { name: 'Testimonials', icon: '💬', desc: 'Customer reviews and ratings' },
+                          guarantee: { name: 'Satisfaction Guarantee', icon: '✅', desc: 'Money-back guarantee section' },
+                          faq: { name: 'FAQ', icon: '❓', desc: 'Frequently asked questions' },
+                          credibility: { name: 'Credibility Bar', icon: '⭐', desc: 'Trust indicators and ratings bar' },
+                          newsletter: { name: 'Newsletter Signup', icon: '✉️', desc: 'Email subscription section' },
+                          final_cta: { name: 'Final CTA', icon: '🎯', desc: 'Last call-to-action before footer' },
+                        };
+                        const info = sectionNames[sectionId] || { name: sectionId, icon: '📦', desc: '' };
+                        return (
+                          <div key={sectionId} className="px-5 py-3.5 flex items-center gap-4 hover:bg-gray-50/60 transition">
+                            {/* Drag handle + order */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs font-mono text-gray-400">{idx + 1}</div>
+                              <svg className="w-4 h-4 text-gray-300 cursor-grab" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5" /><circle cx="15" cy="6" r="1.5" /><circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" /><circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" /></svg>
+                            </div>
+                            {/* Icon + info */}
+                            <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center text-base shrink-0">{info.icon}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">{info.name}</p>
+                              <p className="text-xs text-gray-400">{info.desc}</p>
+                            </div>
+                            {/* Visibility toggle */}
+                            <button
+                              onClick={() => setSectionsVisible(prev => ({ ...prev, [sectionId]: !isVisible }))}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${isVisible ? 'bg-primary-600' : 'bg-gray-200'}`}>
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${isVisible ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="p-4 border-t border-gray-100">
+                      <p className="text-xs text-gray-400">
+                        Sections appear on your homepage in the order shown above. Core sections (Hero, Featured, Newsletter) cannot be removed — only hidden.
+                      </p>
+                    </div>
+                  </Card>
+                </>
+              )}
+
+              {/* ── SECTION CONTENT EDITORS ── */}
+              {homepageTab === 'content' && (
+                <>
+                  {/* FAQ Editor */}
+                  <Card className="mb-4">
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">FAQ</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">Frequently asked questions shown on your homepage.</p>
+                        </div>
+                        <button onClick={() => setFaqItems(prev => [...prev, { q: '', a: '' }])}
+                          className="text-xs font-semibold px-3 py-1.5 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg transition">
+                          + Add Question
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {faqItems.map((item, idx) => (
+                          <div key={idx} className="p-4 border border-gray-200 rounded-xl space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Q{idx + 1}</span>
+                              <button onClick={() => setFaqItems(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-xs text-red-400 hover:text-red-600 font-medium">Remove</button>
+                            </div>
+                            <Input value={item.q} onChange={e => { const n = [...faqItems]; n[idx] = { ...n[idx], q: e.target.value }; setFaqItems(n); }}
+                              placeholder="Question (e.g. How long does shipping take?)" />
+                            <Textarea value={item.a} onChange={e => { const n = [...faqItems]; n[idx] = { ...n[idx], a: e.target.value }; setFaqItems(n); }}
+                              placeholder="Answer..." rows={2} />
+                          </div>
+                        ))}
+                        {faqItems.length === 0 && (
+                          <div className="text-center py-8 text-sm text-gray-400">
+                            No FAQ items yet. Click "+ Add Question" to add your first.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Testimonials Editor */}
+                  <Card className="mb-4">
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">Testimonials</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">Customer reviews shown on your homepage.</p>
+                        </div>
+                        <button onClick={() => setTestimonials(prev => [...prev, { name: '', text: '', rating: 5 }])}
+                          className="text-xs font-semibold px-3 py-1.5 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg transition">
+                          + Add Testimonial
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {testimonials.map((item, idx) => (
+                          <div key={idx} className="p-4 border border-gray-200 rounded-xl space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Review {idx + 1}</span>
+                              <button onClick={() => setTestimonials(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-xs text-red-400 hover:text-red-600 font-medium">Remove</button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <FormField label="Customer Name"><Input value={item.name} onChange={e => { const n = [...testimonials]; n[idx] = { ...n[idx], name: e.target.value }; setTestimonials(n); }} placeholder="Satisfied Customer" /></FormField>
+                              <FormField label="Rating">
+                                <select value={item.rating} onChange={e => { const n = [...testimonials]; n[idx] = { ...n[idx], rating: Number(e.target.value) }; setTestimonials(n); }}
+                                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white">
+                                  {[5, 4, 3, 2, 1].map(r => <option key={r} value={r}>{'⭐'.repeat(r)} ({r}/5)</option>)}
+                                </select>
+                              </FormField>
+                            </div>
+                            <Textarea value={item.text} onChange={e => { const n = [...testimonials]; n[idx] = { ...n[idx], text: e.target.value }; setTestimonials(n); }}
+                              placeholder="What did the customer say?" rows={2} />
+                          </div>
+                        ))}
+                        {testimonials.length === 0 && (
+                          <div className="text-center py-8 text-sm text-gray-400">
+                            No testimonials yet. Click "+ Add Testimonial" to add your first.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* How It Works Editor */}
+                  <Card className="mb-4">
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">How It Works</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">Step-by-step process shown on your homepage.</p>
+                        </div>
+                        <button onClick={() => setHowItWorks(prev => [...prev, { step: String(prev.length + 1).padStart(2, '0'), icon: '📦', title: '', description: '' }])}
+                          className="text-xs font-semibold px-3 py-1.5 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg transition">
+                          + Add Step
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {howItWorks.map((item, idx) => (
+                          <div key={idx} className="p-4 border border-gray-200 rounded-xl space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Step {idx + 1}</span>
+                              <button onClick={() => setHowItWorks(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-xs text-red-400 hover:text-red-600 font-medium">Remove</button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <FormField label="Step #"><Input value={item.step} onChange={e => { const n = [...howItWorks]; n[idx] = { ...n[idx], step: e.target.value }; setHowItWorks(n); }} placeholder="01" /></FormField>
+                              <FormField label="Icon (emoji)"><Input value={item.icon} onChange={e => { const n = [...howItWorks]; n[idx] = { ...n[idx], icon: e.target.value }; setHowItWorks(n); }} placeholder="🔍" /></FormField>
+                              <FormField label="Title"><Input value={item.title} onChange={e => { const n = [...howItWorks]; n[idx] = { ...n[idx], title: e.target.value }; setHowItWorks(n); }} placeholder="Browse & Discover" /></FormField>
+                            </div>
+                            <Textarea value={item.description} onChange={e => { const n = [...howItWorks]; n[idx] = { ...n[idx], description: e.target.value }; setHowItWorks(n); }}
+                              placeholder="Describe this step..." rows={2} />
+                          </div>
+                        ))}
+                        {howItWorks.length === 0 && (
+                          <div className="text-center py-8 text-sm text-gray-400">
+                            No steps yet. Click "+ Add Step" to build your process flow.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Brand Values Editor */}
+                  <Card>
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">Brand Values</h3>
+                          <p className="text-xs text-gray-500 mt-0.5">Value propositions shown in the brand values section.</p>
+                        </div>
+                        <button onClick={() => setBrandValues(prev => [...prev, { emoji: '✅', text: '' }])}
+                          className="text-xs font-semibold px-3 py-1.5 bg-primary-50 text-primary-600 hover:bg-primary-100 rounded-lg transition">
+                          + Add Value
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {brandValues.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                            <span className="text-lg w-8 text-center">{item.emoji}</span>
+                            <Input value={item.text} onChange={e => { const n = [...brandValues]; n[idx] = { ...n[idx], text: e.target.value }; setBrandValues(n); }}
+                              placeholder="e.g. 100% Authentic Products" className="flex-1" />
+                            <button onClick={() => setBrandValues(prev => prev.filter((_, i) => i !== idx))}
+                              className="text-gray-300 hover:text-red-500 text-sm transition">✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+                </>
+              )}
+
+              {/* ── A/B TESTING ── */}
+              {homepageTab === 'ab' && (
+                <Card>
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">A/B Testing</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">Split-test different hero headlines. Visitors are randomly assigned a variant.</p>
+                      </div>
+                      <Toggle checked={abTest.enabled} onChange={v => setAbTest(prev => ({ ...prev, enabled: v }))} />
+                    </div>
+                    {abTest.enabled && (
+                      <div className="space-y-4 mt-4">
+                        {abTest.variants.map((variant, idx) => (
+                          <div key={idx} className="p-4 border border-gray-200 rounded-xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Variant {String.fromCharCode(65 + idx)}</span>
+                              {idx > 1 && (
+                                <button onClick={() => setAbTest(prev => ({ ...prev, variants: prev.variants.filter((_, i) => i !== idx) }))}
+                                  className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                              )}
+                            </div>
+                            <FormField label="Headline">
+                              <Input value={variant.headline} onChange={e => { const vs = [...abTest.variants]; vs[idx] = { ...vs[idx], headline: e.target.value }; setAbTest(prev => ({ ...prev, variants: vs })); }}
+                                placeholder={idx === 0 ? heroHeadline || 'Original headline' : 'Alternative headline'} />
+                            </FormField>
+                            <FormField label="Subtitle">
+                              <Input value={variant.subtitle} onChange={e => { const vs = [...abTest.variants]; vs[idx] = { ...vs[idx], subtitle: e.target.value }; setAbTest(prev => ({ ...prev, variants: vs })); }}
+                                placeholder={idx === 0 ? heroSubtitle || 'Original subtitle' : 'Alternative subtitle'} />
+                            </FormField>
+                            <FormField label="CTA Button">
+                              <Input value={variant.cta} onChange={e => { const vs = [...abTest.variants]; vs[idx] = { ...vs[idx], cta: e.target.value }; setAbTest(prev => ({ ...prev, variants: vs })); }}
+                                placeholder={idx === 0 ? heroCta || 'Shop Now' : 'Alternative CTA'} />
+                            </FormField>
+                          </div>
+                        ))}
+                        {abTest.variants.length < 4 && (
+                          <button onClick={() => setAbTest(prev => ({ ...prev, variants: [...prev.variants, { headline: '', subtitle: '', cta: '' }] }))}
+                            className="text-sm text-primary-600 font-semibold hover:text-primary-800 transition">
+                            + Add Variant
+                          </button>
+                        )}
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                          💡 Each visitor is randomly assigned one variant. Track results via your GA4 or FB Pixel to compare conversion rates.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
             </>
           )}
 

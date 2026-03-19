@@ -42,6 +42,24 @@ router.patch('/me', asyncHandler(async (req, res) => {
   res.json(settings);
 }));
 
+// Save as draft (does not publish)
+router.post('/me/draft', asyncHandler(async (req, res) => {
+  const settings = await websiteService.saveDraft(req.tenantShopId, req.body);
+  res.json({ settings_status: 'draft', message: 'Draft saved. Publish when ready.' });
+}));
+
+// Publish current draft
+router.post('/me/publish', asyncHandler(async (req, res) => {
+  const result = await websiteService.publishSettings(req.tenantShopId);
+  res.json({ settings_status: 'published', published_at: result.published_at, message: 'Settings published successfully!' });
+}));
+
+// Discard draft and revert to published
+router.post('/me/discard', asyncHandler(async (req, res) => {
+  const result = await websiteService.discardDraft(req.tenantShopId);
+  res.json({ settings_status: 'published', message: 'Draft discarded. Published settings restored.' });
+}));
+
 // Upload settings image (logo, hero, favicon, og_image)
 router.post('/upload', settingsUpload.single('image'), asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No image file provided' });

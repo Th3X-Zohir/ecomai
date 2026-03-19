@@ -197,6 +197,9 @@ export const inventory = {
 export const websiteSettings = {
   get: () => request('GET', '/website-settings/me'),
   update: (data) => request('PATCH', '/website-settings/me', data),
+  saveDraft: (data) => request('POST', '/website-settings/me/draft', data),
+  publish: () => request('POST', '/website-settings/me/publish'),
+  discardDraft: () => request('POST', '/website-settings/me/discard'),
   uploadImage: async (file) => {
     const fd = new FormData();
     fd.append('image', file);

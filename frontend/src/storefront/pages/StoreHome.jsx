@@ -253,6 +253,12 @@ export default function StoreHome() {
     );
   };
 
+  // Section content from settings (fall back to defaults if not set)
+  const howItWorksData = homepage?.how_it_works;
+  const brandValuesData = homepage?.brand_values;
+  const testimonialsData = homepage?.testimonials;
+  const faqData = homepage?.faq;
+
   /* ── Section Components ── */
   const sections = {
     hero: () => <HeroSlider key="hero" homepage={homepage} t={t} theme={theme} shopSlug={shopSlug} />,
@@ -417,39 +423,42 @@ export default function StoreHome() {
     ),
 
     /* ── How It Works (Process Steps) ── */
-    how_it_works: () => (
-      <section key="how_it_works" className="py-16" style={{ backgroundColor: t.surface }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: t.primary }}>Simple Process</p>
-            <h2 className="text-2xl md:text-3xl font-bold" style={{ color: t.text }}>How It Works</h2>
-            <p className="text-sm mt-2 max-w-md mx-auto" style={{ color: t.textMuted }}>Shopping with us is easy, fast, and secure.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            {[
-              { step: '01', icon: '🔍', title: 'Browse & Discover', desc: 'Explore our curated collection of premium products. Use filters to find exactly what you need.' },
-              { step: '02', icon: '🛒', title: 'Add to Cart & Checkout', desc: 'Select your items, choose your options, and complete your purchase with our secure checkout.' },
-              { step: '03', icon: '🚀', title: 'Fast Delivery', desc: 'Sit back and relax. Your order will be carefully packed and delivered to your doorstep.' },
-            ].map((item, i) => (
-              <div key={i} className="relative text-center p-6">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-3xl"
-                  style={{ backgroundColor: t.primary + '12' }}>
-                  {item.icon}
-                </div>
-                <div className="absolute top-4 right-1/2 translate-x-20 text-5xl font-black opacity-5 select-none" style={{ color: t.text }}>{item.step}</div>
-                <h3 className="font-bold text-base mb-2" style={{ color: t.text }}>{item.title}</h3>
-                <p className="text-sm leading-relaxed" style={{ color: t.textMuted }}>{item.desc}</p>
-                {i < 2 && (
-                  <div className="hidden md:block absolute top-12 -right-4 w-8">
-                    <svg className="w-full" style={{ color: t.border }} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+    how_it_works: () => {
+      const steps = howItWorksData && howItWorksData.length > 0 ? howItWorksData : [
+        { step: '01', icon: '🔍', title: 'Browse & Discover', description: 'Explore our curated collection of premium products.' },
+        { step: '02', icon: '🛒', title: 'Add to Cart & Checkout', description: 'Select items and complete your purchase securely.' },
+        { step: '03', icon: '🚀', title: 'Fast Delivery', description: 'Carefully packed and delivered to your doorstep.' },
+      ];
+      return (
+        <section key="how_it_works" className="py-16" style={{ backgroundColor: t.surface }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: t.primary }}>Simple Process</p>
+              <h2 className="text-2xl md:text-3xl font-bold" style={{ color: t.text }}>How It Works</h2>
+              <p className="text-sm mt-2 max-w-md mx-auto" style={{ color: t.textMuted }}>Shopping with us is easy, fast, and secure.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+              {steps.map((item, i) => (
+                <div key={i} className="relative text-center p-6">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-3xl"
+                    style={{ backgroundColor: t.primary + '12' }}>
+                    {item.icon}
                   </div>
-                )}
-              </div>
-            ))}
+                  <div className="absolute top-4 right-1/2 translate-x-20 text-5xl font-black opacity-5 select-none" style={{ color: t.text }}>{item.step}</div>
+                  <h3 className="font-bold text-base mb-2" style={{ color: t.text }}>{item.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: t.textMuted }}>{item.description}</p>
+                  {i < steps.length - 1 && (
+                    <div className="hidden md:block absolute top-12 -right-4 w-8">
+                      <svg className="w-full" style={{ color: t.border }} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
-    ),
+        </section>
+      );
+    },
 
     /* ── Trust Badges (enhanced) ── */
     trust_badges: () => (
@@ -493,12 +502,12 @@ export default function StoreHome() {
                 We're committed to bringing you the finest products with exceptional customer service. Every item in our store is carefully selected and quality-checked before it reaches you.
               </p>
               <div className="grid grid-cols-2 gap-4">
-                {[
+                {(brandValuesData && brandValuesData.length > 0 ? brandValuesData : [
                   { emoji: '✅', text: '100% Authentic Products' },
                   { emoji: '🛡️', text: 'Buyer Protection Guarantee' },
                   { emoji: '🔄', text: 'Hassle-Free Returns' },
                   { emoji: '⚡', text: 'Express Delivery Available' },
-                ].map((item, i) => (
+                ]).map((item, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <span className="text-lg">{item.emoji}</span>
                     <span className="text-sm font-medium" style={{ color: theme === 'modern_luxe' ? t.text : '#fff' }}>{item.text}</span>
