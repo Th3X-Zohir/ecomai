@@ -5,6 +5,7 @@ const variantRepo = require('../repositories/product-variants');
 const inventoryRepo = require('../repositories/inventory-movements');
 const couponService = require('../services/coupons');
 const engine = require('./subscription-engine');
+const analyticsService = require('./analytics');
 const { DomainError } = require('../errors/domain-error');
 
 function calculateTotals(items, discountAmount = 0) {
@@ -49,6 +50,13 @@ async function updateOrderStatus(shopId, orderId, status) {
     throw new DomainError('INVALID_TRANSITION', `Cannot transition from '${order.status}' to '${status}'. Allowed: ${allowed.join(', ') || 'none'}`, 400);
   }
 
+  // Refresh customer metrics when order is delivered (cash collection for COD, delivery confirmation for online)
+  if (status === 'delivered' && order.customer_id) {
+    try {
+      await analyticsService.refreshCustomerMetrics(order.customer_id, shopId);
+    } catch (_e) { /* non-critical */ }
+  }
+
   // If cancelling, restore inventory + decrement order usage
   if (status === 'cancelled') {
     const itemsRes = await db.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
@@ -75,6 +83,12 @@ async function updateOrderStatus(shopId, orderId, status) {
 
     // Decrement monthly order usage counter
     try { await engine.incrementUsage(shopId, 'orders_monthly', -1); } catch (_e) { /* non-blocking */ }
+
+    // Cancel any pending affiliate referral for this cancelled order (non-blocking)
+    try {
+      const affiliateRepo = require('../repositories/affiliates');
+      await affiliateRepo.cancelReferralByOrderId(orderId);
+    } catch (_e) { /* non-critical */ }
 
     return result;
   }

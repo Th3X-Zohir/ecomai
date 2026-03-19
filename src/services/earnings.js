@@ -1,5 +1,7 @@
 const db = require('../db');
 const earningsRepo = require('../repositories/earnings');
+const notificationService = require('./notifications');
+const shopRepo = require('../repositories/shops');
 const { DomainError } = require('../errors/domain-error');
 
 /**
@@ -112,13 +114,28 @@ async function requestWithdrawal({ shopId, requestedBy, amount, paymentMethod, a
     throw new DomainError('PENDING_WITHDRAWAL', 'You already have a pending withdrawal request', 400);
   }
 
-  return earningsRepo.createWithdrawal({
+  const withdrawal = await earningsRepo.createWithdrawal({
     shop_id: shopId,
     requested_by: requestedBy,
     amount: normalizedAmount,
     payment_method: paymentMethod || 'bank_transfer',
     account_details: accountDetails || null,
   });
+
+  // Notify super admin of new withdrawal request (fire-and-forget)
+  try {
+    const shop = await shopRepo.findById(shopId);
+    await notificationService.notifyWithdrawalRequest({
+      shopId,
+      shopName: shop?.name || 'a shop',
+      shopSlug: shop?.slug,
+      withdrawalId: withdrawal.id,
+      amount: normalizedAmount,
+      method: paymentMethod || 'bank_transfer',
+    });
+  } catch (_) { /* non-critical */ }
+
+  return withdrawal;
 }
 
 async function listShopWithdrawals(shopId, opts) {

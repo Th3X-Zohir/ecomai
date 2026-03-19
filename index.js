@@ -39,6 +39,32 @@ setInterval(async () => {
   }
 }, CLEANUP_INTERVAL);
 
+// ── Weekly: compute shop metrics snapshots every Monday at 2am ──
+let _lastSnapshotDate = null;
+setInterval(async () => {
+  const now = new Date();
+  // Run once per week: Monday (day 1) between 2:00 and 2:59
+  if (now.getDay() !== 1) return;
+  const todayStr = now.toISOString().slice(0, 10);
+  if (_lastSnapshotDate === todayStr) return;
+  _lastSnapshotDate = todayStr;
+  try {
+    const analyticsService = require('./src/services/analytics');
+    const result = await analyticsService.computeAllWeeklySnapshots();
+    console.log(`[WEEKLY] Shop metrics snapshot completed: ${result.processed} shops, ${result.failed} failed`);
+  } catch (err) {
+    console.error('[WEEKLY] Shop metrics snapshot failed:', err.message);
+  }
+  // Also compute product co-occurrence for upsell intelligence
+  try {
+    const upsellService = require('./src/services/upsell');
+    await upsellService.computeCooccurrence();
+    console.log('[WEEKLY] Product co-occurrence computed');
+  } catch (err) {
+    console.error('[WEEKLY] Co-occurrence computation failed:', err.message);
+  }
+}, 60 * 60 * 1000); // Check every hour
+
 // ── Graceful shutdown ───────────────────────────────────
 const SHUTDOWN_TIMEOUT = 10_000; // 10s hard kill
 

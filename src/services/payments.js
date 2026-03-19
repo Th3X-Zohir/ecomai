@@ -3,6 +3,7 @@ const config = require('../config');
 const orderRepo = require('../repositories/orders');
 const paymentRepo = require('../repositories/payments');
 const earningsService = require('../services/earnings');
+const analyticsService = require('../services/analytics');
 const db = require('../db');
 const { DomainError } = require('../errors/domain-error');
 
@@ -176,11 +177,26 @@ async function handleSSLCommerzCallback(body) {
         currency: payment.currency,
       });
     } catch (_e) { /* non-critical — don't block payment flow */ }
+
+    // Refresh customer metrics for benchmarking (non-blocking)
+    try {
+      const order = await orderRepo.findById(payment.order_id);
+      if (order?.customer_id) {
+        await analyticsService.refreshCustomerMetrics(order.customer_id, payment.shop_id);
+      }
+    } catch (_e) { /* non-critical — don't block payment flow */ }
     return { valid: true, payment: { ...payment, status: 'completed' } };
   }
 
   const newStatus = status === 'FAILED' ? 'failed' : 'cancelled';
   await paymentRepo.updatePayment(payment.id, { status: newStatus, gateway_response: body });
+
+  // Cancel any pending affiliate referral for this failed order (non-blocking)
+  try {
+    const affiliateRepo = require('../repositories/affiliates');
+    await affiliateRepo.cancelReferralByOrderId(payment.order_id);
+  } catch (_) { /* non-critical */ }
+
   return { valid: false, payment: { ...payment, status: newStatus } };
 }
 
@@ -199,6 +215,14 @@ async function createManualPayment({ shopId, orderId, amount, currency, method }
   });
   // Update order payment_status to 'paid'
   await orderRepo.updateOrder(orderId, shopId, { payment_status: 'paid' });
+
+  // Refresh customer metrics for benchmarking (non-blocking)
+  if (order.customer_id) {
+    try {
+      await analyticsService.refreshCustomerMetrics(order.customer_id, shopId);
+    } catch (_e) { /* non-critical */ }
+  }
+
   return payment;
 }
 

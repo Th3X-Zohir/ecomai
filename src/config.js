@@ -28,5 +28,15 @@ module.exports = {
   // URLs
   appUrl: process.env.APP_URL || 'http://localhost:5173',
   apiUrl: process.env.API_URL || 'http://localhost:3000',
+
+  // Email
+  emailProvider: process.env.EMAIL_PROVIDER || 'console',  // 'resend' | 'smtp' | 'console'
+  resendApiKey: process.env.RESEND_API_KEY || '',
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpSecure: process.env.SMTP_SECURE === 'true',
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  emailFrom: process.env.EMAIL_FROM || 'Ecomai <noreply@ecomai.com>',
 };
 

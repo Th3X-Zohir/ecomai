@@ -7,6 +7,7 @@ const { checkPlanLimit } = require('../middleware/plan-enforcement');
 const orderService = require('../services/orders');
 const deliveryService = require('../services/delivery-requests');
 const paymentService = require('../services/payments');
+const config = require('../config');
 const db = require('../db');
 
 const router = express.Router();
@@ -131,8 +132,23 @@ router.post('/', checkPlanLimit('orders_monthly'), validateBody({
 router.patch('/:orderId/status', validateBody({
   status: { required: true, type: 'string', oneOf: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'] },
 }), asyncHandler(async (req, res) => {
+  const previousStatus = req.body.previous_status;
   const order = await orderService.updateOrderStatus(req.tenantShopId, req.params.orderId, req.body.status);
   res.json(order);
+
+  // Send "order shipped" email when status transitions to 'shipped'
+  if (req.body.status === 'shipped' && order.customer_email) {
+    const emailService = require('../services/email');
+    const shopRepo = require('../repositories/shops');
+    const shop = await shopRepo.findById(req.tenantShopId);
+    emailService.sendOrderShipped({
+      to: order.customer_email,
+      order,
+      shopName: shop?.name || 'the shop',
+      shopUrl: `${config.appUrl}/shops/${shop?.slug || ''}`,
+      trackingInfo: req.body.tracking_info || null,
+    }).catch(() => {});
+  }
 }));
 
 router.patch('/:orderId', asyncHandler(async (req, res) => {

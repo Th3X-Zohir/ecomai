@@ -35,6 +35,11 @@ const earningsRoutes = require('./routes/earnings');
 const subscriptionRoutes = require('./routes/subscriptions');
 const reviewRoutes = require('./routes/reviews');
 const newsletterRoutes = require('./routes/newsletter');
+const analyticsRoutes = require('./routes/analytics');
+const affiliateRoutes = require('./routes/affiliates');
+const upsellRoutes = require('./routes/upsell');
+const refundRoutes = require('./routes/refunds');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 
@@ -151,6 +156,11 @@ app.use('/v1/subscriptions', subscriptionRoutes);
 app.use('/v1/reviews', reviewRoutes);
 app.use('/v1/newsletter', newsletterRoutes);
 app.use('/v1/dashboard', dashboardRoutes);
+app.use('/v1/analytics', analyticsRoutes);
+app.use('/v1/affiliates', affiliateRoutes);
+app.use('/v1/upsell', upsellRoutes);
+app.use('/v1/refunds', refundRoutes);
+app.use('/v1/notifications', notificationRoutes);
 
 // SPA fallback
 app.get('*', (req, res) => {

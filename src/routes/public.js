@@ -15,6 +15,7 @@ const couponService = require('../services/coupons');
 const invoiceService = require('../services/invoices');
 const jwt = require('jsonwebtoken');
 const { jwtSecret } = require('../config');
+const config = require('../config');
 const { DomainError } = require('../errors/domain-error');
 
 const router = express.Router();
@@ -247,7 +248,7 @@ router.post('/shops/:slug/checkout', validateBody({
   const shop = await shopRepo.findBySlug(req.params.slug);
   if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
 
-  const { customer_email, customer_id, items, shipping_address, customer_name, customer_phone, customer_password, order_notes, coupon_code, payment_method } = req.body;
+  const { customer_email, customer_id, items, shipping_address, customer_name, customer_phone, customer_password, order_notes, coupon_code, payment_method, referral_code } = req.body;
 
   // Auto-create or find customer by email
   const { customer, token: customerToken } = await customerService.findOrCreateByEmail({
@@ -276,7 +277,31 @@ router.post('/shops/:slug/checkout', validateBody({
     notes: order_notes || undefined, coupon_code: coupon_code || undefined,
   });
 
+  // Notify merchant of new order (fire-and-forget)
+  const notificationService = require('../services/notifications');
+  notificationService.notifyNewOrder({
+    shopId: shop.id,
+    shopName: shop.name || 'the shop',
+    shopSlug: req.params.slug,
+    orderId: order.id,
+    customerEmail: customer_email,
+    orderTotal: order.total_amount,
+  }).catch(() => {});
+
   // Initiate payment based on method
+  let referralTracked = false;
+  try {
+    if (referral_code && customer?.id) {
+      const affiliateService = require('../services/affiliates');
+      await affiliateService.trackReferral({
+        shopId: shop.id, referralCode: referral_code,
+        referredCustomerId: customer.id, orderId: order.id,
+        orderAmount: Number(order.total_amount),
+      });
+      referralTracked = true;
+    }
+  } catch (_) { /* non-critical — don't block checkout */ }
+
   if (payment_method === 'cod') {
     // Cash on Delivery — mark order as confirmed, payment pending
     const db = require('../db');
@@ -297,6 +322,15 @@ router.post('/shops/:slug/checkout', validateBody({
 
     res.status(201).json({ order, payment: paymentResult, customerToken, customer });
   }
+
+  // Fire order confirmation email (non-blocking — don't await)
+  const emailService = require('../services/email');
+  emailService.sendOrderConfirmation({
+    to: customer_email,
+    order,
+    shopName: shop.name || 'the shop',
+    shopUrl: `${config.appUrl}/shops/${req.params.slug}`,
+  }).catch(() => {});
 }));
 
 // --- Newsletter subscription ---
@@ -448,6 +482,116 @@ router.post('/shops/:slug/auth/reset-password', validateBody({
   const hash = await bcrypt.hash(new_password, 12);
   await db.query(`UPDATE customers SET password_hash = $1 WHERE id = $2`, [hash, payload.customerId]);
   res.json({ message: 'Password reset successfully' });
+}));
+
+// ─── Upsell Suggestions ──────────────────────────────────────
+
+// GET /shops/:slug/upsell/suggestions?products=id1,id2
+router.get('/shops/:slug/upsell/suggestions', asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const productIds = req.query.products
+    ? req.query.products.split(',').filter(Boolean)
+    : [];
+  if (productIds.length === 0) return res.json([]);
+  const upsellService = require('../services/upsell');
+  const suggestions = await upsellService.getSuggestions({
+    shopId: shop.id,
+    productIds,
+    limit: 3,
+  });
+  res.json(suggestions);
+}));
+
+// ─── Affiliate Routes ───────────────────────────────────────
+
+router.get('/shops/:slug/affiliate/program', asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const affiliateService = require('../services/affiliates');
+  const program = await affiliateService.getProgram(shop.id);
+  if (!program || !program.is_active) return res.json({ is_active: false });
+  // Return public info only
+  res.json({
+    is_active: true,
+    commission_type: program.commission_type,
+    commission_value: program.commission_value,
+    min_payout: program.min_payout,
+  });
+}));
+
+router.post('/shops/:slug/affiliate/register', customerAuth, asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const affiliateService = require('../services/affiliates');
+  const result = await affiliateService.registerAsAffiliate(
+    shop.id, req.customer.sub, req.customer.email, req.body.display_name
+  );
+  res.status(201).json(result);
+}));
+
+router.get('/shops/:slug/affiliate/me', customerAuth, asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const affiliateService = require('../services/affiliates');
+  const affiliate = await affiliateService.getMyAffiliateProfile(shop.id, req.customer.sub);
+  if (!affiliate) return res.json({ is_affiliate: false });
+  const affiliatesRepo = require('../repositories/affiliates');
+  const referrals = await affiliatesRepo.listReferrals(affiliate.id, { limit: 20 });
+  res.json({ is_affiliate: true, affiliate, referrals });
+}));
+
+router.get('/shops/:slug/affiliate/referrals', customerAuth, asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const affiliateService = require('../services/affiliates');
+  const affiliate = await affiliateService.getMyAffiliateProfile(shop.id, req.customer.sub);
+  if (!affiliate) return res.json({ items: [], total: 0, message: 'Not an affiliate' });
+  const affiliatesRepo = require('../repositories/affiliates');
+  const result = await affiliatesRepo.listReferrals(affiliate.id, {
+    page: Number(req.query.page) || 1,
+    limit: Number(req.query.limit) || 20,
+  });
+  res.json(result);
+}));
+
+// ─── Customer Refund Requests ────────────────────────────────
+
+router.post('/shops/:slug/orders/:orderId/refund', customerAuth, validateBody({
+  reason: { required: true, type: 'string', minLength: 10 },
+  refund_amount: { type: 'number' },
+}), asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const refundService = require('../services/refunds');
+  const orderService = require('../services/orders');
+
+  // Verify customer owns this order
+  const order = await orderService.getOrder(shop.id, req.params.orderId);
+  if (!order) throw new DomainError('ORDER_NOT_FOUND', 'Order not found', 404);
+  if (order.customer_id !== req.customer.sub) {
+    throw new DomainError('FORBIDDEN', 'You do not have access to this order', 403);
+  }
+
+  const request = await refundService.submitRefundRequest({
+    shopId: shop.id,
+    orderId: req.params.orderId,
+    customerId: req.customer.sub,
+    requestedBy: req.customer.sub,
+    reason: req.body.reason,
+    refundAmount: req.body.refund_amount || order.total_amount,
+  });
+
+  res.status(201).json(request);
+}));
+
+router.get('/shops/:slug/account/refunds', customerAuth, asyncHandler(async (req, res) => {
+  const shop = await shopRepo.findBySlug(req.params.slug);
+  if (!shop) throw new DomainError('SHOP_NOT_FOUND', 'Shop not found', 404);
+  const refundRepo = require('../repositories/refunds');
+  const requests = await refundRepo.listByCustomer(req.customer.sub);
+  const filtered = requests.filter(r => r.shop_id === shop.id);
+  res.json(filtered);
 }));
 
 module.exports = router;
