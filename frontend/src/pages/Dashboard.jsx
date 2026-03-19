@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../contexts/AdminContext';
-import { products, orders, customers, campaigns, shops, dashboard } from '../api';
+import { products, orders, customers, campaigns, shops, dashboard, operations, cod, platformSettlements, refunds } from '../api';
 import { StatCard, Card, Badge, Button, PageSkeleton } from '../components/UI';
 
 /* helpers */
@@ -27,6 +27,8 @@ function PlatformDashboard({ user, shopList, selectShop }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [opsData, setOpsData] = useState({ exceptions: [], exceptionCounts: {}, codSummary: null, platformBalances: null, refundStats: null });
+  const [opsLoading, setOpsLoading] = useState(true);
 
   useEffect(() => {
     Promise.allSettled([
@@ -39,8 +41,31 @@ function PlatformDashboard({ user, shopList, selectShop }) {
     });
   }, []);
 
+  // Load operational data for the attention panel
+  useEffect(() => {
+    Promise.allSettled([
+      operations.platformExceptions({ limit: 5 }),
+      cod.getSummary(),
+      platformSettlements.getBalances(),
+      refunds.stats(),
+    ]).then(([exceptionsRes, codRes, balancesRes, refundRes]) => {
+      const exceptionItems = exceptionsRes.status === 'fulfilled' ? (exceptionsRes.value.items || []) : [];
+      const exceptionCountMap = {};
+      (exceptionsRes.status === 'fulfilled' ? (exceptionsRes.value.items || []) : []).forEach(e => {
+        exceptionCountMap[e.type] = (exceptionCountMap[e.type] || 0) + 1;
+      });
+      setOpsData({
+        exceptions: exceptionItems.slice(0, 5),
+        exceptionCounts: exceptionCountMap,
+        codSummary: codRes.status === 'fulfilled' ? codRes.value : null,
+        platformBalances: balancesRes.status === 'fulfilled' ? balancesRes.value : null,
+        refundStats: refundRes.status === 'fulfilled' ? refundRes.value : null,
+      });
+      setOpsLoading(false);
+    });
+  }, []);
+
   const totals = useMemo(() => {
-    // Use platform API data if available, otherwise derive from shops list
     if (platformStats) {
       const shopsByStatus = platformStats.shops || {};
       const totalShops = Object.values(shopsByStatus).reduce((a, c) => a + c, 0);
@@ -86,25 +111,78 @@ function PlatformDashboard({ user, shopList, selectShop }) {
     [allShops]
   );
 
+  // Count items needing attention
+  const urgentCount = useMemo(() => {
+    let n = 0;
+    n += opsData.exceptionCounts['delivery_failed'] || 0;
+    n += opsData.exceptionCounts['cod_recon'] || 0;
+    n += opsData.refundStats?.pending || 0;
+    n += opsData.codSummary?.uncollected_count || 0;
+    return n;
+  }, [opsData]);
+
   if (loading) return <PageSkeleton />;
 
-  const quickActions = [
-    { label: 'All Shops', icon: '\u{1F3EA}', to: '/admin/all-shops', desc: 'Manage every shop' },
-    { label: 'All Users', icon: '\u{1F465}', to: '/admin/all-users', desc: 'Platform user management' },
-    { label: 'Create Shop', icon: '\u{2795}', to: '/admin/all-shops', desc: 'Add a new shop' },
-    { label: 'View Orders', icon: '\u{1F6D2}', to: '/admin/orders', desc: 'Browse all orders' },
+  const icon = (path, extra = '') => (
+    <svg className={`w-5 h-5 ${extra}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={path} />
+    </svg>
+  );
+
+  // Quick links for the ops panel
+  const quickLinks = [
+    {
+      label: 'Exception Queue',
+      icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>),
+      to: '/admin/exception-queue',
+      count: Object.values(opsData.exceptionCounts).reduce((a, c) => a + c, 0),
+      countColor: 'text-red-600 bg-red-50',
+      desc: 'Delivery failures, COD gaps',
+      color: 'from-red-50 to-orange-50 border-red-200',
+    },
+    {
+      label: 'COD Reconciliation',
+      icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>),
+      to: '/admin/cod',
+      count: opsData.codSummary?.uncollected_value || 0,
+      countPrefix: '৳',
+      countColor: 'text-amber-600 bg-amber-50',
+      desc: `${opsData.codSummary?.uncollected_count || 0} uncollected`,
+      color: 'from-amber-50 to-yellow-50 border-amber-200',
+    },
+    {
+      label: 'Platform Earnings',
+      icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>),
+      to: '/admin/platform-earnings',
+      count: opsData.platformBalances?.held || 0,
+      countPrefix: '৳',
+      countColor: 'text-blue-600 bg-blue-50',
+      desc: `${opsData.platformBalances?.releasable || 0} releasable`,
+      color: 'from-blue-50 to-indigo-50 border-blue-200',
+    },
+    {
+      label: 'Refund Requests',
+      icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>),
+      to: '/admin/refunds',
+      count: opsData.refundStats?.pending || 0,
+      countColor: 'text-purple-600 bg-purple-50',
+      desc: `${opsData.refundStats?.approved || 0} approved, ${opsData.refundStats?.completed || 0} completed`,
+      color: 'from-purple-50 to-pink-50 border-purple-200',
+    },
   ];
 
   return (
     <div>
-      {/* header */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      {/* Page header */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Good {greeting()}{user?.email ? `, ${user.email.split('@')[0]}` : ''}
+            Control Center
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Platform overview &mdash; {filter === 'all' ? 'all shops' : visibleShops[0]?.name || 'filtered shop'}
+            Good {greeting()}{user?.email ? `, ${user.email.split('@')[0]}` : ''} &mdash;
+            {filter === 'all' ? ' All shops' : visibleShops[0]?.name} overview
+            {urgentCount > 0 && <span className="ml-2 text-red-600 font-medium">· {urgentCount} item{urgentCount !== 1 ? 's' : ''} need attention</span>}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -128,22 +206,135 @@ function PlatformDashboard({ user, shopList, selectShop }) {
         </div>
       </div>
 
-      {/* stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        <StatCard label="Shops" value={fmtInt(totals.shops)} icon={'\u{1F3EA}'} color="primary" />
-        <StatCard label="Products" value={fmtInt(totals.products)} icon={'\u{1F4E6}'} color="info" />
-        <StatCard label="Orders" value={fmtInt(totals.orders)} icon={'\u{1F6D2}'} color="success" />
-        <StatCard label="Revenue" value={'৳' + fmt(totals.revenue)} icon={'\u{1F4B0}'} color="warning" />
-        <StatCard label="Customers" value={fmtInt(totals.customers)} icon={'\u{1F464}'} color="purple" />
-        <StatCard label="Users" value={fmtInt(totals.users)} icon={'\u{1F465}'} color="danger" />
+      {/* Section 1: Operations Oversight — the "Needs Attention" panel */}
+      <div className={`mb-6 rounded-2xl border bg-gradient-to-r from-red-50/80 to-amber-50/80 border-red-200/60 p-5 ${!opsLoading && urgentCount === 0 ? 'hidden' : ''}`}>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
+            <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+          </div>
+          <h2 className="text-sm font-bold text-red-800">Needs Attention</h2>
+          {urgentCount > 0 && (
+            <span className="ml-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded-full">{urgentCount}</span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {quickLinks.map((link) => {
+            const count = link.count;
+            const hasItems = link.count > 0 || link.count === 0;
+            return (
+              <button
+                key={link.to}
+                onClick={() => navigate(link.to)}
+                className={`text-left p-4 rounded-xl bg-white/80 backdrop-blur border ${link.color} hover:shadow-md hover:-translate-y-0.5 transition-all group`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${link.countColor.replace('text-', 'bg-').replace('600', '100').replace('500', '100')}`}>
+                    <span className={link.countColor}>{link.icon}</span>
+                  </div>
+                  {count > 0 && (
+                    <span className={`text-sm font-bold ${link.countColor}`}>
+                      {link.countPrefix || ''}{typeof count === 'number' ? count.toLocaleString() : count}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm font-bold text-gray-900 group-hover:text-primary-700 transition">{link.label}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{link.desc}</p>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* revenue breakdown + summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      {/* Section 2: Platform Health — top-line metrics */}
+      <div className="mb-6">
+        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Platform Health</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Shops */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition group">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-lg bg-primary-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 tabular-nums">{fmtInt(totals.shops)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Active Shops</p>
+          </div>
+          {/* Products */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition group">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 tabular-nums">{fmtInt(totals.products)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Products Listed</p>
+          </div>
+          {/* Orders */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition group">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 tabular-nums">{fmtInt(totals.orders)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Total Orders</p>
+          </div>
+          {/* Revenue */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition group">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 tabular-nums">৳{fmt(totals.revenue)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Total Revenue</p>
+          </div>
+          {/* Customers */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition group">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 tabular-nums">{fmtInt(totals.customers)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Customers</p>
+          </div>
+          {/* Pending Orders */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition group">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-lg bg-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 tabular-nums">{fmtInt(totals.pendingOrders)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Pending Orders</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Section 3: Revenue by Shop + Platform Summary side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <Card className="lg:col-span-2">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">Revenue by Shop</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Non-cancelled order totals</p>
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-gray-900">Revenue by Shop</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Non-cancelled order totals — top performers first</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/all-shops')}>All shops &rarr;</Button>
           </div>
           <div className="divide-y divide-gray-100">
             {allShops.length === 0 ? (
@@ -156,7 +347,7 @@ function PlatformDashboard({ user, shopList, selectShop }) {
                   const rev = Number(s.total_revenue || 0);
                   const pct = maxRevenue > 0 ? (rev / maxRevenue) * 100 : 0;
                   return (
-                    <div key={s.id} className="px-6 py-3.5 flex items-center gap-4 hover:bg-gray-50/80 transition">
+                    <div key={s.id} className="px-6 py-3.5 flex items-center gap-4 hover:bg-gray-50/80 transition cursor-pointer" onClick={() => { selectShop(s.id); navigate('/admin'); }}>
                       <div className="w-9 h-9 bg-primary-100 rounded-lg flex items-center justify-center text-primary-600 font-bold text-sm flex-shrink-0">
                         {s.name[0]?.toUpperCase()}
                       </div>
@@ -166,7 +357,10 @@ function PlatformDashboard({ user, shopList, selectShop }) {
                           <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: pct + '%' }} />
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900 tabular-nums">৳{fmt(rev)}</span>
+                      <div className="text-right">
+                        <span className="text-sm font-semibold text-gray-900 tabular-nums">৳{fmt(rev)}</span>
+                        <span className="ml-2 text-xs text-gray-400">{pct.toFixed(0)}%</span>
+                      </div>
                     </div>
                   );
                 })
@@ -174,49 +368,79 @@ function PlatformDashboard({ user, shopList, selectShop }) {
           </div>
         </Card>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
+          {/* Financial summary */}
           <Card>
-            <div className="p-6">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Platform Summary</h3>
+            <div className="p-5">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Financial Summary</h3>
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Total Revenue</span>
-                    <span className="text-xl font-bold text-emerald-600">৳{fmt(totals.revenue)}</span>
-                  </div>
-                  <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: Math.min(100, totals.revenue > 0 ? 70 : 0) + '%' }} />
+                    <span className="text-sm text-gray-600">Total Platform Revenue</span>
+                    <span className="text-lg font-bold text-emerald-600 tabular-nums">৳{fmt(totals.revenue)}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Avg Revenue / Shop</span>
-                  <span className="text-lg font-bold text-gray-900">
+                  <span className="text-base font-bold text-gray-900 tabular-nums">
                     ৳{totals.shops > 0 ? fmt(totals.revenue / totals.shops) : '0.00'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Avg Orders / Shop</span>
-                  <span className="text-lg font-bold text-gray-900">
+                  <span className="text-base font-bold text-gray-900 tabular-nums">
                     {totals.shops > 0 ? (totals.orders / totals.shops).toFixed(1) : '0'}
                   </span>
                 </div>
                 {topShop && (
                   <div className="pt-3 border-t border-gray-100">
-                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Top Performer</span>
-                    <p className="text-sm font-semibold text-gray-900 mt-1">{topShop.name}</p>
-                    <p className="text-xs text-emerald-600 font-medium">৳{fmt(topShop.total_revenue)} revenue</p>
+                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Top Performer</span>
+                    <button
+                      onClick={() => { selectShop(topShop.id); navigate('/admin'); }}
+                      className="flex items-center justify-between w-full mt-1 group"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{topShop.name}</p>
+                        <p className="text-xs text-emerald-600 font-medium">৳{fmt(topShop.total_revenue)}</p>
+                      </div>
+                      <svg className="w-4 h-4 text-gray-300 group-hover:text-primary-500 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    </button>
                   </div>
                 )}
               </div>
             </div>
           </Card>
+
+          {/* COD snapshot */}
+          {opsData.codSummary && (
+            <Card>
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">COD Status</h3>
+                  <button onClick={() => navigate('/admin/cod')} className="text-xs text-primary-600 hover:text-primary-700 font-medium">View details &rarr;</button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-amber-50 rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-amber-700 tabular-nums">৳{fmt(opsData.codSummary.uncollected_value || 0)}</p>
+                    <p className="text-xs text-amber-600 mt-0.5">Uncollected</p>
+                  </div>
+                  <div className="bg-emerald-50 rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-emerald-700 tabular-nums">৳{fmt(opsData.codSummary.collected_value || 0)}</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">Collected</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Account info */}
           <Card>
-            <div className="p-6">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Account</h3>
+            <div className="p-5">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Your Account</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Email</span>
-                  <span className="font-medium text-gray-900 truncate ml-2">{user?.email}</span>
+                  <span className="font-medium text-gray-900 truncate ml-2 max-w-[180px]">{user?.email}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Role</span>
@@ -228,14 +452,16 @@ function PlatformDashboard({ user, shopList, selectShop }) {
         </div>
       </div>
 
-      {/* shop breakdown table */}
-      <Card className="mb-8">
+      {/* Section 4: Shop Performance Table */}
+      <Card className="mb-6">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-gray-900">Shop Performance</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{visibleShops.length} shop{visibleShops.length !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{visibleShops.length} shop{visibleShops.length !== 1 ? 's' : ''} · click any shop to switch context</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/admin/all-shops')}>Manage &rarr;</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/all-shops')}>Manage All &rarr;</Button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -245,17 +471,16 @@ function PlatformDashboard({ user, shopList, selectShop }) {
                 <th className="text-center px-4 py-3 font-medium text-gray-500">Status</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-500">Products</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-500">Orders</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Customers</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-500">Revenue</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-500">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {visibleShops.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">No shops match your criteria.</td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-gray-400">No shops match your criteria.</td></tr>
               ) : (
                 visibleShops.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50/60 transition">
+                  <tr key={s.id} className="hover:bg-primary-50/40 transition cursor-pointer" onClick={() => { selectShop(s.id); navigate('/admin'); }}>
                     <td className="px-6 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center text-primary-600 font-bold text-xs flex-shrink-0">
@@ -272,12 +497,11 @@ function PlatformDashboard({ user, shopList, selectShop }) {
                     </td>
                     <td className="text-right px-4 py-3 font-medium tabular-nums">{fmtInt(s.product_count)}</td>
                     <td className="text-right px-4 py-3 font-medium tabular-nums">{fmtInt(s.order_count)}</td>
-                    <td className="text-right px-4 py-3 font-medium tabular-nums">{fmtInt(s.customer_count)}</td>
                     <td className="text-right px-4 py-3 font-semibold text-emerald-600 tabular-nums">৳{fmt(s.total_revenue)}</td>
                     <td className="text-center px-4 py-3">
                       <button
-                        onClick={() => { selectShop(s.id); navigate('/admin'); }}
-                        className="text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                        onClick={(e) => { e.stopPropagation(); selectShop(s.id); navigate('/admin'); }}
+                        className="text-xs font-semibold text-primary-600 hover:text-primary-800 transition"
                       >
                         Switch &rarr;
                       </button>
@@ -290,13 +514,20 @@ function PlatformDashboard({ user, shopList, selectShop }) {
         </div>
       </Card>
 
-      {/* quick actions */}
-      <div className="mb-2">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Quick Actions</h2>
+      {/* Section 5: Quick Access */}
+      <div>
+        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Quick Access</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {quickActions.map((a) => (
-            <button key={a.to + a.label} onClick={() => navigate(a.to)} className="text-left p-4 bg-white rounded-xl border border-gray-200 hover:border-primary-200 hover:shadow-md transition-all group">
-              <span className="text-2xl block mb-2 group-hover:scale-110 transition-transform inline-block">{a.icon}</span>
+          {[
+            { label: 'All Shops', icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>), to: '/admin/all-shops', desc: 'Manage every shop' },
+            { label: 'All Orders', icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>), to: '/admin/orders', desc: 'Browse all orders' },
+            { label: 'All Users', icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>), to: '/admin/all-users', desc: 'Platform user management' },
+            { label: 'Delivery Control', icon: (<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>), to: '/admin/operations', desc: 'Fulfillment & deliveries' },
+          ].map((a) => (
+            <button key={a.to} onClick={() => navigate(a.to)} className="text-left p-4 bg-white rounded-xl border border-gray-200 hover:border-primary-200 hover:shadow-md transition-all group">
+              <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 group-hover:bg-primary-100 group-hover:text-primary-600 transition mb-3">
+                {a.icon}
+              </div>
               <p className="text-sm font-semibold text-gray-900">{a.label}</p>
               <p className="text-xs text-gray-500 mt-0.5">{a.desc}</p>
             </button>
