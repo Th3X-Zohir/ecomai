@@ -1,4 +1,10 @@
-const API_BASE = '/v1';
+function resolveApiBase() {
+  const raw = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+  if (!raw) return '/v1';
+  return raw.endsWith('/v1') ? raw : `${raw}/v1`;
+}
+
+const API_BASE = resolveApiBase();
 
 let accessToken = localStorage.getItem('accessToken');
 let refreshToken = localStorage.getItem('refreshToken');
